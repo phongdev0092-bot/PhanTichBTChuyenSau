@@ -1,0 +1,9 @@
+INFO:app:\U0001f680 MYBAE AUTO Dashboard kh\u1edfi \u0111\u1ed9ng t\u1ea1i http://localhost:5000
+INFO:werkzeug:WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.167:5000
+INFO:werkzeug:Press CTRL+C to quit
+INFO:werkzeug:127.0.0.1 - - [09/Sep/2026 16:59:13] "GET / HTTP/1.1" 200 -
+INFO:sheet_reader:Sheet: 69806 dong, 49 cot
+INFO:werkzeug:127.0.0.1 - - [09/Sep/2026 16:59:31] "GET /api/employees HTTP/1.1" 200 -

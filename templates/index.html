@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MYBAE AUTO – Dashboard Đánh Giá Hợp Đồng</title>
+  <meta name="description" content="Dashboard tự động đánh giá và cảnh báo hợp đồng FPT Telecom"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<!-- PARTICLES BACKGROUND -->
+<div id="particles"></div>
+
+<!-- APP SHELL -->
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo-wrap">
+        <div class="logo-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div>
+          <span class="logo-title">MYBAE AUTO</span>
+          <span class="logo-sub">FPT Telecom Dashboard</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="loginBadge" class="badge badge-idle">
+        <span class="dot"></span><span id="loginText">Chua dang nhap</span>
+      </div>
+      <button id="btnLogin" class="btn btn-primary" onclick="doLogin()">
+        <i class="fa-solid fa-key"></i> Dang nhap he thong
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- CARD: BO LOC -->
+    <div class="card filter-card">
+      <div class="card-header">
+        <i class="fa-solid fa-filter-circle-xmark"></i>
+        <h2>Loc Hop Dong</h2>
+        <span class="chip">Today-1 &amp; Today-2</span>
+      </div>
+
+      <div class="card-body">
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="searchInput" type="text" placeholder="Tim nhan vien..."
+                 oninput="filterEmployees()" autocomplete="off"/>
+          <span id="selectedCount" class="selected-count">0 da chon</span>
+        </div>
+
+        <div id="employeeList" class="employee-list">
+          <div class="loading-state">
+            <i class="fa-solid fa-spinner fa-spin"></i> Dang tai danh sach...
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <button class="btn btn-ghost btn-sm" onclick="selectAll()">
+            <i class="fa-solid fa-check-double"></i> Chon tat ca
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="clearAll()">
+            <i class="fa-solid fa-xmark"></i> Bo chon
+          </button>
+          <button id="btnFilter" class="btn btn-accent" onclick="doFilter()" disabled>
+            <i class="fa-solid fa-magnifying-glass-chart"></i> Chay Phan Tich
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROGRESS BAR -->
+    <div id="progressWrap" class="progress-wrap hidden">
+      <div class="progress-header">
+        <span id="progressText">Dang phan tich...</span>
+        <span id="progressCount">0 / 0</span>
+      </div>
+      <div class="progress-track">
+        <div id="progressBar" class="progress-bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- KET QUA CHAN DOAN - 3 STATS -->
+    <div id="statsRow" class="stats-section hidden">
+      <div class="stats-section-header">
+        <i class="fa-solid fa-stethoscope"></i>
+        <h3>Ket Qua Chan Doan</h3>
+        <div class="total-badge">
+          <i class="fa-solid fa-file-contract"></i>
+          <span>Tong: <strong id="statTotal">0</strong> hop dong</span>
+        </div>
+      </div>
+      <div class="stats-grid">
+
+        <!-- Xu ly tu dong -->
+        <div class="stat-card stat-auto" id="filterAuto" onclick="filterTable('auto')">
+          <div class="stat-card-glow glow-blue"></div>
+          <div class="stat-icon blue"><i class="fa-solid fa-robot"></i></div>
+          <div class="stat-content">
+            <div id="statAuto" class="stat-num">0</div>
+            <div class="stat-label">Xu ly tu dong</div>
+            <div class="stat-desc">Loi duoc he thong tu xu ly</div>
+          </div>
+          <i class="fa-solid fa-chevron-right stat-arrow"></i>
+        </div>
+
+        <!-- Can xu ly -->
+        <div class="stat-card stat-need" id="filterNeed" onclick="filterTable('need')">
+          <div class="stat-card-glow glow-red"></div>
+          <div class="stat-icon red"><i class="fa-solid fa-wrench"></i></div>
+          <div class="stat-content">
+            <div id="statError" class="stat-num">0</div>
+            <div class="stat-label">Can xu ly</div>
+            <div class="stat-desc">Can nhan vien can thiep</div>
+          </div>
+          <i class="fa-solid fa-chevron-right stat-arrow"></i>
+        </div>
+
+        <!-- Canh bao -->
+        <div class="stat-card stat-warn" id="filterWarn" onclick="filterTable('warn')">
+          <div class="stat-card-glow glow-yellow"></div>
+          <div class="stat-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="stat-content">
+            <div id="statWarn" class="stat-num">0</div>
+            <div class="stat-label">Canh bao</div>
+            <div class="stat-desc">Can theo doi them</div>
+          </div>
+          <i class="fa-solid fa-chevron-right stat-arrow"></i>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- KET QUA TABLE CHI TIET -->
+    <div id="resultCard" class="card result-card hidden">
+      <div class="card-header">
+        <i class="fa-solid fa-table-list"></i>
+        <h2>Chi Tiet Phan Tich</h2>
+        <div class="card-header-actions">
+          <span id="activeFilter" class="filter-chip hidden"></span>
+          <button class="btn btn-ghost btn-sm" onclick="clearFilter()">
+            <i class="fa-solid fa-filter-slash"></i> Tat ca
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
+            <i class="fa-solid fa-file-csv"></i> Xuat CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Group column headers -->
+      <div class="table-group-header">
+        <div class="tgh-base">Thong tin co ban</div>
+        <div class="tgh-diag">
+          <i class="fa-solid fa-stethoscope"></i> Ket qua chan doan
+        </div>
+        <div class="tgh-sys">
+          <i class="fa-solid fa-server"></i> Thong so he thong
+        </div>
+        <div class="tgh-modem">
+          <i class="fa-solid fa-wifi"></i> Thong so modem
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table id="resultTable">
+          <thead>
+            <tr>
+              <th class="col-num">#</th>
+              <th class="col-hd">So HD</th>
+              <th class="col-nv">Nhan Vien</th>
+              <th class="col-date">TG Hoan Tat</th>
+              <!-- Chan doan - 3 cot chinh -->
+              <th class="col-diag col-auto-h">
+                <i class="fa-solid fa-robot th-icon icon-blue"></i> Xu ly tu dong
+              </th>
+              <th class="col-diag col-need-h">
+                <i class="fa-solid fa-wrench th-icon icon-red"></i> Can xu ly
+              </th>
+              <th class="col-diag col-warn-h">
+                <i class="fa-solid fa-triangle-exclamation th-icon icon-yellow"></i> Canh bao
+              </th>
+              <!-- Thong so he thong -->
+              <th class="col-sys">
+                <i class="fa-solid fa-signal th-icon icon-teal"></i> Cong suat thu
+              </th>
+              <th class="col-sys">
+                <i class="fa-solid fa-plug-circle-xmark th-icon icon-teal"></i> So lan rot KN
+              </th>
+              <!-- Thong so modem -->
+              <th class="col-modem">
+                <i class="fa-solid fa-microchip th-icon icon-purple"></i> Loai modem
+              </th>
+              <th class="col-modem">
+                <i class="fa-solid fa-code-branch th-icon icon-purple"></i> Phien ban PM
+              </th>
+              <th class="col-modem">
+                <i class="fa-solid fa-network-wired th-icon icon-purple"></i> DNS WAN
+              </th>
+            </tr>
+          </thead>
+          <tbody id="resultBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<script>
+let allEmployees = [];
+let selectedEmployees = new Set();
+let allResults = [];
+let sseSource = null;
+let currentFilter = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  createParticles();
+  loadEmployees();
+  pollLoginStatus();
+});
+
+function createParticles() {
+  const container = document.getElementById("particles");
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    p.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${Math.random()*4+1}px;height:${Math.random()*4+1}px;animation-delay:${Math.random()*8}s;animation-duration:${Math.random()*10+6}s;opacity:${Math.random()*0.4+0.1};`;
+    container.appendChild(p);
+  }
+}
+
+async function loadEmployees() {
+  try {
+    const r = await fetch("/api/employees");
+    const d = await r.json();
+    if (d.success) { allEmployees = d.employees; renderEmployees(allEmployees); }
+    else document.getElementById("employeeList").innerHTML = `<div class="error-state"><i class="fa-solid fa-circle-exclamation"></i> ${d.error}</div>`;
+  } catch(e) {
+    document.getElementById("employeeList").innerHTML = `<div class="error-state"><i class="fa-solid fa-wifi"></i> Loi ket noi server</div>`;
+  }
+}
+
+function renderEmployees(list) {
+  const el = document.getElementById("employeeList");
+  if (!list.length) { el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-users-slash"></i> Khong co nhan vien nao</div>`; return; }
+  el.innerHTML = list.map(name => `
+    <label class="emp-item ${selectedEmployees.has(name)?"selected":""}" data-name="${name}">
+      <div class="emp-checkbox ${selectedEmployees.has(name)?"checked":""}"><i class="fa-solid fa-check"></i></div>
+      <span class="emp-name">${name}</span>
+    </label>`).join("");
+  el.querySelectorAll(".emp-item").forEach(item => item.addEventListener("click", () => toggleEmployee(item.dataset.name)));
+}
+
+function filterEmployees() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  renderEmployees(allEmployees.filter(n => n.toLowerCase().includes(q)));
+}
+
+function toggleEmployee(name) {
+  if (selectedEmployees.has(name)) selectedEmployees.delete(name);
+  else selectedEmployees.add(name);
+  updateSelectedCount(); filterEmployees();
+  document.getElementById("btnFilter").disabled = selectedEmployees.size === 0;
+}
+
+function selectAll() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  allEmployees.filter(n => n.toLowerCase().includes(q)).forEach(n => selectedEmployees.add(n));
+  updateSelectedCount(); filterEmployees();
+  document.getElementById("btnFilter").disabled = false;
+}
+
+function clearAll() {
+  selectedEmployees.clear(); updateSelectedCount(); filterEmployees();
+  document.getElementById("btnFilter").disabled = true;
+}
+
+function updateSelectedCount() {
+  document.getElementById("selectedCount").textContent = `${selectedEmployees.size} da chon`;
+}
+
+async function doLogin() {
+  setBadge("pending","Dang dang nhap...");
+  document.getElementById("btnLogin").disabled = true;
+  try { await fetch("/api/login",{method:"POST"}); showToast("Dang dang nhap, doc OTP tu email...","info"); }
+  catch(e) { showToast("Loi ket noi","error"); }
+}
+
+function pollLoginStatus() {
+  setInterval(async () => {
+    const r = await fetch("/api/login_status");
+    const d = await r.json();
+    if (d.status==="ok") { setBadge("ok","Da dang nhap"); document.getElementById("btnLogin").style.display="none"; }
+    else if (d.status==="error") { setBadge("error","Dang nhap that bai"); document.getElementById("btnLogin").disabled=false; }
+    else if (d.status==="pending") { setBadge("pending","Dang dang nhap..."); }
+  }, 3000);
+}
+
+function setBadge(type,text) {
+  document.getElementById("loginBadge").className = `badge badge-${type}`;
+  document.getElementById("loginText").textContent = text;
+}
+
+async function doFilter() {
+  if (!selectedEmployees.size) return;
+  allResults = []; currentFilter = null;
+  document.getElementById("resultBody").innerHTML = "";
+  ["resultCard","progressWrap","statsRow"].forEach(id => document.getElementById(id).classList.remove("hidden"));
+  clearFilter();
+  setProgress(0,0,"Dang lay danh sach hop dong...");
+  try {
+    const r = await fetch("/api/filter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({employees:[...selectedEmployees]})});
+    const d = await r.json();
+    if (!d.success) { showToast("Loi: "+d.error,"error"); return; }
+    if (d.total===0) { showToast(d.message,"info"); document.getElementById("progressWrap").classList.add("hidden"); return; }
+    showToast(`Phan tich ${d.total} hop dong...`,"info");
+    startSSE();
+  } catch(e) { showToast("Loi ket noi server","error"); }
+}
+
+function startSSE() {
+  if (sseSource) sseSource.close();
+  sseSource = new EventSource("/api/progress");
+  sseSource.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    setProgress(d.progress,d.total,d.message);
+    if (d.new_results && d.new_results.length) {
+      d.new_results.forEach(res => { allResults.push(res); if (!currentFilter) appendRowTo(document.getElementById("resultBody"),res,allResults.length); });
+      updateStats();
+    }
+    if (!d.running) { sseSource.close(); showToast("Hoan tat: "+d.message,"success"); document.getElementById("progressWrap").classList.add("hidden"); }
+  };
+  sseSource.onerror = () => sseSource.close();
+}
+
+function setProgress(current,total,message) {
+  document.getElementById("progressText").textContent = message;
+  document.getElementById("progressCount").textContent = total>0?`${current} / ${total}`:"";
+  document.getElementById("progressBar").style.width = (total>0?current/total*100:0)+"%";
+}
+
+function filterTable(type) {
+  if (currentFilter===type) { clearFilter(); return; }
+  currentFilter = type;
+  document.querySelectorAll(".stat-card").forEach(c => c.classList.remove("active"));
+  document.getElementById({auto:"filterAuto",need:"filterNeed",warn:"filterWarn"}[type]).classList.add("active");
+  const labels = {auto:"Xu ly tu dong",need:"Can xu ly",warn:"Canh bao"};
+  const chip = document.getElementById("activeFilter");
+  chip.textContent = "Loc: " + labels[type];
+  chip.classList.remove("hidden");
+  renderFilteredRows();
+}
+
+function clearFilter() {
+  currentFilter = null;
+  document.querySelectorAll(".stat-card").forEach(c => c.classList.remove("active"));
+  document.getElementById("activeFilter").classList.add("hidden");
+  renderFilteredRows();
+}
+
+function renderFilteredRows() {
+  const tbody = document.getElementById("resultBody");
+  tbody.innerHTML = "";
+  let list = allResults;
+  if (currentFilter==="auto") list = allResults.filter(r => r.xu_ly_loi_tu_dong && r.xu_ly_loi_tu_dong!=="—");
+  if (currentFilter==="need") list = allResults.filter(r => r.can_xu_ly && r.can_xu_ly!=="—");
+  if (currentFilter==="warn") list = allResults.filter(r => r.canh_bao && r.canh_bao!=="—");
+  list.forEach((res,i) => appendRowTo(tbody,res,i+1));
+}
+
+function appendRowTo(tbody,res,idx) {
+  const hasNeed = res.can_xu_ly && res.can_xu_ly!=="—";
+  const hasWarn = res.canh_bao && res.canh_bao!=="—";
+  let rowClass = res.status==="error" ? "row-error" : (hasNeed ? "row-need" : (hasWarn ? "row-warn" : ""));
+  const tr = document.createElement("tr");
+  tr.className = rowClass;
+  tr.innerHTML = `
+    <td class="td-num">${idx}</td>
+    <td class="td-hd"><strong>${esc(res.so_hd)}</strong></td>
+    <td>${esc(res.nhan_vien||"")}</td>
+    <td class="td-date">${esc(res.tg_hoan_tat||"")}</td>
+    <td class="td-badge">${badge("auto",res.xu_ly_loi_tu_dong)}</td>
+    <td class="td-badge">${badge("warn",res.can_xu_ly)}</td>
+    <td class="td-badge">${badge("info",res.canh_bao)}</td>
+    <td class="td-sys-cell">${signalVal(res.cong_suat_thu)}</td>
+    <td class="td-sys-cell">${dropCount(res.so_lan_rot)}</td>
+    <td class="td-modem-cell">${esc(res.loai_modem||"—")}</td>
+    <td class="td-modem-cell td-small">${esc(res.phien_ban_pm||"—")}</td>
+    <td class="td-modem-cell">${esc(res.dns_wan||"—")}</td>`;
+  tbody.appendChild(tr);
+}
+
+function badge(type,text) {
+  if (!text||text==="—") return `<span class="tag tag-empty">—</span>`;
+  return `<span class="tag tag-${type}" title="${esc(text)}">${esc(truncate(text,40))}</span>`;
+}
+
+function signalVal(val) {
+  if (!val||val==="—") return `<span class="td-muted">—</span>`;
+  const num = parseFloat(val);
+  let cls = "signal-ok";
+  if (!isNaN(num)) { if (num<-25) cls="signal-bad"; else if (num<-20) cls="signal-warn"; }
+  return `<span class="${cls}">${esc(val)} dBm</span>`;
+}
+
+function dropCount(val) {
+  if (!val||val==="—") return `<span class="td-muted">—</span>`;
+  const num = parseInt(val);
+  return (!isNaN(num)&&num>0) ? `<span class="drop-badge">${esc(val)}</span>` : `<span class="signal-ok">${esc(val)}</span>`;
+}
+
+function truncate(s,n) { return s.length>n?s.substring(0,n)+"…":s; }
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function updateStats() {
+  const total = allResults.length;
+  const warn  = allResults.filter(r=>r.canh_bao&&r.canh_bao!=="—").length;
+  const need  = allResults.filter(r=>r.can_xu_ly&&r.can_xu_ly!=="—").length;
+  const auto  = allResults.filter(r=>r.xu_ly_loi_tu_dong&&r.xu_ly_loi_tu_dong!=="—").length;
+  document.getElementById("statTotal").textContent = total;
+  document.getElementById("statWarn").textContent  = warn;
+  document.getElementById("statError").textContent = need;
+  document.getElementById("statAuto").textContent  = auto;
+}
+
+function exportCSV() {
+  if (!allResults.length) return;
+  const headers = ["So HD","Nhan Vien","TG Hoan Tat","Xu ly tu dong","Can xu ly","Canh bao","Cong suat thu","So lan rot","Loai modem","Phien ban PM","DNS WAN"];
+  const rows = allResults.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,r.phien_ban_pm,r.dns_wan].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
+  const csv = [headers.join(","),...rows.map(r=>r.join(","))].join("\n");
+  const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `mybae_${new Date().toLocaleDateString("vi")}.csv`;
+  a.click();
+}
+
+let toastTimer;
+function showToast(msg,type="info") {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = `toast toast-${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"),4000);
+}
+</script>
+</body>
+</html>
