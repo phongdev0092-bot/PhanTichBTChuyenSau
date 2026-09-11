@@ -7,8 +7,14 @@ echo =====================================================
 echo          MYBAE AUTO DASHBOARD - FPT Telecom
 echo =====================================================
 echo.
-echo [*] Dang khoi dong Web Dashboard...
-echo [*] Trinh duyet se tu dong mo http://localhost:5000
+
+if not exist cloudflared.exe (
+    echo [*] Dang tai Cloudflare Tunnel (Mien phi 100%%)...
+    curl.exe -L -o cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
+)
+
+echo [*] Dang khoi dong Web Dashboard va khoi tao duong link Online truy cap tu xa...
+echo [*] Trinh duyet local: http://localhost:5000
 echo.
 
 python app.py
@@ -20,3 +26,4 @@ if errorlevel 1 (
 )
 
 pause
+

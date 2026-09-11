@@ -29,6 +29,9 @@
       </div>
     </div>
     <div class="header-right">
+      <div id="tunnelBadge" class="badge badge-idle hidden" style="background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);color:var(--blue);cursor:pointer;" onclick="copyTunnelUrl()" title="Bấm để sao chép đường link truy cập từ xa">
+        <i class="fa-solid fa-globe"></i> <span id="tunnelText">Link Online...</span>
+      </div>
       <div id="loginBadge" class="badge badge-idle">
         <span class="dot"></span><span id="loginText">Chưa đăng nhập</span>
       </div>
@@ -392,8 +395,34 @@ document.addEventListener("DOMContentLoaded", () => {
   createParticles();
   loadEmployees();
   pollLoginStatus();
+  checkTunnelUrl();
+  setInterval(checkTunnelUrl, 4000);
   setPresetDate('3days');
 });
+
+async function checkTunnelUrl() {
+  try {
+    const r = await fetch("/api/tunnel_url");
+    const d = await r.json();
+    if (d.url) {
+      const b = document.getElementById("tunnelBadge");
+      const t = document.getElementById("tunnelText");
+      if (b && t) {
+        t.textContent = "🌐 Online: " + d.url;
+        b.classList.remove("hidden");
+        b.dataset.url = d.url;
+      }
+    }
+  } catch(e) {}
+}
+
+function copyTunnelUrl() {
+  const b = document.getElementById("tunnelBadge");
+  if (b && b.dataset.url) {
+    navigator.clipboard.writeText(b.dataset.url);
+    showToast("Đã sao chép đường link Online: " + b.dataset.url, "success");
+  }
+}
 
 function switchTab(tabId) {
   document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));

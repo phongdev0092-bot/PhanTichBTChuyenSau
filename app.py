@@ -28,14 +28,48 @@ _job_results   = []
 _job_progress  = 0
 _job_total     = 0
 _job_running   = False
-_job_status    = "idle"   # idle | logging_in | running | done | error
-_job_message   = ""
 _login_status  = "unknown"
+_login_message = ""
+_tunnel_url     = ""
+
+
+def start_cloudflare_tunnel():
+    global _tunnel_url
+    cloudflared_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloudflared.exe")
+    if not os.path.exists(cloudflared_path):
+        return
+
+    import subprocess
+    import re
+    log.info("🌐 Đang kết nối Cloudflare Tunnel tạo link truy cập từ xa...")
+    try:
+        proc = subprocess.Popen(
+            [cloudflared_path, "tunnel", "--url", f"http://localhost:{FLASK_PORT}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            encoding="utf-8",
+            errors="ignore"
+        )
+        for line in proc.stdout:
+            match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
+            if match:
+                _tunnel_url = match.group(0)
+                log.info(f"\n{'='*65}\n🌐 LINK TRUY CẬP TỪ XA ONLINE (MỞ BẰNG ĐIỆN THOẠI / LAPTOP BẤT KỲ):\n👉 {_tunnel_url}\n{'='*65}\n")
+                break
+    except Exception as e:
+        log.warning(f"Lỗi khởi chạy Cloudflare Tunnel: {e}")
 
 
 # ─────────────────────────────────────────────
 #  ROUTES
 # ─────────────────────────────────────────────
+
+@app.route("/api/tunnel_url")
+def api_tunnel_url():
+    return jsonify({"url": _tunnel_url})
+
 
 @app.route("/")
 def index():
@@ -368,6 +402,10 @@ def api_logout():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", FLASK_PORT))
     log.info(f"🚀 MYBAE AUTO Dashboard khởi động tại http://0.0.0.0:{port}")
+    
+    # Start Cloudflare Tunnel thread
+    threading.Thread(target=start_cloudflare_tunnel, daemon=True).start()
+
     if os.environ.get("OPEN_BROWSER", "true").lower() == "true":
         def open_browser():
             time.sleep(1.2)
