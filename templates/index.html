@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MYBAE AUTO – Dashboard Đánh Giá Hợp Đồng</title>
   <meta name="description" content="Dashboard tự động đánh giá và cảnh báo hợp đồng FPT Telecom"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
 
-<!-- PARTICLES BACKGROUND -->
+<!-- PARTICLES BACKGROUND (HIDDEN IN LIGHT THEME) -->
 <div id="particles"></div>
 
 <!-- APP SHELL -->
 <div class="app">
 
-  <!-- HEADER -->
+  <!-- HEADER / APPBAR -->
   <header class="header">
     <div class="header-left">
       <div class="logo-wrap">
@@ -29,7 +29,7 @@
       </div>
     </div>
     <div class="header-right">
-      <div id="tunnelBadge" class="badge badge-idle hidden" style="background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);color:var(--blue);cursor:pointer;" onclick="copyTunnelUrl()" title="Bấm để sao chép đường link truy cập từ xa">
+      <div id="tunnelBadge" class="badge badge-idle hidden" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0284c7;cursor:pointer;" onclick="copyTunnelUrl()" title="Bấm để sao chép đường link truy cập từ xa">
         <i class="fa-solid fa-globe"></i> <span id="tunnelText">Link Online...</span>
       </div>
       <div id="loginBadge" class="badge badge-idle">
@@ -210,7 +210,7 @@
           <div class="tgh-modem">
             <i class="fa-solid fa-wifi"></i> Thông số modem
           </div>
-          <div class="tgh-doichieu" style="background:rgba(251,191,36,.1);color:var(--yellow);padding:6px 12px;border-radius:6px;font-weight:600;">
+          <div class="tgh-doichieu" style="background:#fffbeb;color:#d97706;padding:6px 12px;border-radius:6px;font-weight:700;">
             <i class="fa-solid fa-magnifying-glass-chart"></i> Đối chiếu chuyên sâu
           </div>
         </div>
@@ -258,6 +258,9 @@
             <tbody id="resultBody"></tbody>
           </table>
         </div>
+
+        <!-- MUI TABLE PAGINATION FOR ANALYSIS RESULTS -->
+        <div id="resultPagination" class="mui-pagination-wrap hidden"></div>
       </div>
 
     </div>
@@ -281,6 +284,8 @@
           <div id="historyList" class="history-list">
             <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải lịch sử...</div>
           </div>
+          <!-- MUI PAGINATION FOR HISTORY -->
+          <div id="historyPagination" class="mui-pagination-wrap hidden"></div>
         </div>
       </div>
     </div>
@@ -292,7 +297,7 @@
         <!-- KPI OVERVIEW -->
         <div class="analytics-cards-grid">
           <div class="analytics-card">
-            <div class="analytics-card-icon" style="background:rgba(56,189,248,.15);color:var(--blue)">
+            <div class="analytics-card-icon" style="background:#e0f2fe;color:var(--blue)">
               <i class="fa-solid fa-layer-group"></i>
             </div>
             <div>
@@ -302,7 +307,7 @@
           </div>
 
           <div class="analytics-card">
-            <div class="analytics-card-icon" style="background:rgba(249,115,22,.15);color:var(--accent1)">
+            <div class="analytics-card-icon" style="background:#fff7ed;color:var(--accent)">
               <i class="fa-solid fa-file-contract"></i>
             </div>
             <div>
@@ -312,7 +317,7 @@
           </div>
 
           <div class="analytics-card">
-            <div class="analytics-card-icon" style="background:rgba(248,113,113,.15);color:var(--red)">
+            <div class="analytics-card-icon" style="background:#fef2f2;color:var(--error)">
               <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
             <div>
@@ -322,7 +327,7 @@
           </div>
 
           <div class="analytics-card">
-            <div class="analytics-card-icon" style="background:rgba(167,139,250,.15);color:var(--purple)">
+            <div class="analytics-card-icon" style="background:#f5f3ff;color:var(--purple)">
               <i class="fa-solid fa-user-gear"></i>
             </div>
             <div>
@@ -390,6 +395,13 @@ let allResults = [];
 let historyRuns = [];
 let sseSource = null;
 let currentFilter = null;
+
+// Pagination state
+let analysisCurrentPage = 1;
+let analysisRowsPerPage = 10;
+
+let historyCurrentPage = 1;
+let historyRowsPerPage = 5;
 
 document.addEventListener("DOMContentLoaded", () => {
   createParticles();
@@ -484,15 +496,7 @@ function onDateInputChange() {
   document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
 }
 
-function createParticles() {
-  const container = document.getElementById("particles");
-  for (let i = 0; i < 60; i++) {
-    const p = document.createElement("div");
-    p.className = "particle";
-    p.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${Math.random()*4+1}px;height:${Math.random()*4+1}px;animation-delay:${Math.random()*8}s;animation-duration:${Math.random()*10+6}s;opacity:${Math.random()*0.4+0.1};`;
-    container.appendChild(p);
-  }
-}
+function createParticles() { }
 
 async function loadEmployees() {
   try {
@@ -553,11 +557,13 @@ async function doLogin() {
 
 function pollLoginStatus() {
   setInterval(async () => {
-    const r = await fetch("/api/login_status");
-    const d = await r.json();
-    if (d.status==="ok") { setBadge("ok","Đã đăng nhập"); document.getElementById("btnLogin").style.display="none"; }
-    else if (d.status==="error") { setBadge("error","Đăng nhập thất bại"); document.getElementById("btnLogin").disabled=false; }
-    else if (d.status==="pending") { setBadge("pending","Đang đăng nhập..."); }
+    try {
+      const r = await fetch("/api/login_status");
+      const d = await r.json();
+      if (d.status==="ok") { setBadge("ok","Đã đăng nhập"); document.getElementById("btnLogin").style.display="none"; }
+      else if (d.status==="error") { setBadge("error","Đăng nhập thất bại"); document.getElementById("btnLogin").disabled=false; }
+      else if (d.status==="pending") { setBadge("pending","Đang đăng nhập..."); }
+    } catch(e) {}
   }, 3000);
 }
 
@@ -569,6 +575,7 @@ function setBadge(type,text) {
 async function doFilter() {
   if (!selectedEmployees.size) return;
   allResults = []; currentFilter = null;
+  analysisCurrentPage = 1;
   document.getElementById("resultBody").innerHTML = "";
   ["resultCard","progressWrap","statsRow"].forEach(id => document.getElementById(id).classList.remove("hidden"));
   clearFilter();
@@ -602,7 +609,8 @@ function startSSE() {
     const d = JSON.parse(e.data);
     setProgress(d.progress,d.total,d.message);
     if (d.new_results && d.new_results.length) {
-      d.new_results.forEach(res => { allResults.push(res); if (!currentFilter) appendRowTo(document.getElementById("resultBody"),res,allResults.length); });
+      d.new_results.forEach(res => { allResults.push(res); });
+      renderFilteredRows();
       updateStats();
     }
     if (!d.running) {
@@ -623,6 +631,7 @@ function setProgress(current,total,message) {
 function filterTable(type) {
   if (currentFilter===type) { clearFilter(); return; }
   currentFilter = type;
+  analysisCurrentPage = 1;
   document.querySelectorAll(".stat-card").forEach(c => c.classList.remove("active"));
   document.getElementById({auto:"filterAuto",need:"filterNeed",warn:"filterWarn"}[type]).classList.add("active");
   const labels = {auto:"Xử lý tự động",need:"Cần xử lý",warn:"Cảnh báo"};
@@ -634,19 +643,87 @@ function filterTable(type) {
 
 function clearFilter() {
   currentFilter = null;
+  analysisCurrentPage = 1;
   document.querySelectorAll(".stat-card").forEach(c => c.classList.remove("active"));
   document.getElementById("activeFilter").classList.add("hidden");
   renderFilteredRows();
 }
 
+function getFilteredResults() {
+  if (currentFilter==="auto") return allResults.filter(r => r.xu_ly_loi_tu_dong && r.xu_ly_loi_tu_dong!=="—");
+  if (currentFilter==="need") return allResults.filter(r => r.can_xu_ly && r.can_xu_ly!=="—");
+  if (currentFilter==="warn") return allResults.filter(r => r.canh_bao && r.canh_bao!=="—");
+  return allResults;
+}
+
 function renderFilteredRows() {
+  const list = getFilteredResults();
+  const totalItems = list.length;
+  const totalPages = Math.ceil(totalItems / analysisRowsPerPage) || 1;
+
+  if (analysisCurrentPage > totalPages) analysisCurrentPage = totalPages;
+  if (analysisCurrentPage < 1) analysisCurrentPage = 1;
+
+  const startIdx = (analysisCurrentPage - 1) * analysisRowsPerPage;
+  const pageItems = list.slice(startIdx, startIdx + analysisRowsPerPage);
+
   const tbody = document.getElementById("resultBody");
   tbody.innerHTML = "";
-  let list = allResults;
-  if (currentFilter==="auto") list = allResults.filter(r => r.xu_ly_loi_tu_dong && r.xu_ly_loi_tu_dong!=="—");
-  if (currentFilter==="need") list = allResults.filter(r => r.can_xu_ly && r.can_xu_ly!=="—");
-  if (currentFilter==="warn") list = allResults.filter(r => r.canh_bao && r.canh_bao!=="—");
-  list.forEach((res,i) => appendRowTo(tbody,res,i+1));
+  pageItems.forEach((res,i) => appendRowTo(tbody, res, startIdx + i + 1));
+
+  renderAnalysisPagination(totalItems, totalPages);
+}
+
+function renderAnalysisPagination(totalItems, totalPages) {
+  const container = document.getElementById("resultPagination");
+  if (!container) return;
+  if (totalItems === 0) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+
+  const startNum = (analysisCurrentPage - 1) * analysisRowsPerPage + 1;
+  const endNum = Math.min(analysisCurrentPage * analysisRowsPerPage, totalItems);
+
+  let pageBtns = '';
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= analysisCurrentPage - 1 && p <= analysisCurrentPage + 1)) {
+      pageBtns += `<button class="mui-page-btn ${p === analysisCurrentPage ? 'active' : ''}" onclick="changeAnalysisPage(${p})">${p}</button>`;
+    } else if (p === analysisCurrentPage - 2 || p === analysisCurrentPage + 2) {
+      pageBtns += `<span style="padding: 0 4px; color: var(--text-muted);">...</span>`;
+    }
+  }
+
+  container.innerHTML = `
+    <div class="mui-pagination-left">
+      <span>Hiển thị</span>
+      <select class="mui-pagination-select" onchange="changeAnalysisRowsPerPage(this.value)">
+        <option value="10" ${analysisRowsPerPage == 10 ? 'selected' : ''}>10</option>
+        <option value="25" ${analysisRowsPerPage == 25 ? 'selected' : ''}>25</option>
+        <option value="50" ${analysisRowsPerPage == 50 ? 'selected' : ''}>50</option>
+        <option value="100" ${analysisRowsPerPage == 100 ? 'selected' : ''}>100</option>
+      </select>
+      <span>dòng mỗi trang</span>
+    </div>
+    <div class="mui-pagination-right">
+      <span class="mui-pagination-info">${startNum}–${endNum} trên ${totalItems} hợp đồng</span>
+      <button class="mui-page-btn" ${analysisCurrentPage === 1 ? 'disabled' : ''} onclick="changeAnalysisPage(${analysisCurrentPage - 1})"><i class="fa-solid fa-chevron-left"></i></button>
+      ${pageBtns}
+      <button class="mui-page-btn" ${analysisCurrentPage === totalPages ? 'disabled' : ''} onclick="changeAnalysisPage(${analysisCurrentPage + 1})"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+  `;
+}
+
+function changeAnalysisPage(page) {
+  analysisCurrentPage = page;
+  renderFilteredRows();
+}
+
+function changeAnalysisRowsPerPage(size) {
+  analysisRowsPerPage = parseInt(size, 10);
+  analysisCurrentPage = 1;
+  renderFilteredRows();
 }
 
 function appendRowTo(tbody,res,idx) {
@@ -739,28 +816,43 @@ async function loadHistory() {
     const d = await r.json();
     if (d.success) {
       historyRuns = d.history || [];
+      historyCurrentPage = 1;
       renderHistory(historyRuns);
     } else {
       container.innerHTML = `<div class="error-state"><i class="fa-solid fa-circle-exclamation"></i> Lỗi: ${d.error}</div>`;
+      document.getElementById("historyPagination").classList.add("hidden");
     }
   } catch(e) {
     container.innerHTML = `<div class="error-state"><i class="fa-solid fa-wifi"></i> Không thể kết nối server</div>`;
+    document.getElementById("historyPagination").classList.add("hidden");
   }
 }
 
 function renderHistory(runs) {
   const container = document.getElementById("historyList");
-  if (!runs.length) {
+  if (!runs || !runs.length) {
     container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i> Chưa có lịch sử phiên phân tích nào.</div>`;
+    document.getElementById("historyPagination").classList.add("hidden");
     return;
   }
 
-  container.innerHTML = runs.map((run, idx) => `
+  const totalItems = runs.length;
+  const totalPages = Math.ceil(totalItems / historyRowsPerPage) || 1;
+
+  if (historyCurrentPage > totalPages) historyCurrentPage = totalPages;
+  if (historyCurrentPage < 1) historyCurrentPage = 1;
+
+  const startIdx = (historyCurrentPage - 1) * historyRowsPerPage;
+  const pageRuns = runs.slice(startIdx, startIdx + historyRowsPerPage);
+
+  container.innerHTML = pageRuns.map((run, idx) => {
+    const runNumber = totalItems - (startIdx + idx);
+    return `
     <div class="history-card">
       <div class="history-meta">
         <div class="history-time">
-          <i class="fa-solid fa-calendar-check" style="color:var(--accent1)"></i>
-          Phiên #${runs.length - idx} &bull; ${esc(run.timestamp)}
+          <i class="fa-solid fa-calendar-check" style="color:var(--primary)"></i>
+          Phiên #${runNumber} &bull; ${esc(run.timestamp)}
         </div>
         <div class="history-badges">
           <span class="h-badge h-badge-total">${run.total_contracts} HĐ</span>
@@ -784,37 +876,91 @@ function renderHistory(runs) {
       <div id="details-${run.id}" class="history-table-wrap hidden">
         <table style="width:100%; border-collapse:collapse; font-size:.8rem;">
           <thead>
-            <tr style="border-bottom:1px solid var(--border); text-align:left; color:var(--text-2);">
-              <th style="padding:6px;">Số HĐ</th>
-              <th style="padding:6px;">Nhân Viên</th>
-              <th style="padding:6px;">Xử lý tự động</th>
-              <th style="padding:6px;">Cần xử lý</th>
-              <th style="padding:6px;">Cảnh báo</th>
-              <th style="padding:6px;">Công suất</th>
-              <th style="padding:6px;">Rớt KN</th>
-              <th style="padding:6px;">Đối chiếu Rớt KN</th>
-              <th style="padding:6px;">Đối chiếu Tập Điểm</th>
+            <tr style="border-bottom:2px solid var(--border); text-align:left; color:var(--text-secondary); background:#f8fafc;">
+              <th style="padding:8px 10px;">Số HĐ</th>
+              <th style="padding:8px 10px;">Nhân Viên</th>
+              <th style="padding:8px 10px;">Xử lý tự động</th>
+              <th style="padding:8px 10px;">Cần xử lý</th>
+              <th style="padding:8px 10px;">Cảnh báo</th>
+              <th style="padding:8px 10px;">Công suất</th>
+              <th style="padding:8px 10px;">Rớt KN</th>
+              <th style="padding:8px 10px;">Đối chiếu Rớt KN</th>
+              <th style="padding:8px 10px;">Đối chiếu Tập Điểm</th>
             </tr>
           </thead>
           <tbody>
             ${(run.results||[]).map(r => `
-              <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
-                <td style="padding:6px;"><strong>${esc(r.so_hd)}</strong></td>
-                <td style="padding:6px;">${esc(r.nhan_vien||"")}</td>
-                <td style="padding:6px;">${badge("auto", r.xu_ly_loi_tu_dong)}</td>
-                <td style="padding:6px;">${badge("warn", r.can_xu_ly)}</td>
-                <td style="padding:6px;">${badge("info", r.canh_bao)}</td>
-                <td style="padding:6px;">${signalVal(r.cong_suat_thu)}</td>
-                <td style="padding:6px;">${dropCount(r.so_lan_rot)}</td>
-                <td style="padding:6px;">${doiChieuBadge('rot', r.doi_chieu_rot_mang)}</td>
-                <td style="padding:6px;">${doiChieuBadge('tap', r.doi_chieu_tap_diem)}</td>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:8px 10px;"><strong>${esc(r.so_hd)}</strong></td>
+                <td style="padding:8px 10px;">${esc(r.nhan_vien||"")}</td>
+                <td style="padding:8px 10px;">${badge("auto", r.xu_ly_loi_tu_dong)}</td>
+                <td style="padding:8px 10px;">${badge("warn", r.can_xu_ly)}</td>
+                <td style="padding:8px 10px;">${badge("info", r.canh_bao)}</td>
+                <td style="padding:8px 10px;">${signalVal(r.cong_suat_thu)}</td>
+                <td style="padding:8px 10px;">${dropCount(r.so_lan_rot)}</td>
+                <td style="padding:8px 10px;">${doiChieuBadge('rot', r.doi_chieu_rot_mang)}</td>
+                <td style="padding:8px 10px;">${doiChieuBadge('tap', r.doi_chieu_tap_diem)}</td>
               </tr>
             `).join("")}
           </tbody>
         </table>
       </div>
     </div>
-  `).join("");
+    `;
+  }).join("");
+
+  renderHistoryPagination(totalItems, totalPages);
+}
+
+function renderHistoryPagination(totalItems, totalPages) {
+  const container = document.getElementById("historyPagination");
+  if (!container) return;
+  if (totalItems === 0) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+
+  const startNum = (historyCurrentPage - 1) * historyRowsPerPage + 1;
+  const endNum = Math.min(historyCurrentPage * historyRowsPerPage, totalItems);
+
+  let pageBtns = '';
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= historyCurrentPage - 1 && p <= historyCurrentPage + 1)) {
+      pageBtns += `<button class="mui-page-btn ${p === historyCurrentPage ? 'active' : ''}" onclick="changeHistoryPage(${p})">${p}</button>`;
+    } else if (p === historyCurrentPage - 2 || p === historyCurrentPage + 2) {
+      pageBtns += `<span style="padding: 0 4px; color: var(--text-muted);">...</span>`;
+    }
+  }
+
+  container.innerHTML = `
+    <div class="mui-pagination-left">
+      <span>Hiển thị</span>
+      <select class="mui-pagination-select" onchange="changeHistoryRowsPerPage(this.value)">
+        <option value="5" ${historyRowsPerPage == 5 ? 'selected' : ''}>5</option>
+        <option value="10" ${historyRowsPerPage == 10 ? 'selected' : ''}>10</option>
+        <option value="20" ${historyRowsPerPage == 20 ? 'selected' : ''}>20</option>
+      </select>
+      <span>phiên mỗi trang</span>
+    </div>
+    <div class="mui-pagination-right">
+      <span class="mui-pagination-info">${startNum}–${endNum} trên ${totalItems} phiên</span>
+      <button class="mui-page-btn" ${historyCurrentPage === 1 ? 'disabled' : ''} onclick="changeHistoryPage(${historyCurrentPage - 1})"><i class="fa-solid fa-chevron-left"></i></button>
+      ${pageBtns}
+      <button class="mui-page-btn" ${historyCurrentPage === totalPages ? 'disabled' : ''} onclick="changeHistoryPage(${historyCurrentPage + 1})"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+  `;
+}
+
+function changeHistoryPage(page) {
+  historyCurrentPage = page;
+  renderHistory(historyRuns);
+}
+
+function changeHistoryRowsPerPage(size) {
+  historyRowsPerPage = parseInt(size, 10);
+  historyCurrentPage = 1;
+  renderHistory(historyRuns);
 }
 
 function toggleHistoryDetails(id) {
@@ -877,12 +1023,12 @@ function renderAnalytics(data) {
   groupGrid.innerHTML = Object.entries(groups).map(([key, item]) => `
     <div class="error-group-card">
       <div class="error-group-left">
-        <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;color:var(--accent1)">
+        <div style="width:36px;height:36px;border-radius:8px;background:#e0f2fe;display:flex;align-items:center;justify-content:center;color:var(--primary)">
           <i class="fa-solid ${item.icon}"></i>
         </div>
         <div class="error-group-title">${esc(item.label)}</div>
       </div>
-      <div class="error-group-count" style="color:${item.count > 0 ? 'var(--accent2)' : 'var(--text-3)'}">
+      <div class="error-group-count" style="color:${item.count > 0 ? 'var(--primary)' : 'var(--text-muted)'}">
         ${item.count}
       </div>
     </div>
@@ -913,8 +1059,8 @@ function renderAnalytics(data) {
         <td>${i + 1}</td>
         <td><strong>${esc(emp.nhan_vien)}</strong></td>
         <td>${emp.total_contracts} HĐ</td>
-        <td style="color:${emp.need_count > 0 ? 'var(--red)' : 'inherit'}; font-weight:${emp.need_count > 0 ? 'bold' : 'normal'}">${emp.need_count}</td>
-        <td style="color:${emp.warn_count > 0 ? 'var(--yellow)' : 'inherit'};">${emp.warn_count}</td>
+        <td style="color:${emp.need_count > 0 ? 'var(--error)' : 'inherit'}; font-weight:${emp.need_count > 0 ? 'bold' : 'normal'}">${emp.need_count}</td>
+        <td style="color:${emp.warn_count > 0 ? 'var(--warning)' : 'inherit'};">${emp.warn_count}</td>
         <td>${emp.suy_hao_count}</td>
         <td>${emp.rot_count}</td>
         <td><span class="badge ${badgeClass}">${badgeText}</span></td>
