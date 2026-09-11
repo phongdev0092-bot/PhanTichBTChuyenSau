@@ -1,4 +1,6 @@
 @echo off
+chcp 65001 > nul
+set PYTHONIOENCODING=utf-8
 title MYBAE AUTO Dashboard
 color 0A
 cd /d "%~dp0"

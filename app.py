@@ -41,7 +41,7 @@ def start_cloudflare_tunnel():
 
     import subprocess
     import re
-    log.info("🌐 Đang kết nối Cloudflare Tunnel tạo link truy cập từ xa...")
+    log.info("[*] Dang ket noi Cloudflare Tunnel tao link truy cap tu xa...")
     try:
         proc = subprocess.Popen(
             [cloudflared_path, "tunnel", "--url", f"http://localhost:{FLASK_PORT}"],
@@ -56,10 +56,10 @@ def start_cloudflare_tunnel():
             match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
             if match:
                 _tunnel_url = match.group(0)
-                log.info(f"\n{'='*65}\n🌐 LINK TRUY CẬP TỪ XA ONLINE (MỞ BẰNG ĐIỆN THOẠI / LAPTOP BẤT KỲ):\n👉 {_tunnel_url}\n{'='*65}\n")
+                log.info(f"\n{'='*65}\n[*] LINK TRUY CAP TU XA ONLINE (MO BANG DIEN THOAI / LAPTOP BAT KY):\n[>] {_tunnel_url}\n{'='*65}\n")
                 break
     except Exception as e:
-        log.warning(f"Lỗi khởi chạy Cloudflare Tunnel: {e}")
+        log.warning(f"Loi khoi chay Cloudflare Tunnel: {e}")
 
 
 # ─────────────────────────────────────────────
@@ -401,7 +401,7 @@ def api_logout():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", FLASK_PORT))
-    log.info(f"🚀 MYBAE AUTO Dashboard khởi động tại http://0.0.0.0:{port}")
+    log.info(f"[*] MYBAE AUTO Dashboard khoi dong tai http://0.0.0.0:{port}")
     
     # Start Cloudflare Tunnel thread
     threading.Thread(target=start_cloudflare_tunnel, daemon=True).start()
