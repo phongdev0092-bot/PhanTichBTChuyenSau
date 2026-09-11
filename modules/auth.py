@@ -55,8 +55,17 @@ def get_driver(headless: bool = True):
     options.add_experimental_option("excludeSwitches", ["enable-logging", "enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
 
-    service = Service(ChromeDriverManager().install())
-    _driver = webdriver.Chrome(service=service, options=options)
+    for chrome_path in ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]:
+        if os.path.exists(chrome_path):
+            options.binary_location = chrome_path
+            break
+
+    try:
+        service = Service(ChromeDriverManager().install())
+        _driver = webdriver.Chrome(service=service, options=options)
+    except Exception as e:
+        log.warning(f"ChromeDriverManager failed ({e}), fallback to default Chrome driver...")
+        _driver = webdriver.Chrome(options=options)
     _driver.set_page_load_timeout(30)
     # Ẩn navigator.webdriver để tránh bot detection
     _driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {

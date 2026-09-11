@@ -366,10 +366,15 @@ def api_logout():
 
 
 if __name__ == "__main__":
-    log.info(f"🚀 MYBAE AUTO Dashboard khởi động tại http://localhost:{FLASK_PORT}")
-    def open_browser():
-        time.sleep(1.2)
-        import webbrowser
-        webbrowser.open(f"http://localhost:{FLASK_PORT}")
-    threading.Thread(target=open_browser, daemon=True).start()
-    app.run(host="0.0.0.0", port=FLASK_PORT, debug=False, threaded=True)
+    port = int(os.environ.get("PORT", FLASK_PORT))
+    log.info(f"🚀 MYBAE AUTO Dashboard khởi động tại http://0.0.0.0:{port}")
+    if os.environ.get("OPEN_BROWSER", "true").lower() == "true":
+        def open_browser():
+            time.sleep(1.2)
+            import webbrowser
+            try:
+                webbrowser.open(f"http://localhost:{port}")
+            except Exception:
+                pass
+        threading.Thread(target=open_browser, daemon=True).start()
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)

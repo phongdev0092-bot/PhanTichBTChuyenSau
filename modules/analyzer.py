@@ -287,7 +287,7 @@ def _exit_contract(d):
 # ─────────────────────────────────────────────────────────────
 
 def analyze_contract(contract_number: str) -> dict:
-    d = get_driver(headless=False)
+    d = get_driver(headless=True)
 
     result = {
         "so_hd":             contract_number,
