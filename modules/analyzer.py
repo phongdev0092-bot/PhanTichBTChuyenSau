@@ -369,6 +369,42 @@ def analyze_contract(contract_number: str) -> dict:
         result["dns_wan"]      = _find_value_after_label(lines_modem, "DNS WAN")
         log.info(f"  loai_modem='{result['loai_modem']}'  dns_wan='{result['dns_wan']}'")
 
+        # 9. ĐỐI CHIẾU CHUYÊN SÂU (Nếu đạt điều kiện)
+        # Điều kiện 1: Số lần rớt KN >= 2 -> Đối chiếu tab 'Các lần kết nối' & 'Nguyên nhân rớt kết nối OLT'
+        try:
+            rot_val = 0
+            if result["so_lan_rot"]:
+                import re
+                m_rot = re.search(r'\d+', str(result["so_lan_rot"]))
+                if m_rot:
+                    rot_val = int(m_rot.group(0))
+            if rot_val >= 2:
+                log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Rớt Kết Nối (Rớt = {rot_val} >= 2)...")
+                tg_hoan_tat_val = result.get("tg_hoan_tat", "")
+                result["doi_chieu_rot_mang"] = _cross_check_disconnections(d, tg_hoan_tat_val)
+                log.info(f"  doi_chieu_rot_mang: {result['doi_chieu_rot_mang']}")
+        except Exception as ex_rot:
+            log.warning(f"Lỗi khi đối chiếu rớt kết nối: {ex_rot}")
+            result["doi_chieu_rot_mang"] = "Lỗi khi đọc đối chiếu rớt KN"
+
+        # Điều kiện 2: Công suất thu <= -23.5 dBm -> Đối chiếu sub-tab 'Hợp đồng cùng tập điểm'
+        try:
+            pwr_val = None
+            if result["cong_suat_thu"]:
+                import re
+                m_pwr = re.search(r'[-+]?\d*\.\d+|\d+', str(result["cong_suat_thu"]))
+                if m_pwr:
+                    pwr_val = float(m_pwr.group(0))
+                    if pwr_val > 0 and "-" in str(result["cong_suat_thu"]):
+                        pwr_val = -pwr_val
+            if pwr_val is not None and pwr_val <= -23.5:
+                log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Tập Điểm (Công suất = {pwr_val} dBm <= -23.5 dBm)...")
+                result["doi_chieu_tap_diem"] = _cross_check_tap_diem(d)
+                log.info(f"  doi_chieu_tap_diem: {result['doi_chieu_tap_diem']}")
+        except Exception as ex_tap:
+            log.warning(f"Lỗi khi đối chiếu tập điểm: {ex_tap}")
+            result["doi_chieu_tap_diem"] = "Lỗi khi đọc đối chiếu tập điểm"
+
         log.info(f"[{contract_number}] ✅ Xong")
 
     except Exception as e:
@@ -382,3 +418,126 @@ def analyze_contract(contract_number: str) -> dict:
         _exit_contract(d)
 
     return result
+
+
+def _click_sub_tab(d, keyword: str) -> bool:
+    """Click sub-tab pill/button bên dưới tab 'Các lần kết nối'."""
+    xpaths = [
+        f'//button[contains(normalize-space(.),"{keyword}")]',
+        f'//div[contains(@class,"MuiButton") and contains(normalize-space(.),"{keyword}")]',
+        f'//span[contains(normalize-space(.),"{keyword}")]/ancestor::button',
+        f'//*[contains(normalize-space(.),"{keyword}")]',
+    ]
+    for xpath in xpaths:
+        try:
+            for el in d.find_elements(By.XPATH, xpath):
+                if el.is_displayed():
+                    _js_click(d, el)
+                    time.sleep(1.5)
+                    log.debug(f"  Clicked sub-tab: {keyword}")
+                    return True
+        except Exception:
+            pass
+    log.warning(f"  Không click được sub-tab: {keyword}")
+    return False
+
+
+def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
+    """
+    Đối chiếu 1: Chuyển tab 'Các lần kết nối' -> Đọc 'Các lần kết nối' và 'Nguyên nhân rớt kết nối OLT'.
+    So sánh mốc thời gian rớt mạng với thời gian hoàn tất.
+    """
+    _click_mui_tab(d, "Các lần kết nối")
+    time.sleep(1.5)
+
+    # 1. Sub-tab 'Các lần kết nối'
+    _click_sub_tab(d, "Các lần kết nối")
+    lines_conn = _get_body_lines(d)
+
+    # 2. Sub-tab 'Nguyên nhân rớt kết nối OLT'
+    _click_sub_tab(d, "Nguyên nhân rớt kết nối OLT")
+    lines_olt = _get_body_lines(d)
+
+    import re
+    date_regex2 = re.compile(r'\d{2}/\d{2}/\d{4},?\s+\d{2}:\d{2}:\d{2}')
+    date_regex = re.compile(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}')
+
+    olt_events = []
+    for i, ln in enumerate(lines_olt):
+        m = date_regex2.search(ln) or date_regex.search(ln)
+        if m:
+            t_str = m.group(0)
+            status = lines_olt[i+1] if i + 1 < len(lines_olt) else ""
+            cause = lines_olt[i+2] if i + 2 < len(lines_olt) else ""
+            olt_events.append((t_str, status, cause))
+
+    tg_dt = None
+    if tg_hoan_tat_str:
+        from datetime import datetime
+        for fmt in ["%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
+            try:
+                tg_dt = datetime.strptime(tg_hoan_tat_str.strip(), fmt)
+                break
+            except Exception:
+                pass
+
+    post_completion_drops = []
+    for t_str, st, cs in olt_events:
+        if st == "Offline" or (cs and cs != "-"):
+            from datetime import datetime
+            ev_dt = None
+            for fmt in ["%d/%m/%Y, %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S"]:
+                try:
+                    ev_dt = datetime.strptime(t_str.strip(), fmt)
+                    break
+                except Exception:
+                    pass
+
+            if tg_dt and ev_dt:
+                if ev_dt > tg_dt:
+                    post_completion_drops.append((t_str, cs or "Offline"))
+            elif st == "Offline":
+                post_completion_drops.append((t_str, cs or "Offline"))
+
+    if post_completion_drops:
+        latest = post_completion_drops[0]
+        return f"Sau xử lý vẫn rớt KN (Gần nhất: {latest[0]} - NN: {latest[1]})"
+    elif olt_events:
+        recent_cause = olt_events[0][2] if (len(olt_events[0]) > 2 and olt_events[0][2] != "-") else "Bình thường"
+        return f"Sau xử lý kết nối ổn định (NN trước đó: {recent_cause})"
+    else:
+        return "Sau xử lý kết nối ổn định (Không có rớt mới)"
+
+
+def _cross_check_tap_diem(d) -> str:
+    """
+    Đối chiếu 2: Sub-tab 'Hợp đồng cùng tập điểm'.
+    Đọc chỉ số RX Power của các HĐ cùng tập điểm và tính tỷ lệ suy hao <= -23.5 dBm.
+    """
+    _click_mui_tab(d, "Các lần kết nối")
+    time.sleep(1)
+    _click_sub_tab(d, "Hợp đồng cùng tập điểm")
+    lines_tap = _get_body_lines(d)
+
+    import re
+    rx_values = []
+    for ln in lines_tap:
+        m = re.search(r'-\d+\.\d+', ln)
+        if m:
+            try:
+                rx_values.append(float(m.group(0)))
+            except Exception:
+                pass
+
+    if not rx_values:
+        return "Tập điểm: Không ghi nhận chỉ số RX Power HĐ cùng tập điểm"
+
+    total = len(rx_values)
+    suy_hao_count = sum(1 for v in rx_values if v <= -23.5)
+    pct = (suy_hao_count / total) * 100.0
+
+    if pct >= 50.0:
+        return f"Tập điểm có {suy_hao_count}/{total} HĐ suy hao <= -23.5dBm ({pct:.0f}% -> Cảnh báo suy hao tập điểm)"
+    else:
+        return f"Tập điểm có {suy_hao_count}/{total} HĐ suy hao <= -23.5dBm ({pct:.0f}% -> Suy hao đơn lẻ HĐ này)"
+

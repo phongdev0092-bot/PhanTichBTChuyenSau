@@ -207,6 +207,9 @@
           <div class="tgh-modem">
             <i class="fa-solid fa-wifi"></i> Thông số modem
           </div>
+          <div class="tgh-doichieu" style="background:rgba(251,191,36,.1);color:var(--yellow);padding:6px 12px;border-radius:6px;font-weight:600;">
+            <i class="fa-solid fa-magnifying-glass-chart"></i> Đối chiếu chuyên sâu
+          </div>
         </div>
 
         <div class="table-scroll">
@@ -240,6 +243,12 @@
                 </th>
                 <th class="col-modem">
                   <i class="fa-solid fa-network-wired th-icon icon-purple"></i> DNS WAN
+                </th>
+                <th class="col-doichieu">
+                  <i class="fa-solid fa-plug-circle-exclamation th-icon icon-yellow"></i> Đối chiếu Rớt KN
+                </th>
+                <th class="col-doichieu">
+                  <i class="fa-solid fa-network-wired th-icon icon-purple"></i> Đối chiếu Tập điểm
                 </th>
               </tr>
             </thead>
@@ -629,8 +638,18 @@ function appendRowTo(tbody,res,idx) {
     <td class="td-sys-cell">${dropCount(res.so_lan_rot)}</td>
     <td class="td-modem-cell">${esc(res.loai_modem||"—")}</td>
     <td class="td-modem-cell td-small">${esc(res.phien_ban_pm||"—")}</td>
-    <td class="td-modem-cell">${esc(res.dns_wan||"—")}</td>`;
+    <td class="td-modem-cell">${esc(res.dns_wan||"—")}</td>
+    <td class="td-doichieu-cell">${doiChieuBadge('rot', res.doi_chieu_rot_mang)}</td>
+    <td class="td-doichieu-cell">${doiChieuBadge('tap', res.doi_chieu_tap_diem)}</td>`;
   tbody.appendChild(tr);
+}
+
+function doiChieuBadge(type, text) {
+  if (!text || text === "—" || text === "") return `<span class="tag tag-empty">—</span>`;
+  let cls = "tag-info";
+  if (text.includes("vẫn rớt") || text.includes("Cảnh báo")) cls = "tag-warn";
+  else if (text.includes("ổn định") || text.includes("đơn lẻ")) cls = "tag-auto";
+  return `<span class="tag ${cls}" title="${esc(text)}" style="max-width:220px; white-space:normal; line-height:1.2; padding:4px 6px;">${esc(text)}</span>`;
 }
 
 function badge(type,text) {
@@ -672,8 +691,8 @@ function exportCSV() {
 }
 
 function exportResultsArray(arr, filename) {
-  const headers = ["So HD","Nhan Vien","TG Hoan Tat","Xu ly tu dong","Can xu ly","Canh bao","Cong suat thu","So lan rot","Loai modem","Phien ban PM","DNS WAN"];
-  const rows = arr.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,r.phien_ban_pm,r.dns_wan].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
+  const headers = ["So HD","Nhan Vien","TG Hoan Tat","Xu ly tu dong","Can xu ly","Canh bao","Cong suat thu","So lan rot","Loai modem","Phien ban PM","DNS WAN","Doi chieu rot mang","Doi chieu tap diem"];
+  const rows = arr.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,r.phien_ban_pm,r.dns_wan,r.doi_chieu_rot_mang,r.doi_chieu_tap_diem].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
   const csv = [headers.join(","),...rows.map(r=>r.join(","))].join("\n");
   const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
   const a = document.createElement("a");
@@ -744,6 +763,8 @@ function renderHistory(runs) {
               <th style="padding:6px;">Cảnh báo</th>
               <th style="padding:6px;">Công suất</th>
               <th style="padding:6px;">Rớt KN</th>
+              <th style="padding:6px;">Đối chiếu Rớt KN</th>
+              <th style="padding:6px;">Đối chiếu Tập Điểm</th>
             </tr>
           </thead>
           <tbody>
@@ -756,6 +777,8 @@ function renderHistory(runs) {
                 <td style="padding:6px;">${badge("info", r.canh_bao)}</td>
                 <td style="padding:6px;">${signalVal(r.cong_suat_thu)}</td>
                 <td style="padding:6px;">${dropCount(r.so_lan_rot)}</td>
+                <td style="padding:6px;">${doiChieuBadge('rot', r.doi_chieu_rot_mang)}</td>
+                <td style="padding:6px;">${doiChieuBadge('tap', r.doi_chieu_tap_diem)}</td>
               </tr>
             `).join("")}
           </tbody>

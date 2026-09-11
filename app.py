@@ -158,6 +158,8 @@ def api_filter():
                         "loai_modem": "",
                         "phien_ban_pm": "",
                         "dns_wan": "",
+                        "doi_chieu_rot_mang": "",
+                        "doi_chieu_tap_diem": "",
                         "status": "error",
                         "error": str(exc),
                     }
