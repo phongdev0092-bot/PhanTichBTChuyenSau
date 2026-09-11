@@ -209,11 +209,12 @@ def _wait_results(d):
     return False
 
 
-def _read_diag_content(d, active_tab: str) -> str:
+def _read_diag_details(d, active_tab: str) -> tuple[str, str]:
     """
-    Đọc tên các lỗi trong tab chẩn đoán được chỉ định.
-    active_tab: 'Cảnh báo' | 'Xử lý lỗi tự động' | 'Cần xử lý'
-    Tìm đúng tab rồi đọc items bên dưới, bỏ qua badge chips cùng tên.
+    Đọc tab chẩn đoán, tách riêng:
+    1. Tên lỗi/Cảnh báo (titles)
+    2. Hướng xử lý (instructions dưới phần 'Hướng xử lý')
+    Trả về (titles_str, huong_xu_ly_str)
     """
     lines = _get_body_lines(d)
 
@@ -225,43 +226,57 @@ def _read_diag_content(d, active_tab: str) -> str:
         "Lưu lượng sử dụng", "Chi tiết", "Thông số", "Giá trị",
         "Kết quả chẩn đoán", "Mô hình mạng", "Chất lượng Wi-Fi",
         "Thoát hợp đồng", "Lịch sử quét", "Xem chi tiết",
-        # Badge chips cùng tên tab (không phải nội dung lỗi)
         "Cảnh báo", "Xử lý lỗi tự động", "Cần xử lý",
     }
     hard_stops = {"Chi tiết", "Thông số hệ thống", "Mô hình mạng",
                   "Chất lượng Wi-Fi", "Lưu lượng sử dụng"}
 
-    items = []
-    found_tab = False   # Đã tìm thấy tab active_tab chưa
-    in_content = False  # Đang trong phần nội dung chưa
+    titles = []
+    huong_xu_ly_items = []
+    found_tab = False
+    is_capturing_huong_xu_ly = False
 
     for i, ln in enumerate(lines):
         if not found_tab:
-            # Chỉ bắt đầu đọc khi tìm đúng active_tab
             if ln == active_tab:
                 found_tab = True
-                in_content = True
-                # Dòng kế là count (digit) → sẽ bị lọc bởi len/isdigit
         else:
-            # Đang trong nội dung của active_tab
             if ln in hard_stops:
-                break  # Gặp section mới → dừng
-            # Gặp tab header thật khác (tiếp theo là count digit) → dừng
+                break
             if ln in tab_keywords and ln != active_tab:
                 nxt = lines[i + 1] if i + 1 < len(lines) else ""
                 if nxt.isdigit():
                     break
-            # Thu thập item lỗi
-            if (len(ln) > 8
-                    and not ln.isdigit()
-                    and ln not in noise
-                    and not ln.startswith("*")
-                    and not ln.startswith("Hướng xử lý")
-                    and not any(ln.startswith(f"{n}.") for n in range(1, 10))):
-                if ln not in items:
-                    items.append(ln)
 
-    return " | ".join(items[:5])
+            if ln.startswith("Hướng xử lý"):
+                is_capturing_huong_xu_ly = True
+                continue
+
+            if is_capturing_huong_xu_ly:
+                if (len(ln) > 8 
+                    and not ln.isdigit() 
+                    and ln not in noise 
+                    and not ln.startswith("*") 
+                    and not any(ln.startswith(f"{n}.") for n in range(1, 10))
+                    and not any(ln.startswith(verb) for verb in ["Kiểm tra ", "Xem ", "Di dời ", "Tư vấn ", "Cài đặt ", "Khởi động ", "Thay thế ", "Đổi "])):
+                    is_capturing_huong_xu_ly = False
+                    if ln not in titles:
+                        titles.append(ln)
+                else:
+                    if ln not in huong_xu_ly_items and ln not in noise and not ln.isdigit():
+                        huong_xu_ly_items.append(ln)
+            else:
+                if (len(ln) > 8
+                        and not ln.isdigit()
+                        and ln not in noise
+                        and not ln.startswith("*")
+                        and not any(ln.startswith(f"{n}.") for n in range(1, 10))):
+                    if ln not in titles:
+                        titles.append(ln)
+
+    titles_str = " | ".join(titles[:5])
+    huong_xu_ly_str = " | ".join(huong_xu_ly_items[:5])
+    return titles_str, huong_xu_ly_str
 
 
 
@@ -287,7 +302,7 @@ def _exit_contract(d):
 # ─────────────────────────────────────────────────────────────
 
 def analyze_contract(contract_number: str) -> dict:
-    d = get_driver(headless=True)
+    d = get_driver(headless=False)
 
     result = {
         "so_hd":             contract_number,
@@ -329,17 +344,36 @@ def analyze_contract(contract_number: str) -> dict:
         # Mặc định tab "Cảnh báo" đang active (từ screenshot), đọc trước
         if count_warn > 0:
             _click_mui_tab(d, "Cảnh báo")
-            result["canh_bao"] = _read_diag_content(d, "Cảnh báo")
+            warn_titles, warn_hxl = _read_diag_details(d, "Cảnh báo")
+            result["canh_bao"] = warn_titles
+            if warn_hxl:
+                if result["can_xu_ly"]:
+                    result["can_xu_ly"] = f"{result['can_xu_ly']} | {warn_hxl}"
+                else:
+                    result["can_xu_ly"] = warn_hxl
             log.info(f"  canh_bao: {result['canh_bao'][:100]}")
+            log.info(f"  hxl_tu_canh_bao: {warn_hxl[:100]}")
 
         if count_auto > 0:
             _click_mui_tab(d, "Xử lý lỗi tự động")
-            result["xu_ly_loi_tu_dong"] = _read_diag_content(d, "Xử lý lỗi tự động")
+            auto_titles, _ = _read_diag_details(d, "Xử lý lỗi tự động")
+            result["xu_ly_loi_tu_dong"] = auto_titles
             log.info(f"  xu_ly: {result['xu_ly_loi_tu_dong'][:100]}")
 
         if count_need > 0:
             _click_mui_tab(d, "Cần xử lý")
-            result["can_xu_ly"] = _read_diag_content(d, "Cần xử lý")
+            need_titles, need_hxl = _read_diag_details(d, "Cần xử lý")
+            need_combined = []
+            if need_titles:
+                need_combined.append(need_titles)
+            if need_hxl:
+                need_combined.append(need_hxl)
+            
+            need_str = " | ".join(need_combined)
+            if result["can_xu_ly"]:
+                result["can_xu_ly"] = f"{need_str} | {result['can_xu_ly']}"
+            else:
+                result["can_xu_ly"] = need_str
             log.info(f"  can_xu_ly: {result['can_xu_ly'][:100]}")
 
         # 7. Tab "Thông số hệ thống"
