@@ -420,6 +420,81 @@ def analyze_contract(contract_number: str) -> dict:
     return result
 
 
+def _set_mui_max_pagination(d):
+    """Thử bấm dropdown phân trang MUI để chọn 50 hoặc 100 dòng per page."""
+    try:
+        selects = d.find_elements(By.XPATH,
+            '//div[contains(@class,"MuiTablePagination-select")]'
+            ' | //div[contains(@class,"MuiSelect-select") and contains(@aria-haspopup,"listbox")]'
+        )
+        for sel in selects:
+            if sel.is_displayed():
+                _js_click(d, sel)
+                time.sleep(0.5)
+                options = d.find_elements(By.XPATH, '//li[@data-value="100" or @data-value="50" or contains(text(),"100") or contains(text(),"50")]')
+                for opt in options:
+                    if opt.is_displayed():
+                        _js_click(d, opt)
+                        time.sleep(1)
+                        log.info("  Đã chọn 50/100 rows per page")
+                        return True
+    except Exception as e:
+        log.debug(f"Không chỉnh được pagination dropdown: {e}")
+    return False
+
+
+def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
+    """
+    Tự động chọn 50/100 dòng per page và duyệt qua tất cả các trang pagination của bảng MUI để lấy toàn bộ dữ liệu cell.
+    """
+    _set_mui_max_pagination(d)
+    time.sleep(1)
+
+    all_rows = []
+    seen_row_sigs = set()
+    page_count = 0
+    max_pages = 10
+
+    while page_count < max_pages:
+        page_count += 1
+        rows_elements = d.find_elements(By.XPATH, '//tbody/tr | //div[@role="row"]')
+        current_page_added = 0
+        for row in rows_elements:
+            try:
+                cells = row.find_elements(By.XPATH, './td | ./th | ./div[@role="cell" or @role="gridcell"]')
+                if cells:
+                    row_texts = [c.text.strip() for c in cells]
+                    sig = " || ".join(row_texts)
+                    if sig and sig not in seen_row_sigs:
+                        seen_row_sigs.add(sig)
+                        all_rows.append(row_texts)
+                        current_page_added += 1
+            except Exception:
+                pass
+
+        next_btns = d.find_elements(By.XPATH,
+            '//button[@aria-label="Go to next page" or @title="Next page" or contains(@aria-label,"next page")]'
+            ' | //button[contains(@class,"MuiIconButton-root") and .//*[contains(@data-testid,"KeyboardArrowRight")]]'
+            ' | //button[not(@disabled) and .//*[contains(@data-testid,"KeyboardArrowRight")]]'
+        )
+
+        clicked_next = False
+        for btn in next_btns:
+            try:
+                if btn.is_displayed() and btn.is_enabled():
+                    _js_click(d, btn)
+                    time.sleep(1.5)
+                    clicked_next = True
+                    break
+            except Exception:
+                pass
+
+        if not clicked_next:
+            break
+
+    return all_rows
+
+
 def _click_sub_tab(d, keyword: str) -> bool:
     """Click sub-tab pill/button bên dưới tab 'Các lần kết nối'."""
     xpaths = [
@@ -444,100 +519,134 @@ def _click_sub_tab(d, keyword: str) -> bool:
 
 def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
     """
-    Đối chiếu 1: Chuyển tab 'Các lần kết nối' -> Đọc 'Các lần kết nối' và 'Nguyên nhân rớt kết nối OLT'.
-    So sánh mốc thời gian rớt mạng với thời gian hoàn tất.
+    Đối chiếu 1: Sub-tab 'Các lần kết nối' và 'Nguyên nhân rớt kết nối OLT'.
+    - Lọc chính xác Cột 5 (Ra mạng). Bỏ qua dấu '--' (đang Online).
+    - Đếm số mốc thời gian Ra Mạng > tg_hoan_tat.
+    - Chờ 18s cho tab OLT load log rồi đọc nguyên nhân OLT.
     """
     _click_mui_tab(d, "Các lần kết nối")
     time.sleep(1.5)
 
-    # 1. Sub-tab 'Các lần kết nối'
-    _click_sub_tab(d, "Các lần kết nối")
-    lines_conn = _get_body_lines(d)
-
-    # 2. Sub-tab 'Nguyên nhân rớt kết nối OLT'
-    _click_sub_tab(d, "Nguyên nhân rớt kết nối OLT")
-    lines_olt = _get_body_lines(d)
-
+    from datetime import datetime
     import re
-    date_regex2 = re.compile(r'\d{2}/\d{2}/\d{4},?\s+\d{2}:\d{2}:\d{2}')
-    date_regex = re.compile(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}')
 
-    olt_events = []
-    for i, ln in enumerate(lines_olt):
-        m = date_regex2.search(ln) or date_regex.search(ln)
-        if m:
-            t_str = m.group(0)
-            status = lines_olt[i+1] if i + 1 < len(lines_olt) else ""
-            cause = lines_olt[i+2] if i + 2 < len(lines_olt) else ""
-            olt_events.append((t_str, status, cause))
-
-    tg_dt = None
+    t0 = None
     if tg_hoan_tat_str:
-        from datetime import datetime
         for fmt in ["%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
             try:
-                tg_dt = datetime.strptime(tg_hoan_tat_str.strip(), fmt)
+                t0 = datetime.strptime(tg_hoan_tat_str.strip(), fmt)
                 break
             except Exception:
                 pass
 
-    post_completion_drops = []
-    for t_str, st, cs in olt_events:
-        if st == "Offline" or (cs and cs != "-"):
-            from datetime import datetime
+    # 1. Sub-tab 'Các lần kết nối'
+    _click_sub_tab(d, "Các lần kết nối")
+    rows_conn = _get_all_table_rows_from_all_pages(d)
+
+    date_fmt_list = ["%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y, %H:%M:%S"]
+    date_regex = re.compile(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}|\d{2}/\d{2}/\d{4},?\s+\d{2}:\d{2}:\d{2})')
+
+    ra_mang_events = set()
+    for row_cells in rows_conn:
+        ra_mang_val = ""
+        if len(row_cells) >= 5:
+            ra_mang_val = row_cells[4]
+        elif len(row_cells) >= 4:
+            ra_mang_val = row_cells[3]
+
+        if not ra_mang_val or ra_mang_val == "--" or ra_mang_val == "-" or "Vào mạng" in ra_mang_val:
+            continue
+
+        m = date_regex.search(ra_mang_val)
+        if m:
+            t_str = m.group(0).strip()
             ev_dt = None
-            for fmt in ["%d/%m/%Y, %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S"]:
+            for fmt in date_fmt_list:
                 try:
-                    ev_dt = datetime.strptime(t_str.strip(), fmt)
+                    ev_dt = datetime.strptime(t_str, fmt)
                     break
                 except Exception:
                     pass
 
-            if tg_dt and ev_dt:
-                if ev_dt > tg_dt:
-                    post_completion_drops.append((t_str, cs or "Offline"))
-            elif st == "Offline":
-                post_completion_drops.append((t_str, cs or "Offline"))
+            if t0 and ev_dt:
+                if ev_dt > t0:
+                    ra_mang_events.add(t_str)
+            else:
+                ra_mang_events.add(t_str)
 
-    if post_completion_drops:
-        latest = post_completion_drops[0]
-        return f"Sau xử lý vẫn rớt KN (Gần nhất: {latest[0]} - NN: {latest[1]})"
-    elif olt_events:
-        recent_cause = olt_events[0][2] if (len(olt_events[0]) > 2 and olt_events[0][2] != "-") else "Bình thường"
-        return f"Sau xử lý kết nối ổn định (NN trước đó: {recent_cause})"
+    # 2. Sub-tab 'Nguyên nhân rớt kết nối OLT' (Chờ 18s để OLT load dữ liệu)
+    log.info("  Chờ 18s để OLT load dữ liệu...")
+    _click_sub_tab(d, "Nguyên nhân rớt kết nối OLT")
+    time.sleep(18)
+
+    rows_olt = _get_all_table_rows_from_all_pages(d)
+
+    olt_cause = "Bình thường / Không rõ"
+    for row_cells in rows_olt:
+        row_str = " | ".join(row_cells)
+        for token in ["POWER_OFF", "LOSi", "LINK_DOWN", "DYING_GASP", "SYSTEM_RESET"]:
+            if token in row_str:
+                olt_cause = token
+                break
+        if olt_cause != "Bình thường / Không rõ":
+            break
+
+    ra_mang_count = len(ra_mang_events)
+    if ra_mang_count > 1:
+        return f"Chưa đảm bảo (Phát hiện {ra_mang_count} lần Ra Mạng từ mốc hoàn tất - NN OLT: {olt_cause})"
     else:
-        return "Sau xử lý kết nối ổn định (Không có rớt mới)"
+        return "Đảm bảo (Kết nối ổn định)"
 
 
 def _cross_check_tap_diem(d) -> str:
     """
     Đối chiếu 2: Sub-tab 'Hợp đồng cùng tập điểm'.
-    Đọc chỉ số RX Power của các HĐ cùng tập điểm và tính tỷ lệ suy hao <= -23.5 dBm.
+    - Quét toàn bộ các trang để lấy Total HĐ.
+    - Đếm số HĐ Online/Total.
+    - Đếm số HĐ Đạt (> -23.5dBm) và Không đạt (<= -23.5dBm).
+    - Đưa ra kết luận tương ứng.
     """
     _click_mui_tab(d, "Các lần kết nối")
     time.sleep(1)
     _click_sub_tab(d, "Hợp đồng cùng tập điểm")
-    lines_tap = _get_body_lines(d)
+    time.sleep(1.5)
+
+    rows_tap = _get_all_table_rows_from_all_pages(d)
 
     import re
-    rx_values = []
-    for ln in lines_tap:
-        m = re.search(r'-\d+\.\d+', ln)
+
+    total_tap = len(rows_tap)
+    online_count = 0
+    khong_dat_count = 0
+    dat_count = 0
+
+    for r_cells in rows_tap:
+        row_str = " | ".join(r_cells)
+        if "Online" in row_str or "online" in row_str:
+            online_count += 1
+
+        m = re.search(r'-\d+\.\d+', row_str)
         if m:
             try:
-                rx_values.append(float(m.group(0)))
+                val = float(m.group(0))
+                if val <= -23.5:
+                    khong_dat_count += 1
+                else:
+                    dat_count += 1
             except Exception:
                 pass
 
-    if not rx_values:
-        return "Tập điểm: Không ghi nhận chỉ số RX Power HĐ cùng tập điểm"
+    if total_tap == 0:
+        return "Tập điểm: Không đọc được danh sách HĐ cùng tập điểm"
 
-    total = len(rx_values)
-    suy_hao_count = sum(1 for v in rx_values if v <= -23.5)
-    pct = (suy_hao_count / total) * 100.0
-
-    if pct >= 50.0:
-        return f"Tập điểm có {suy_hao_count}/{total} HĐ suy hao <= -23.5dBm ({pct:.0f}% -> Cảnh báo suy hao tập điểm)"
+    valid_power_total = khong_dat_count + dat_count
+    if valid_power_total > 0 and khong_dat_count == valid_power_total:
+        return f"Tập điểm suy hao cao (Tất cả {khong_dat_count}/{total_tap} HĐ không đạt RX Power <= -23.5dBm; {online_count}/{total_tap} Online)"
+    elif khong_dat_count > 0:
+        return f"Yêu cầu xử lý Rx Power (Tập điểm có {khong_dat_count}/{total_tap} HĐ không đạt <= -23.5dBm; {online_count}/{total_tap} Online)"
     else:
-        return f"Tập điểm có {suy_hao_count}/{total} HĐ suy hao <= -23.5dBm ({pct:.0f}% -> Suy hao đơn lẻ HĐ này)"
+        return f"Tập điểm bình thường (0/{total_tap} HĐ không đạt; {online_count}/{total_tap} Online)"
+
+
+
 
