@@ -416,11 +416,56 @@ tbody tr:hover { background: #f1f5f9; }
 .row-warn { background: #fffbeb; }
 .row-error { background: #f8fafc; }
 
-/* Column types */
-.col-num  { width: 40px; }
-.col-hd   { width: 120px; }
-.col-nv   { width: 130px; }
-.col-date { width: 130px; white-space: nowrap; }
+/* Column types & Sticky Basic Info Columns */
+.col-num  { width: 45px; }
+.col-hd   { width: 130px; }
+.col-nv   { width: 140px; }
+.col-date { width: 140px; white-space: nowrap; }
+
+/* Fixed / Sticky first 4 basic info columns on horizontal scroll */
+#resultTable th:nth-child(1),
+#resultTable td:nth-child(1) {
+  position: sticky; left: 0; z-index: 4; background: #ffffff;
+}
+#resultTable th:nth-child(2),
+#resultTable td:nth-child(2) {
+  position: sticky; left: 45px; z-index: 4; background: #ffffff;
+}
+#resultTable th:nth-child(3),
+#resultTable td:nth-child(3) {
+  position: sticky; left: 175px; z-index: 4; background: #ffffff;
+}
+#resultTable th:nth-child(4),
+#resultTable td:nth-child(4) {
+  position: sticky; left: 315px; z-index: 4; background: #ffffff;
+  border-right: 2px solid var(--border-dark);
+}
+
+#resultTable th:nth-child(1),
+#resultTable th:nth-child(2),
+#resultTable th:nth-child(3),
+#resultTable th:nth-child(4) {
+  z-index: 6; background: #f8fafc;
+}
+
+tbody tr:hover td:nth-child(1),
+tbody tr:hover td:nth-child(2),
+tbody tr:hover td:nth-child(3),
+tbody tr:hover td:nth-child(4) {
+  background: #f1f5f9;
+}
+tbody tr.row-need td:nth-child(1),
+tbody tr.row-need td:nth-child(2),
+tbody tr.row-need td:nth-child(3),
+tbody tr.row-need td:nth-child(4) {
+  background: #fff5f5;
+}
+tbody tr.row-warn td:nth-child(1),
+tbody tr.row-warn td:nth-child(2),
+tbody tr.row-warn td:nth-child(3),
+tbody tr.row-warn td:nth-child(4) {
+  background: #fffbeb;
+}
 
 .td-num  { color: var(--text-muted); font-size: .75rem; }
 .td-hd strong { color: var(--text-primary); }

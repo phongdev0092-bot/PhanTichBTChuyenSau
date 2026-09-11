@@ -198,7 +198,7 @@ def _wait_results(d):
         lines = _get_body_lines(d)
         body_str = "\n".join(lines)
         still_running = any(kw in body_str for kw in
-                            ["Tiến hành chẩn đoán", "Tien hanh chan doan", "đang phân tích"])
+                            ["Tiến hành chẩn đoán", "Tien hanh chan doan", "đang phân tích", "Đang tiến hành reboot"])
         has_result = "Kết quả chẩn đoán" in body_str or "Ket qua chan doan" in body_str
         if not still_running and has_result:
             log.info("  ✓ Xong!")
@@ -206,6 +206,44 @@ def _wait_results(d):
             return True
         time.sleep(2)
     log.warning("  ⚠ Timeout 45s")
+    return False
+
+
+def _check_and_handle_reboot_popup(d, timeout_check: int = 8) -> bool:
+    """
+    Kiểm tra xem Popup 'Khởi động lại modem' có xuất hiện hay không.
+    Nội dung popup: "Nhấn Xác nhận để thực hiện khởi động lại thiết bị. Bỏ qua để sang bước tiếp theo"
+    Nếu có -> Bấm nút 'XÁC NHẬN', sau đó chờ 3 phút (180 giây) để modem reboot hoàn tất.
+    """
+    log.info("  Kiểm tra Popup Khởi động lại modem...")
+    deadline = time.time() + timeout_check
+    while time.time() < deadline:
+        try:
+            body_lines = _get_body_lines(d)
+            body_str = "\n".join(body_lines)
+            
+            is_reboot_popup = any(kw in body_str for kw in [
+                "Khởi động lại modem",
+                "thực hiện khởi động lại thiết bị",
+                "Bỏ qua để sang bước tiếp theo"
+            ])
+
+            if is_reboot_popup:
+                confirm_btns = d.find_elements(By.XPATH,
+                    '//button[contains(normalize-space(.),"XÁC NHẬN") or contains(normalize-space(.),"Xác nhận") or contains(normalize-space(.),"Xác Nhận")]'
+                    ' | //div[contains(@class,"MuiDialog")]//button[contains(.,"XÁC NHẬN") or contains(.,"Xác nhận")]'
+                )
+                for btn in confirm_btns:
+                    if btn.is_displayed() and btn.is_enabled():
+                        log.info("  🔄 Phát hiện Popup 'Khởi động lại modem'! Bấm nút XÁC NHẬN...")
+                        _js_click(d, btn)
+                        time.sleep(3)
+                        log.info("  ⏳ Đang chờ 3 phút (180s) để modem khởi động lại hoàn tất...")
+                        time.sleep(180)
+                        return True
+        except Exception as ex:
+            log.debug(f"  Lỗi khi kiểm tra popup reboot: {ex}")
+        time.sleep(1.5)
     return False
 
 
@@ -327,6 +365,20 @@ def analyze_contract(contract_number: str) -> dict:
         # 2-3. Nhập + Phân tích
         _enter_and_analyze(d, contract_number)
 
+        # 3.5 Kiểm tra xem có Popup 'Khởi động lại modem' hay không
+        did_reboot = _check_and_handle_reboot_popup(d, timeout_check=8)
+        if did_reboot:
+            log.info(f"[{contract_number}] 🔄 Modem đã được khởi động lại xong. Chạy phân tích lại hệ thống...")
+            btn_re = _find_visible(d, [
+                '//button[normalize-space(text())="Phân tích"]',
+                '//button[normalize-space(text())="Phân Tích"]',
+                '//button[contains(normalize-space(.),"Phân t")]',
+                '//button[@type="submit"]',
+            ])
+            if btn_re:
+                _js_click(d, btn_re)
+                time.sleep(2)
+
         # 4. Chờ kết quả
         _wait_results(d)
         _shot(d, contract_number, "1_done")
@@ -354,11 +406,19 @@ def analyze_contract(contract_number: str) -> dict:
             log.info(f"  canh_bao: {result['canh_bao'][:100]}")
             log.info(f"  hxl_tu_canh_bao: {warn_hxl[:100]}")
 
+        # Cột Xử lý tự động: Ghi nhận 'Reboot modem' nếu có bấm xác nhận reboot
+        auto_items = []
+        if did_reboot:
+            auto_items.append("Reboot modem")
+
         if count_auto > 0:
             _click_mui_tab(d, "Xử lý lỗi tự động")
             auto_titles, _ = _read_diag_details(d, "Xử lý lỗi tự động")
-            result["xu_ly_loi_tu_dong"] = auto_titles
-            log.info(f"  xu_ly: {result['xu_ly_loi_tu_dong'][:100]}")
+            if auto_titles and auto_titles not in auto_items:
+                auto_items.append(auto_titles)
+
+        result["xu_ly_loi_tu_dong"] = " | ".join(auto_items)
+        log.info(f"  xu_ly: {result['xu_ly_loi_tu_dong'][:100]}")
 
         if count_need > 0:
             _click_mui_tab(d, "Cần xử lý")
