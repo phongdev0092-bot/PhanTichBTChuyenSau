@@ -30,10 +30,10 @@
     </div>
     <div class="header-right">
       <div id="loginBadge" class="badge badge-idle">
-        <span class="dot"></span><span id="loginText">Chua dang nhap</span>
+        <span class="dot"></span><span id="loginText">Chưa đăng nhập</span>
       </div>
       <button id="btnLogin" class="btn btn-primary" onclick="doLogin()">
-        <i class="fa-solid fa-key"></i> Dang nhap he thong
+        <i class="fa-solid fa-key"></i> Đăng nhập hệ thống
       </button>
     </div>
   </header>
@@ -41,173 +41,327 @@
   <!-- MAIN -->
   <main class="main">
 
-    <!-- CARD: BO LOC -->
-    <div class="card filter-card">
-      <div class="card-header">
-        <i class="fa-solid fa-filter-circle-xmark"></i>
-        <h2>Loc Hop Dong</h2>
-        <span class="chip">Today-1 &amp; Today-2</span>
-      </div>
+    <!-- NAVIGATION TABS -->
+    <div class="nav-tabs-bar">
+      <button class="nav-tab active" id="tabBtn-analysis" onclick="switchTab('analysis-tab')">
+        <i class="fa-solid fa-microchip"></i> Phân Tích Hợp Đồng
+      </button>
+      <button class="nav-tab" id="tabBtn-history" onclick="switchTab('history-tab')">
+        <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Chạy
+      </button>
+      <button class="nav-tab" id="tabBtn-analytics" onclick="switchTab('analytics-tab')">
+        <i class="fa-solid fa-chart-pie"></i> Thống Kê Cảnh Báo
+      </button>
+    </div>
 
-      <div class="card-body">
-        <div class="search-wrap">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <input id="searchInput" type="text" placeholder="Tim nhan vien..."
-                 oninput="filterEmployees()" autocomplete="off"/>
-          <span id="selectedCount" class="selected-count">0 da chon</span>
+    <!-- TAB 1: PHAN TICH -->
+    <div id="analysis-tab" class="tab-panel active">
+
+      <!-- CARD: BO LOC -->
+      <div class="card filter-card">
+        <div class="card-header">
+          <i class="fa-solid fa-filter"></i>
+          <h2>Lọc &amp; Phân Tích Hợp Đồng</h2>
+          <span class="chip">Tùy chỉnh khoảng thời gian</span>
         </div>
 
-        <div id="employeeList" class="employee-list">
-          <div class="loading-state">
-            <i class="fa-solid fa-spinner fa-spin"></i> Dang tai danh sach...
+        <div class="card-body">
+
+          <!-- DATE PICKER SECTION -->
+          <div class="date-filter-section">
+            <div class="date-filter-title">
+              <i class="fa-regular fa-calendar-days"></i> Chọn khoảng ngày:
+            </div>
+            <div class="date-inputs-wrap">
+              <div class="date-input-group">
+                <span class="date-label">Từ ngày:</span>
+                <input type="date" id="startDate" class="date-input" onchange="onDateInputChange()"/>
+              </div>
+              <div class="date-input-group">
+                <span class="date-label">Đến ngày:</span>
+                <input type="date" id="endDate" class="date-input" onchange="onDateInputChange()"/>
+              </div>
+            </div>
+            <div class="date-presets">
+              <button class="preset-btn" onclick="setPresetDate('today')">Hôm nay</button>
+              <button class="preset-btn active" id="btnPreset3d" onclick="setPresetDate('3days')">3 ngày gần nhất</button>
+              <button class="preset-btn" onclick="setPresetDate('7days')">7 ngày</button>
+              <button class="preset-btn" onclick="setPresetDate('30days')">30 ngày</button>
+              <button class="preset-btn" onclick="setPresetDate('clear')">Xóa lọc</button>
+            </div>
+          </div>
+
+          <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="searchInput" type="text" placeholder="Tìm nhân viên..."
+                   oninput="filterEmployees()" autocomplete="off"/>
+            <span id="selectedCount" class="selected-count">0 đã chọn</span>
+          </div>
+
+          <div id="employeeList" class="employee-list">
+            <div class="loading-state">
+              <i class="fa-solid fa-spinner fa-spin"></i> Đang tải danh sách...
+            </div>
+          </div>
+
+          <div class="quick-actions">
+            <button class="btn btn-ghost btn-sm" onclick="selectAll()">
+              <i class="fa-solid fa-check-double"></i> Chọn tất cả
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="clearAll()">
+              <i class="fa-solid fa-xmark"></i> Bỏ chọn
+            </button>
+            <button id="btnFilter" class="btn btn-accent" onclick="doFilter()" disabled>
+              <i class="fa-solid fa-play"></i> Chạy Phân Tích
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROGRESS BAR -->
+      <div id="progressWrap" class="progress-wrap hidden">
+        <div class="progress-header">
+          <span id="progressText">Đang phân tích...</span>
+          <span id="progressCount">0 / 0</span>
+        </div>
+        <div class="progress-track">
+          <div id="progressBar" class="progress-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- KET QUA CHAN DOAN - 3 STATS -->
+      <div id="statsRow" class="stats-section hidden">
+        <div class="stats-section-header">
+          <i class="fa-solid fa-stethoscope"></i>
+          <h3>Kết Quả Chẩn Đoán</h3>
+          <div class="total-badge">
+            <i class="fa-solid fa-file-contract"></i>
+            <span>Tổng: <strong id="statTotal">0</strong> hợp đồng</span>
+          </div>
+        </div>
+        <div class="stats-grid">
+
+          <!-- Xu ly tu dong -->
+          <div class="stat-card stat-auto" id="filterAuto" onclick="filterTable('auto')">
+            <div class="stat-card-glow glow-blue"></div>
+            <div class="stat-icon blue"><i class="fa-solid fa-robot"></i></div>
+            <div class="stat-content">
+              <div id="statAuto" class="stat-num">0</div>
+              <div class="stat-label">Xử lý tự động</div>
+              <div class="stat-desc">Lỗi được hệ thống tự xử lý</div>
+            </div>
+            <i class="fa-solid fa-chevron-right stat-arrow"></i>
+          </div>
+
+          <!-- Can xu ly -->
+          <div class="stat-card stat-need" id="filterNeed" onclick="filterTable('need')">
+            <div class="stat-card-glow glow-red"></div>
+            <div class="stat-icon red"><i class="fa-solid fa-wrench"></i></div>
+            <div class="stat-content">
+              <div id="statError" class="stat-num">0</div>
+              <div class="stat-label">Cần xử lý</div>
+              <div class="stat-desc">Cần nhân viên can thiệp</div>
+            </div>
+            <i class="fa-solid fa-chevron-right stat-arrow"></i>
+          </div>
+
+          <!-- Canh bao -->
+          <div class="stat-card stat-warn" id="filterWarn" onclick="filterTable('warn')">
+            <div class="stat-card-glow glow-yellow"></div>
+            <div class="stat-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="stat-content">
+              <div id="statWarn" class="stat-num">0</div>
+              <div class="stat-label">Cảnh báo</div>
+              <div class="stat-desc">Cần theo dõi thêm</div>
+            </div>
+            <i class="fa-solid fa-chevron-right stat-arrow"></i>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- KET QUA TABLE CHI TIET -->
+      <div id="resultCard" class="card result-card hidden">
+        <div class="card-header">
+          <i class="fa-solid fa-table-list"></i>
+          <h2>Chi Tiết Phân Tích</h2>
+          <div class="card-header-actions">
+            <span id="activeFilter" class="filter-chip hidden"></span>
+            <button class="btn btn-ghost btn-sm" onclick="clearFilter()">
+              <i class="fa-solid fa-filter-circle-xmark"></i> Tất cả
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
+              <i class="fa-solid fa-file-csv"></i> Xuất CSV
+            </button>
           </div>
         </div>
 
-        <div class="quick-actions">
-          <button class="btn btn-ghost btn-sm" onclick="selectAll()">
-            <i class="fa-solid fa-check-double"></i> Chon tat ca
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="clearAll()">
-            <i class="fa-solid fa-xmark"></i> Bo chon
-          </button>
-          <button id="btnFilter" class="btn btn-accent" onclick="doFilter()" disabled>
-            <i class="fa-solid fa-magnifying-glass-chart"></i> Chay Phan Tich
-          </button>
+        <div class="table-group-header">
+          <div class="tgh-base">Thông tin cơ bản</div>
+          <div class="tgh-diag">
+            <i class="fa-solid fa-stethoscope"></i> Kết quả chẩn đoán
+          </div>
+          <div class="tgh-sys">
+            <i class="fa-solid fa-server"></i> Thông số hệ thống
+          </div>
+          <div class="tgh-modem">
+            <i class="fa-solid fa-wifi"></i> Thông số modem
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table id="resultTable">
+            <thead>
+              <tr>
+                <th class="col-num">#</th>
+                <th class="col-hd">Số HĐ</th>
+                <th class="col-nv">Nhân Viên</th>
+                <th class="col-date">TG Hoàn Tất</th>
+                <th class="col-diag col-auto-h">
+                  <i class="fa-solid fa-robot th-icon icon-blue"></i> Xử lý tự động
+                </th>
+                <th class="col-diag col-need-h">
+                  <i class="fa-solid fa-wrench th-icon icon-red"></i> Cần xử lý
+                </th>
+                <th class="col-diag col-warn-h">
+                  <i class="fa-solid fa-triangle-exclamation th-icon icon-yellow"></i> Cảnh báo
+                </th>
+                <th class="col-sys">
+                  <i class="fa-solid fa-signal th-icon icon-teal"></i> Công suất thu
+                </th>
+                <th class="col-sys">
+                  <i class="fa-solid fa-plug-circle-xmark th-icon icon-teal"></i> Số lần rớt KN
+                </th>
+                <th class="col-modem">
+                  <i class="fa-solid fa-microchip th-icon icon-purple"></i> Loại modem
+                </th>
+                <th class="col-modem">
+                  <i class="fa-solid fa-code-branch th-icon icon-purple"></i> Phiên bản PM
+                </th>
+                <th class="col-modem">
+                  <i class="fa-solid fa-network-wired th-icon icon-purple"></i> DNS WAN
+                </th>
+              </tr>
+            </thead>
+            <tbody id="resultBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: LICH SU CHAY -->
+    <div id="history-tab" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <h2>Lịch Sử Các Phiên Phân Tích</h2>
+          <div class="card-header-actions">
+            <button class="btn btn-ghost btn-sm" onclick="loadHistory()">
+              <i class="fa-solid fa-rotate"></i> Làm mới
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="clearHistory()">
+              <i class="fa-solid fa-trash-can"></i> Xóa lịch sử
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="historyList" class="history-list">
+            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải lịch sử...</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- PROGRESS BAR -->
-    <div id="progressWrap" class="progress-wrap hidden">
-      <div class="progress-header">
-        <span id="progressText">Dang phan tich...</span>
-        <span id="progressCount">0 / 0</span>
-      </div>
-      <div class="progress-track">
-        <div id="progressBar" class="progress-bar" style="width:0%"></div>
-      </div>
-    </div>
+    <!-- TAB 3: THONG KE CANH BAO -->
+    <div id="analytics-tab" class="tab-panel">
+      <div class="analytics-section">
 
-    <!-- KET QUA CHAN DOAN - 3 STATS -->
-    <div id="statsRow" class="stats-section hidden">
-      <div class="stats-section-header">
-        <i class="fa-solid fa-stethoscope"></i>
-        <h3>Ket Qua Chan Doan</h3>
-        <div class="total-badge">
-          <i class="fa-solid fa-file-contract"></i>
-          <span>Tong: <strong id="statTotal">0</strong> hop dong</span>
-        </div>
-      </div>
-      <div class="stats-grid">
-
-        <!-- Xu ly tu dong -->
-        <div class="stat-card stat-auto" id="filterAuto" onclick="filterTable('auto')">
-          <div class="stat-card-glow glow-blue"></div>
-          <div class="stat-icon blue"><i class="fa-solid fa-robot"></i></div>
-          <div class="stat-content">
-            <div id="statAuto" class="stat-num">0</div>
-            <div class="stat-label">Xu ly tu dong</div>
-            <div class="stat-desc">Loi duoc he thong tu xu ly</div>
+        <!-- KPI OVERVIEW -->
+        <div class="analytics-cards-grid">
+          <div class="analytics-card">
+            <div class="analytics-card-icon" style="background:rgba(56,189,248,.15);color:var(--blue)">
+              <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <div>
+              <div id="anaTotalRuns" class="analytics-card-val">0</div>
+              <div class="analytics-card-lbl">Tổng phiên phân tích</div>
+            </div>
           </div>
-          <i class="fa-solid fa-chevron-right stat-arrow"></i>
-        </div>
 
-        <!-- Can xu ly -->
-        <div class="stat-card stat-need" id="filterNeed" onclick="filterTable('need')">
-          <div class="stat-card-glow glow-red"></div>
-          <div class="stat-icon red"><i class="fa-solid fa-wrench"></i></div>
-          <div class="stat-content">
-            <div id="statError" class="stat-num">0</div>
-            <div class="stat-label">Can xu ly</div>
-            <div class="stat-desc">Can nhan vien can thiep</div>
+          <div class="analytics-card">
+            <div class="analytics-card-icon" style="background:rgba(249,115,22,.15);color:var(--accent1)">
+              <i class="fa-solid fa-file-contract"></i>
+            </div>
+            <div>
+              <div id="anaTotalContracts" class="analytics-card-val">0</div>
+              <div class="analytics-card-lbl">Tổng lượt HĐ đã kiểm tra</div>
+            </div>
           </div>
-          <i class="fa-solid fa-chevron-right stat-arrow"></i>
-        </div>
 
-        <!-- Canh bao -->
-        <div class="stat-card stat-warn" id="filterWarn" onclick="filterTable('warn')">
-          <div class="stat-card-glow glow-yellow"></div>
-          <div class="stat-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
-          <div class="stat-content">
-            <div id="statWarn" class="stat-num">0</div>
-            <div class="stat-label">Canh bao</div>
-            <div class="stat-desc">Can theo doi them</div>
+          <div class="analytics-card">
+            <div class="analytics-card-icon" style="background:rgba(248,113,113,.15);color:var(--red)">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <div id="anaHighRiskCount" class="analytics-card-val">0</div>
+              <div class="analytics-card-lbl">Lượt Cần xử lý / Cảnh báo</div>
+            </div>
           </div>
-          <i class="fa-solid fa-chevron-right stat-arrow"></i>
+
+          <div class="analytics-card">
+            <div class="analytics-card-icon" style="background:rgba(167,139,250,.15);color:var(--purple)">
+              <i class="fa-solid fa-user-gear"></i>
+            </div>
+            <div>
+              <div id="anaTopEmp" class="analytics-card-val" style="font-size:1.1rem;word-break:break-all;">—</div>
+              <div class="analytics-card-lbl">Nhân viên bị cảnh báo nhiều nhất</div>
+            </div>
+          </div>
         </div>
 
-      </div>
-    </div>
+        <!-- ERROR GROUP DISTRIBUTION -->
+        <div class="card">
+          <div class="card-header">
+            <i class="fa-solid fa-chart-bar"></i>
+            <h2>Phân Nhóm Lỗi &amp; Cảnh Báo Hệ Thống</h2>
+          </div>
+          <div class="card-body">
+            <div id="errorGroupGrid" class="error-group-grid">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
 
-    <!-- KET QUA TABLE CHI TIET -->
-    <div id="resultCard" class="card result-card hidden">
-      <div class="card-header">
-        <i class="fa-solid fa-table-list"></i>
-        <h2>Chi Tiet Phan Tich</h2>
-        <div class="card-header-actions">
-          <span id="activeFilter" class="filter-chip hidden"></span>
-          <button class="btn btn-ghost btn-sm" onclick="clearFilter()">
-            <i class="fa-solid fa-filter-slash"></i> Tat ca
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
-            <i class="fa-solid fa-file-csv"></i> Xuat CSV
-          </button>
+        <!-- REPEAT EMPLOYEES LEADERBOARD -->
+        <div class="card">
+          <div class="card-header">
+            <i class="fa-solid fa-users-viewfinder"></i>
+            <h2>Bảng Thống Kê Nhân Viên Lặp Lại Lỗi Qua Các Lần Phân Tích</h2>
+          </div>
+          <div class="card-body">
+            <div class="table-scroll">
+              <table class="leaderboard-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Tên Nhân Viên</th>
+                    <th>Tổng HĐ Đã Quét</th>
+                    <th>Cần Xử Lý</th>
+                    <th>Cảnh Báo</th>
+                    <th>Suy Hao (&lt; -25dBm)</th>
+                    <th>Rớt Mạng</th>
+                    <th>Đánh Giá Mức Độ</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                  <tr><td colspan="8" class="td-muted" style="text-align:center;">Đang tải dữ liệu...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- Group column headers -->
-      <div class="table-group-header">
-        <div class="tgh-base">Thong tin co ban</div>
-        <div class="tgh-diag">
-          <i class="fa-solid fa-stethoscope"></i> Ket qua chan doan
-        </div>
-        <div class="tgh-sys">
-          <i class="fa-solid fa-server"></i> Thong so he thong
-        </div>
-        <div class="tgh-modem">
-          <i class="fa-solid fa-wifi"></i> Thong so modem
-        </div>
-      </div>
-
-      <div class="table-scroll">
-        <table id="resultTable">
-          <thead>
-            <tr>
-              <th class="col-num">#</th>
-              <th class="col-hd">So HD</th>
-              <th class="col-nv">Nhan Vien</th>
-              <th class="col-date">TG Hoan Tat</th>
-              <!-- Chan doan - 3 cot chinh -->
-              <th class="col-diag col-auto-h">
-                <i class="fa-solid fa-robot th-icon icon-blue"></i> Xu ly tu dong
-              </th>
-              <th class="col-diag col-need-h">
-                <i class="fa-solid fa-wrench th-icon icon-red"></i> Can xu ly
-              </th>
-              <th class="col-diag col-warn-h">
-                <i class="fa-solid fa-triangle-exclamation th-icon icon-yellow"></i> Canh bao
-              </th>
-              <!-- Thong so he thong -->
-              <th class="col-sys">
-                <i class="fa-solid fa-signal th-icon icon-teal"></i> Cong suat thu
-              </th>
-              <th class="col-sys">
-                <i class="fa-solid fa-plug-circle-xmark th-icon icon-teal"></i> So lan rot KN
-              </th>
-              <!-- Thong so modem -->
-              <th class="col-modem">
-                <i class="fa-solid fa-microchip th-icon icon-purple"></i> Loai modem
-              </th>
-              <th class="col-modem">
-                <i class="fa-solid fa-code-branch th-icon icon-purple"></i> Phien ban PM
-              </th>
-              <th class="col-modem">
-                <i class="fa-solid fa-network-wired th-icon icon-purple"></i> DNS WAN
-              </th>
-            </tr>
-          </thead>
-          <tbody id="resultBody"></tbody>
-        </table>
       </div>
     </div>
 
@@ -221,6 +375,7 @@
 let allEmployees = [];
 let selectedEmployees = new Set();
 let allResults = [];
+let historyRuns = [];
 let sseSource = null;
 let currentFilter = null;
 
@@ -228,7 +383,68 @@ document.addEventListener("DOMContentLoaded", () => {
   createParticles();
   loadEmployees();
   pollLoginStatus();
+  setPresetDate('3days');
 });
+
+function switchTab(tabId) {
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+
+  if (tabId === 'analysis-tab') document.getElementById("tabBtn-analysis").classList.add("active");
+  if (tabId === 'history-tab') {
+    document.getElementById("tabBtn-history").classList.add("active");
+    loadHistory();
+  }
+  if (tabId === 'analytics-tab') {
+    document.getElementById("tabBtn-analytics").classList.add("active");
+    loadAnalytics();
+  }
+  document.getElementById(tabId).classList.add("active");
+}
+
+function setPresetDate(preset) {
+  document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+  const today = new Date();
+
+  function formatDate(d) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  const startInp = document.getElementById("startDate");
+  const endInp = document.getElementById("endDate");
+
+  if (preset === 'today') {
+    startInp.value = formatDate(today);
+    endInp.value = formatDate(today);
+  } else if (preset === '3days') {
+    const d3 = new Date(today);
+    d3.setDate(d3.getDate() - 2);
+    startInp.value = formatDate(d3);
+    endInp.value = formatDate(today);
+    const btn = document.getElementById("btnPreset3d");
+    if (btn) btn.classList.add("active");
+  } else if (preset === '7days') {
+    const d7 = new Date(today);
+    d7.setDate(d7.getDate() - 6);
+    startInp.value = formatDate(d7);
+    endInp.value = formatDate(today);
+  } else if (preset === '30days') {
+    const d30 = new Date(today);
+    d30.setDate(d30.getDate() - 29);
+    startInp.value = formatDate(d30);
+    endInp.value = formatDate(today);
+  } else if (preset === 'clear') {
+    startInp.value = "";
+    endInp.value = "";
+  }
+}
+
+function onDateInputChange() {
+  document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+}
 
 function createParticles() {
   const container = document.getElementById("particles");
@@ -247,13 +463,13 @@ async function loadEmployees() {
     if (d.success) { allEmployees = d.employees; renderEmployees(allEmployees); }
     else document.getElementById("employeeList").innerHTML = `<div class="error-state"><i class="fa-solid fa-circle-exclamation"></i> ${d.error}</div>`;
   } catch(e) {
-    document.getElementById("employeeList").innerHTML = `<div class="error-state"><i class="fa-solid fa-wifi"></i> Loi ket noi server</div>`;
+    document.getElementById("employeeList").innerHTML = `<div class="error-state"><i class="fa-solid fa-wifi"></i> Lỗi kết nối server</div>`;
   }
 }
 
 function renderEmployees(list) {
   const el = document.getElementById("employeeList");
-  if (!list.length) { el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-users-slash"></i> Khong co nhan vien nao</div>`; return; }
+  if (!list.length) { el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-users-slash"></i> Không có nhân viên nào</div>`; return; }
   el.innerHTML = list.map(name => `
     <label class="emp-item ${selectedEmployees.has(name)?"selected":""}" data-name="${name}">
       <div class="emp-checkbox ${selectedEmployees.has(name)?"checked":""}"><i class="fa-solid fa-check"></i></div>
@@ -287,23 +503,23 @@ function clearAll() {
 }
 
 function updateSelectedCount() {
-  document.getElementById("selectedCount").textContent = `${selectedEmployees.size} da chon`;
+  document.getElementById("selectedCount").textContent = `${selectedEmployees.size} đã chọn`;
 }
 
 async function doLogin() {
-  setBadge("pending","Dang dang nhap...");
+  setBadge("pending","Đang đăng nhập...");
   document.getElementById("btnLogin").disabled = true;
-  try { await fetch("/api/login",{method:"POST"}); showToast("Dang dang nhap, doc OTP tu email...","info"); }
-  catch(e) { showToast("Loi ket noi","error"); }
+  try { await fetch("/api/login",{method:"POST"}); showToast("Đang đăng nhập, đọc OTP từ email...","info"); }
+  catch(e) { showToast("Lỗi kết nối","error"); }
 }
 
 function pollLoginStatus() {
   setInterval(async () => {
     const r = await fetch("/api/login_status");
     const d = await r.json();
-    if (d.status==="ok") { setBadge("ok","Da dang nhap"); document.getElementById("btnLogin").style.display="none"; }
-    else if (d.status==="error") { setBadge("error","Dang nhap that bai"); document.getElementById("btnLogin").disabled=false; }
-    else if (d.status==="pending") { setBadge("pending","Dang dang nhap..."); }
+    if (d.status==="ok") { setBadge("ok","Đã đăng nhập"); document.getElementById("btnLogin").style.display="none"; }
+    else if (d.status==="error") { setBadge("error","Đăng nhập thất bại"); document.getElementById("btnLogin").disabled=false; }
+    else if (d.status==="pending") { setBadge("pending","Đang đăng nhập..."); }
   }, 3000);
 }
 
@@ -318,15 +534,27 @@ async function doFilter() {
   document.getElementById("resultBody").innerHTML = "";
   ["resultCard","progressWrap","statsRow"].forEach(id => document.getElementById(id).classList.remove("hidden"));
   clearFilter();
-  setProgress(0,0,"Dang lay danh sach hop dong...");
+  setProgress(0,0,"Đang lấy danh sách hợp đồng...");
+
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
+
   try {
-    const r = await fetch("/api/filter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({employees:[...selectedEmployees]})});
+    const r = await fetch("/api/filter",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        employees:[...selectedEmployees],
+        start_date: startDate,
+        end_date: endDate
+      })
+    });
     const d = await r.json();
-    if (!d.success) { showToast("Loi: "+d.error,"error"); return; }
+    if (!d.success) { showToast("Lỗi: "+d.error,"error"); return; }
     if (d.total===0) { showToast(d.message,"info"); document.getElementById("progressWrap").classList.add("hidden"); return; }
-    showToast(`Phan tich ${d.total} hop dong...`,"info");
+    showToast(`Phân tích ${d.total} hợp đồng...`,"info");
     startSSE();
-  } catch(e) { showToast("Loi ket noi server","error"); }
+  } catch(e) { showToast("Lỗi kết nối server","error"); }
 }
 
 function startSSE() {
@@ -339,7 +567,11 @@ function startSSE() {
       d.new_results.forEach(res => { allResults.push(res); if (!currentFilter) appendRowTo(document.getElementById("resultBody"),res,allResults.length); });
       updateStats();
     }
-    if (!d.running) { sseSource.close(); showToast("Hoan tat: "+d.message,"success"); document.getElementById("progressWrap").classList.add("hidden"); }
+    if (!d.running) {
+      sseSource.close();
+      showToast("Hoàn tất: "+d.message,"success");
+      document.getElementById("progressWrap").classList.add("hidden");
+    }
   };
   sseSource.onerror = () => sseSource.close();
 }
@@ -355,9 +587,9 @@ function filterTable(type) {
   currentFilter = type;
   document.querySelectorAll(".stat-card").forEach(c => c.classList.remove("active"));
   document.getElementById({auto:"filterAuto",need:"filterNeed",warn:"filterWarn"}[type]).classList.add("active");
-  const labels = {auto:"Xu ly tu dong",need:"Can xu ly",warn:"Canh bao"};
+  const labels = {auto:"Xử lý tự động",need:"Cần xử lý",warn:"Cảnh báo"};
   const chip = document.getElementById("activeFilter");
-  chip.textContent = "Loc: " + labels[type];
+  chip.textContent = "Lọc: " + labels[type];
   chip.classList.remove("hidden");
   renderFilteredRows();
 }
@@ -436,14 +668,207 @@ function updateStats() {
 
 function exportCSV() {
   if (!allResults.length) return;
+  exportResultsArray(allResults, `mybae_${new Date().toLocaleDateString("vi")}.csv`);
+}
+
+function exportResultsArray(arr, filename) {
   const headers = ["So HD","Nhan Vien","TG Hoan Tat","Xu ly tu dong","Can xu ly","Canh bao","Cong suat thu","So lan rot","Loai modem","Phien ban PM","DNS WAN"];
-  const rows = allResults.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,r.phien_ban_pm,r.dns_wan].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
+  const rows = arr.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,r.phien_ban_pm,r.dns_wan].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
   const csv = [headers.join(","),...rows.map(r=>r.join(","))].join("\n");
   const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `mybae_${new Date().toLocaleDateString("vi")}.csv`;
+  a.download = filename;
   a.click();
+}
+
+/* HISTORY TAB FUNCTIONS */
+async function loadHistory() {
+  const container = document.getElementById("historyList");
+  container.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải lịch sử...</div>`;
+  try {
+    const r = await fetch("/api/history");
+    const d = await r.json();
+    if (d.success) {
+      historyRuns = d.history || [];
+      renderHistory(historyRuns);
+    } else {
+      container.innerHTML = `<div class="error-state"><i class="fa-solid fa-circle-exclamation"></i> Lỗi: ${d.error}</div>`;
+    }
+  } catch(e) {
+    container.innerHTML = `<div class="error-state"><i class="fa-solid fa-wifi"></i> Không thể kết nối server</div>`;
+  }
+}
+
+function renderHistory(runs) {
+  const container = document.getElementById("historyList");
+  if (!runs.length) {
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i> Chưa có lịch sử phiên phân tích nào.</div>`;
+    return;
+  }
+
+  container.innerHTML = runs.map((run, idx) => `
+    <div class="history-card">
+      <div class="history-meta">
+        <div class="history-time">
+          <i class="fa-solid fa-calendar-check" style="color:var(--accent1)"></i>
+          Phiên #${runs.length - idx} &bull; ${esc(run.timestamp)}
+        </div>
+        <div class="history-badges">
+          <span class="h-badge h-badge-total">${run.total_contracts} HĐ</span>
+          <span class="h-badge h-badge-need">Cần xử lý: ${run.need_count||0}</span>
+          <span class="h-badge h-badge-warn">Cảnh báo: ${run.warn_count||0}</span>
+          <span class="h-badge h-badge-auto">Tự động: ${run.auto_count||0}</span>
+        </div>
+      </div>
+      <div class="history-info">
+        <span><i class="fa-solid fa-users"></i> Nhân viên (${(run.employees||[]).length}): ${esc((run.employees||[]).join(", "))}</span>
+        ${run.start_date || run.end_date ? `<span><i class="fa-regular fa-calendar"></i> Lọc ngày: ${esc(run.start_date||"...")} đến ${esc(run.end_date||"...")}</span>` : ''}
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <button class="history-details-toggle" onclick="toggleHistoryDetails('${run.id}')">
+          <i class="fa-solid fa-chevron-down" id="icon-${run.id}"></i> Xem chi tiết ${run.total_contracts} HĐ
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick='exportResultsArray(${JSON.stringify(run.results||[]).replace(/'/g, "&#39;")}, "history_${run.timestamp.replace(/[: ]/g,"_")}.csv")'>
+          <i class="fa-solid fa-download"></i> Xuất CSV phiên này
+        </button>
+      </div>
+      <div id="details-${run.id}" class="history-table-wrap hidden">
+        <table style="width:100%; border-collapse:collapse; font-size:.8rem;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border); text-align:left; color:var(--text-2);">
+              <th style="padding:6px;">Số HĐ</th>
+              <th style="padding:6px;">Nhân Viên</th>
+              <th style="padding:6px;">Xử lý tự động</th>
+              <th style="padding:6px;">Cần xử lý</th>
+              <th style="padding:6px;">Cảnh báo</th>
+              <th style="padding:6px;">Công suất</th>
+              <th style="padding:6px;">Rớt KN</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(run.results||[]).map(r => `
+              <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+                <td style="padding:6px;"><strong>${esc(r.so_hd)}</strong></td>
+                <td style="padding:6px;">${esc(r.nhan_vien||"")}</td>
+                <td style="padding:6px;">${badge("auto", r.xu_ly_loi_tu_dong)}</td>
+                <td style="padding:6px;">${badge("warn", r.can_xu_ly)}</td>
+                <td style="padding:6px;">${badge("info", r.canh_bao)}</td>
+                <td style="padding:6px;">${signalVal(r.cong_suat_thu)}</td>
+                <td style="padding:6px;">${dropCount(r.so_lan_rot)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `).join("");
+}
+
+function toggleHistoryDetails(id) {
+  const details = document.getElementById(`details-${id}`);
+  const icon = document.getElementById(`icon-${id}`);
+  if (details.classList.contains("hidden")) {
+    details.classList.remove("hidden");
+    icon.className = "fa-solid fa-chevron-up";
+  } else {
+    details.classList.add("hidden");
+    icon.className = "fa-solid fa-chevron-down";
+  }
+}
+
+async function clearHistory() {
+  if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử chạy?")) return;
+  try {
+    const r = await fetch("/api/history", {method: "DELETE"});
+    const d = await r.json();
+    if (d.success) {
+      showToast("Đã xóa lịch sử!", "success");
+      loadHistory();
+    }
+  } catch(e) {
+    showToast("Không thể xóa lịch sử", "error");
+  }
+}
+
+/* ANALYTICS TAB FUNCTIONS */
+async function loadAnalytics() {
+  try {
+    const r = await fetch("/api/analytics");
+    const d = await r.json();
+    if (d.success) {
+      renderAnalytics(d);
+    }
+  } catch(e) {
+    showToast("Không thể tải dữ liệu thống kê", "error");
+  }
+}
+
+function renderAnalytics(data) {
+  document.getElementById("anaTotalRuns").textContent = data.total_runs || 0;
+  document.getElementById("anaTotalContracts").textContent = data.total_contracts_analyzed || 0;
+
+  const groups = data.error_groups || {};
+  const highRisk = (groups.need_action?.count || 0) + (groups.warning?.count || 0);
+  document.getElementById("anaHighRiskCount").textContent = highRisk;
+
+  const leaderboard = data.employee_leaderboard || [];
+  if (leaderboard.length > 0) {
+    const top = leaderboard[0];
+    document.getElementById("anaTopEmp").textContent = `${top.nhan_vien} (${top.need_count + top.warn_count} lỗi/cảnh báo)`;
+  } else {
+    document.getElementById("anaTopEmp").textContent = "—";
+  }
+
+  // Render error groups grid
+  const groupGrid = document.getElementById("errorGroupGrid");
+  groupGrid.innerHTML = Object.entries(groups).map(([key, item]) => `
+    <div class="error-group-card">
+      <div class="error-group-left">
+        <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;color:var(--accent1)">
+          <i class="fa-solid ${item.icon}"></i>
+        </div>
+        <div class="error-group-title">${esc(item.label)}</div>
+      </div>
+      <div class="error-group-count" style="color:${item.count > 0 ? 'var(--accent2)' : 'var(--text-3)'}">
+        ${item.count}
+      </div>
+    </div>
+  `).join("");
+
+  // Render repeat employee leaderboard table
+  const lbBody = document.getElementById("leaderboardBody");
+  if (!leaderboard.length) {
+    lbBody.innerHTML = `<tr><td colspan="8" class="td-muted" style="text-align:center;">Chưa có dữ liệu nhân viên từ lịch sử chạy.</td></tr>`;
+    return;
+  }
+
+  lbBody.innerHTML = leaderboard.map((emp, i) => {
+    const riskTotal = emp.need_count + emp.warn_count;
+    let badgeClass = "badge-ok";
+    let badgeText = "Bình thường";
+
+    if (riskTotal >= 5) {
+      badgeClass = "badge-error";
+      badgeText = "Cần chú ý cao (Lặp lại lỗi)";
+    } else if (riskTotal >= 2) {
+      badgeClass = "badge-pending";
+      badgeText = "Có cảnh báo";
+    }
+
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td><strong>${esc(emp.nhan_vien)}</strong></td>
+        <td>${emp.total_contracts} HĐ</td>
+        <td style="color:${emp.need_count > 0 ? 'var(--red)' : 'inherit'}; font-weight:${emp.need_count > 0 ? 'bold' : 'normal'}">${emp.need_count}</td>
+        <td style="color:${emp.warn_count > 0 ? 'var(--yellow)' : 'inherit'};">${emp.warn_count}</td>
+        <td>${emp.suy_hao_count}</td>
+        <td>${emp.rot_count}</td>
+        <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+      </tr>
+    `;
+  }).join("");
 }
 
 let toastTimer;

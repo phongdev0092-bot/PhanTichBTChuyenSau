@@ -74,12 +74,38 @@ def api_employees():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+import os
+
+HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analysis_history.json")
+
+def load_history():
+    if not os.path.exists(HISTORY_FILE):
+        return []
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        log.error(f"Error reading history: {e}")
+        return []
+
+def save_history_run(run_data):
+    history = load_history()
+    history.insert(0, run_data)
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        log.error(f"Error saving history: {e}")
+
+
 @app.route("/api/filter", methods=["POST"])
 def api_filter():
     global _job_results, _job_progress, _job_total, _job_running, _job_status, _job_message
 
-    data = request.get_json()
+    data = request.get_json() or {}
     selected = data.get("employees", [])
+    start_date = data.get("start_date")
+    end_date = data.get("end_date")
 
     if not selected:
         return jsonify({"success": False, "error": "Chưa chọn nhân viên"}), 400
@@ -89,7 +115,7 @@ def api_filter():
 
     # Lấy danh sách hợp đồng
     try:
-        contracts = get_contracts(selected)
+        contracts = get_contracts(selected, start_date=start_date, end_date=end_date)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -98,7 +124,7 @@ def api_filter():
             "success": True,
             "total": 0,
             "contracts": [],
-            "message": "Không có hợp đồng nào trong khoảng Today-1 / Today-2. Hệ thống đã kiểm tra thêm 7 ngày gần nhất."
+            "message": "Không tìm thấy hợp đồng nào phù hợp trong khoảng thời gian đã chọn."
         })
 
     # Bắt đầu job chạy nền
@@ -153,6 +179,25 @@ def api_filter():
                 _job_status  = "done"
                 _job_message = f"Hoàn tất {len(contracts)} hợp đồng"
 
+            # Lưu vào lịch sử phân tích
+            try:
+                run_record = {
+                    "id": f"run_{int(time.time()*1000)}",
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "start_date": start_date or "",
+                    "end_date": end_date or "",
+                    "employees": selected,
+                    "total_contracts": len(contracts),
+                    "auto_count": sum(1 for r in _job_results if r.get("xu_ly_loi_tu_dong") and r.get("xu_ly_loi_tu_dong") != "—"),
+                    "need_count": sum(1 for r in _job_results if r.get("can_xu_ly") and r.get("can_xu_ly") != "—"),
+                    "warn_count": sum(1 for r in _job_results if r.get("canh_bao") and r.get("canh_bao") != "—"),
+                    "error_count": sum(1 for r in _job_results if r.get("status") == "error"),
+                    "results": list(_job_results),
+                }
+                save_history_run(run_record)
+            except Exception as hist_err:
+                log.error(f"Lỗi khi lưu lịch sử: {hist_err}")
+
         except Exception as exc:
             log.exception("run_job có lỗi tổng quát")
             with _job_lock:
@@ -167,6 +212,110 @@ def api_filter():
         "success":  True,
         "total":    len(contracts),
         "message":  f"Bắt đầu phân tích {len(contracts)} hợp đồng",
+    })
+
+
+@app.route("/api/history", methods=["GET"])
+def api_get_history():
+    return jsonify({"success": True, "history": load_history()})
+
+
+@app.route("/api/history", methods=["DELETE"])
+def api_clear_history():
+    try:
+        if os.path.exists(HISTORY_FILE):
+            os.remove(HISTORY_FILE)
+        return jsonify({"success": True, "message": "Đã xóa lịch sử"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/analytics")
+def api_analytics():
+    history = load_history()
+
+    all_runs_results = []
+    for run in history:
+        all_runs_results.extend(run.get("results", []))
+
+    total_contracts_analyzed = len(all_runs_results)
+
+    error_groups = {
+        "suy_hao": {"label": "Suy hao / Công suất thu kém", "count": 0, "icon": "fa-signal"},
+        "rot_mang": {"label": "Rớt kết nối nhiều", "count": 0, "icon": "fa-plug-circle-xmark"},
+        "dns_wan": {"label": "Lỗi DNS WAN / Mạng", "count": 0, "icon": "fa-network-wired"},
+        "auto_resolved": {"label": "Tự động xử lý lỗi", "count": 0, "icon": "fa-robot"},
+        "need_action": {"label": "Cần kỹ thuật xử lý", "count": 0, "icon": "fa-wrench"},
+        "warning": {"label": "Cảnh báo hệ thống", "count": 0, "icon": "fa-triangle-exclamation"},
+    }
+
+    emp_map = {}
+
+    for r in all_runs_results:
+        nv = (r.get("nhan_vien") or "KXD").strip()
+        if nv not in emp_map:
+            emp_map[nv] = {
+                "nhan_vien": nv,
+                "total_contracts": 0,
+                "need_count": 0,
+                "warn_count": 0,
+                "auto_count": 0,
+                "suy_hao_count": 0,
+                "rot_count": 0,
+            }
+
+        emp_map[nv]["total_contracts"] += 1
+
+        need = r.get("can_xu_ly")
+        warn = r.get("canh_bao")
+        auto = r.get("xu_ly_loi_tu_dong")
+        pwr  = r.get("cong_suat_thu")
+        drop = r.get("so_lan_rot")
+
+        if need and need != "—":
+            error_groups["need_action"]["count"] += 1
+            emp_map[nv]["need_count"] += 1
+
+        if warn and warn != "—":
+            error_groups["warning"]["count"] += 1
+            emp_map[nv]["warn_count"] += 1
+
+        if auto and auto != "—":
+            error_groups["auto_resolved"]["count"] += 1
+            emp_map[nv]["auto_count"] += 1
+
+        try:
+            val = float(pwr)
+            if val < -25:
+                error_groups["suy_hao"]["count"] += 1
+                emp_map[nv]["suy_hao_count"] += 1
+        except (ValueError, TypeError):
+            pass
+
+        try:
+            val = int(drop)
+            if val > 0:
+                error_groups["rot_mang"]["count"] += 1
+                emp_map[nv]["rot_count"] += 1
+        except (ValueError, TypeError):
+            pass
+
+        dns = r.get("dns_wan") or ""
+        if "loi" in dns.lower() or "error" in dns.lower() or dns in ("0.0.0.0", "None"):
+            error_groups["dns_wan"]["count"] += 1
+
+    employees_leaderboard = sorted(
+        emp_map.values(),
+        key=lambda x: (x["need_count"] + x["warn_count"], x["suy_hao_count"] + x["rot_count"]),
+        reverse=True
+    )
+
+    return jsonify({
+        "success": True,
+        "total_runs": len(history),
+        "total_contracts_analyzed": total_contracts_analyzed,
+        "error_groups": error_groups,
+        "employee_leaderboard": employees_leaderboard,
     })
 
 

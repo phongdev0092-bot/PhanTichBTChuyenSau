@@ -45,7 +45,7 @@ def get_employees():
     employees = col.dropna().str.strip().unique().tolist()
     return sorted([e for e in employees if e and e != 'nan'])
 
-def get_contracts(selected_employees, lookback_days=2):
+def get_contracts(selected_employees, start_date=None, end_date=None, lookback_days=2):
     if not selected_employees:
         return []
 
@@ -54,17 +54,41 @@ def get_contracts(selected_employees, lookback_days=2):
     parsed = pd.to_datetime(raw_dates, errors='coerce', dayfirst=True)
     df['_date'] = parsed.dt.date
 
-    today = datetime.now().date()
-    # Bao gồm cả ngày Hôm Nay (Day 0), Hôm Qua (Day 1), và Hôm Kia (Day 2)
-    target_dates = {today - timedelta(days=i) for i in range(0, lookback_days + 1)}
-    mask_date = df['_date'].isin(target_dates)
+    if start_date or end_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").date() if isinstance(start_date, str) else start_date
+        except Exception:
+            start_dt = None
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").date() if isinstance(end_date, str) else end_date
+        except Exception:
+            end_dt = None
+
+        if start_dt and not end_dt:
+            end_dt = datetime.now().date()
+        elif end_dt and not start_dt:
+            start_dt = end_dt - timedelta(days=lookback_days)
+
+        if start_dt and end_dt:
+            if start_dt > end_dt:
+                start_dt, end_dt = end_dt, start_dt
+            mask_date = (df['_date'] >= start_dt) & (df['_date'] <= end_dt)
+        else:
+            today = datetime.now().date()
+            target_dates = {today - timedelta(days=i) for i in range(0, lookback_days + 1)}
+            mask_date = df['_date'].isin(target_dates)
+    else:
+        today = datetime.now().date()
+        target_dates = {today - timedelta(days=i) for i in range(0, lookback_days + 1)}
+        mask_date = df['_date'].isin(target_dates)
+
     nv_col = df.iloc[:, COL_NHAN_VIEN].fillna('').astype(str).str.strip().str.upper()
     selected_stripped = [str(e).strip().upper() for e in selected_employees if str(e).strip()]
     mask_nv = nv_col.isin(selected_stripped)
     filtered = df[mask_date & mask_nv].copy()
 
-    # Fallback 1: Thử mở rộng 14 ngày nếu chưa có dữ liệu
-    if filtered.empty and lookback_days < 14:
+    # Fallback 1: Thử mở rộng 14 ngày nếu chọn mặc định và chưa có dữ liệu
+    if filtered.empty and not (start_date or end_date) and lookback_days < 14:
         log.info(f"Không có HĐ trong {lookback_days} ngày, mở rộng tìm trong 14 ngày...")
         return get_contracts(selected_employees, lookback_days=14)
 
