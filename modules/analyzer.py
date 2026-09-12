@@ -555,20 +555,23 @@ def _set_mui_max_pagination(d):
 
 def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
     """
-    Tự động chọn 50/100 dòng per page và duyệt qua tất cả các trang pagination của bảng MUI để lấy toàn bộ dữ liệu cell.
+    Duyệt qua tất cả các trang pagination của bảng MUI để lấy toàn bộ dữ liệu cell hiển thị.
     Chỉ lấy các dòng (tr/row) đang hiển thị (is_displayed).
     """
-    _set_mui_max_pagination(d)
     time.sleep(1)
 
     all_rows = []
     seen_row_sigs = set()
     page_count = 0
-    max_pages = 10
+    max_pages = 15
 
     while page_count < max_pages:
         page_count += 1
-        rows_elements = d.find_elements(By.XPATH, '//tbody/tr | //div[@role="row"]')
+        rows_elements = d.find_elements(By.XPATH,
+            '//div[contains(@class,"MuiTabPanel") and not(@hidden)]//tbody/tr'
+            ' | //div[@role="tabpanel" and not(@hidden)]//tbody/tr'
+            ' | //tbody/tr'
+        )
         current_page_added = 0
         for row in rows_elements:
             try:
@@ -586,7 +589,7 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
                 pass
 
         next_btns = d.find_elements(By.XPATH,
-            '//button[@aria-label="Go to next page" or @title="Next page" or contains(@aria-label,"next page")]'
+            '//button[@aria-label="Go to next page" or @title="Next page" or contains(@aria-label,"next page") or contains(@aria-label,"Next page")]'
             ' | //button[contains(@class,"MuiIconButton-root") and .//*[contains(@data-testid,"KeyboardArrowRight")]]'
             ' | //button[not(@disabled) and .//*[contains(@data-testid,"KeyboardArrowRight")]]'
         )
@@ -595,6 +598,9 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
         for btn in next_btns:
             try:
                 if btn.is_displayed() and btn.is_enabled():
+                    aria_dis = btn.get_attribute("aria-disabled") or btn.get_attribute("disabled")
+                    if aria_dis and aria_dis.lower() in ("true", "disabled"):
+                        continue
                     _js_click(d, btn)
                     time.sleep(1.5)
                     clicked_next = True
@@ -602,7 +608,7 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
             except Exception:
                 pass
 
-        if not clicked_next:
+        if not clicked_next or current_page_added == 0:
             break
 
     return all_rows
@@ -813,12 +819,12 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
 def _cross_check_tap_diem(d) -> str:
     """
     Đối chiếu 2: Sub-tab 'Hợp đồng cùng tập điểm'.
-    - Chờ 3.5s để bàn đọc dữ liệu hoàn tất.
+    - Chờ 3.5s để đọc dữ liệu hoàn tất.
     - Quét toàn bộ các trang để lấy Total HĐ (x HĐ).
     - Đếm số HĐ Online/Offline.
-    - Đếm số HĐ Đạt (> -23.5dBm) và Không đạt (<= -23.5dBm).
-    - Nếu Offline >= 50% tổng HĐ >> Cảnh báo tập điểm.
-    - Nếu Offline < 50% tổng HĐ >> Hiển thị chi tiết HĐ Offline & cảnh báo Rx Power.
+    - Đếm số HĐ Đạt (> -23.5dBm), Không đạt (<= -23.5dBm) và Unknown (Không rõ/N/A).
+    - Trích xuất danh sách HĐ Không đạt & HĐ Unknown & HĐ Offline.
+    - Đưa ra kết luận chi tiết.
     """
     _click_mui_tab(d, "Các lần kết nối")
     time.sleep(1)
@@ -837,7 +843,11 @@ def _cross_check_tap_diem(d) -> str:
     offline_count = 0
     khong_dat_count = 0
     dat_count = 0
+    unknown_count = 0
+
     offline_hds = []
+    khong_dat_hds = []
+    unknown_hds = []
 
     hdr_tap = _find_header_indices(d)
     status_idx = hdr_tap.get("trang_thai", -1)
@@ -846,7 +856,7 @@ def _cross_check_tap_diem(d) -> str:
     for r_cells in rows_tap:
         row_str = " | ".join(r_cells)
 
-        # Lấy mã HĐ (ví dụ SG... nếu có)
+        # 1. Lấy mã HĐ (ví dụ SG... từ cell)
         hd_code = ""
         for cell in r_cells:
             m_hd = re.search(r'\b(SG[A-Z0-9]{6,10})\b', cell, re.IGNORECASE)
@@ -854,7 +864,7 @@ def _cross_check_tap_diem(d) -> str:
                 hd_code = m_hd.group(1).upper()
                 break
 
-        # Xác định Trạng thái Online / Offline
+        # 2. Xác định Trạng thái Online / Offline
         is_online = False
         is_offline = False
         row_lower = row_str.lower()
@@ -877,25 +887,23 @@ def _cross_check_tap_diem(d) -> str:
             if hd_code and hd_code not in offline_hds:
                 offline_hds.append(hd_code)
         else:
-            # Mặc định nếu không thấy offline thì tính online
+            # Mặc định tính online nếu không có dấu hiệu offline
             online_count += 1
 
-        # Xác định Công suất thu Rx Power (Bỏ qua các ô chứa IP address / MAC address)
+        # 3. Xác định Công suất thu Rx Power & Trạng thái Unknown
         pwr_cell_text = ""
         if pwr_idx != -1 and pwr_idx < len(r_cells):
             pwr_cell_text = r_cells[pwr_idx]
         else:
             for cell in r_cells:
                 c_low = cell.lower()
-                if "dbm" in c_low or "db" in c_low:
+                if "dbm" in c_low or "db" in c_low or "unknown" in c_low:
                     pwr_cell_text = cell
                     break
             if not pwr_cell_text:
                 for cell in r_cells:
-                    # Bỏ qua cell IP address
                     if re.search(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', cell):
                         continue
-                    # Bỏ qua MAC address
                     if re.search(r'[0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}', cell):
                         continue
                     m_val = re.search(r'[-+]?\d+\.\d+|[-+]?\d+', cell)
@@ -905,7 +913,12 @@ def _cross_check_tap_diem(d) -> str:
                             pwr_cell_text = cell
                             break
 
-        if pwr_cell_text:
+        pwr_lower = pwr_cell_text.lower()
+        if "unknown" in pwr_lower or "không rõ" in pwr_lower or "none" in pwr_lower:
+            unknown_count += 1
+            if hd_code and hd_code not in unknown_hds:
+                unknown_hds.append(hd_code)
+        elif pwr_cell_text:
             m_num = re.search(r'[-+]?\d+\.\d+|[-+]?\d+', pwr_cell_text)
             if m_num:
                 try:
@@ -913,6 +926,8 @@ def _cross_check_tap_diem(d) -> str:
                     val_pwr = -abs(val)
                     if val_pwr <= -23.5:
                         khong_dat_count += 1
+                        if hd_code and not any(hd_code in x for x in khong_dat_hds):
+                            khong_dat_hds.append(f"{hd_code}: {val_pwr:.2f}dBm")
                     else:
                         dat_count += 1
                 except Exception:
@@ -920,14 +935,18 @@ def _cross_check_tap_diem(d) -> str:
 
     offline_pct = (offline_count / total_tap) * 100 if total_tap > 0 else 0
     offline_str = f" ({', '.join(offline_hds[:3])})" if offline_hds else ""
+    khong_dat_str = f" ({', '.join(khong_dat_hds[:3])})" if khong_dat_hds else ""
+    unknown_str = f"; {unknown_count}/{total_tap} HĐ Unknown ({', '.join(unknown_hds[:3])})" if unknown_hds else ""
 
     # TH1: Offline >= 50% tổng số HĐ trong tập điểm >> Cảnh báo tập điểm
     if offline_pct >= 50.0:
-        return f"Cảnh báo tập điểm (Tập điểm này có {total_tap} HĐ; {offline_count}/{total_tap} Offline (>=50%){offline_str}; {khong_dat_count}/{total_tap} Rx Power <= -23.5dBm)"
+        return f"Cảnh báo tập điểm (Tập điểm này có {total_tap} HĐ; {offline_count}/{total_tap} Offline (>=50%){offline_str}; {khong_dat_count}/{total_tap} Rx Power <= -23.5dBm{khong_dat_str}{unknown_str})"
 
     # TH2: Offline < 50% tổng số HĐ
     if khong_dat_count > 0:
-        return f"Yêu cầu xử lý Rx Power (Tập điểm này có {total_tap} HĐ; {khong_dat_count}/{total_tap} HĐ Rx Power không đạt <= -23.5dBm; {online_count}/{total_tap} Online, {offline_count}/{total_tap} Offline{offline_str})"
+        return f"Yêu cầu xử lý Rx Power (Tập điểm này có {total_tap} HĐ; {khong_dat_count}/{total_tap} HĐ Rx Power không đạt <= -23.5dBm{khong_dat_str}; {online_count}/{total_tap} Online, {offline_count}/{total_tap} Offline{offline_str}{unknown_str})"
+    elif unknown_count > 0:
+        return f"Tập điểm có HĐ Unknown (Tập điểm này có {total_tap} HĐ; {online_count}/{total_tap} Online, {offline_count}/{total_tap} Offline{offline_str}{unknown_str}; 0/{total_tap} suy hao)"
     elif offline_count > 0:
         return f"Tập điểm có HĐ Offline (Tập điểm này có {total_tap} HĐ; {online_count}/{total_tap} Online, {offline_count}/{total_tap} Offline{offline_str}; 0/{total_tap} suy hao)"
     else:
