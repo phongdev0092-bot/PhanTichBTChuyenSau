@@ -420,7 +420,7 @@ table {
 thead {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 30;
 }
 
 /* Row 1: Group Headers */
@@ -433,6 +433,10 @@ thead {
   border-bottom: 1px solid var(--border-dark);
   border-right: 1px solid var(--border);
   text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-clip: border-box;
 }
 
 .group-base  { background: #e2e8f0; color: #1e293b; }
@@ -442,7 +446,7 @@ thead {
 .group-check { background: #fffbeb; color: #b45309; border-bottom: 2px solid #fde68a; }
 
 /* Group Header Widths matching child column sums */
-.header-group-row th.group-base  { width: 510px; min-width: 510px; max-width: 510px; position: sticky; left: 0px; z-index: 35; background-color: #e2e8f0 !important; border-right: 2px solid #94a3b8 !important; }
+.header-group-row th.group-base  { width: 510px; min-width: 510px; max-width: 510px; position: sticky; top: 0; left: 0px; z-index: 50; background-color: #e2e8f0 !important; border-right: 2px solid #94a3b8 !important; box-shadow: 4px 0 8px -2px rgba(0,0,0,0.15); }
 .header-group-row th.group-diag  { width: 840px; min-width: 840px; }
 .header-group-row th.group-sys   { width: 260px; min-width: 260px; }
 .header-group-row th.group-modem { width: 460px; min-width: 460px; }
@@ -460,6 +464,10 @@ thead {
   background: #f8fafc;
   border-bottom: 2px solid var(--border-dark);
   border-right: 1px solid #e2e8f0;
+  position: sticky;
+  top: 31px;
+  z-index: 25;
+  background-clip: border-box;
 }
 
 /* Specific Column Fixed Widths (Row 2 Headers & Body Cells) */
@@ -502,11 +510,11 @@ tbody tr:hover { background: #f1f5f9; }
 }
 
 /* Header Row 2 Column Sticky */
-.header-col-row th:nth-child(1) { width: 50px;  min-width: 50px;  max-width: 50px;  position: sticky; left: 0px;   z-index: 30; background-color: #f8fafc !important; }
-.header-col-row th:nth-child(2) { width: 130px; min-width: 130px; max-width: 130px; position: sticky; left: 50px;  z-index: 30; background-color: #f8fafc !important; }
-.header-col-row th:nth-child(3) { width: 160px; min-width: 160px; max-width: 160px; position: sticky; left: 180px; z-index: 30; background-color: #f8fafc !important; }
+.header-col-row th:nth-child(1) { width: 50px;  min-width: 50px;  max-width: 50px;  position: sticky; top: 31px; left: 0px;   z-index: 45; background-color: #f8fafc !important; }
+.header-col-row th:nth-child(2) { width: 130px; min-width: 130px; max-width: 130px; position: sticky; top: 31px; left: 50px;  z-index: 45; background-color: #f8fafc !important; }
+.header-col-row th:nth-child(3) { width: 160px; min-width: 160px; max-width: 160px; position: sticky; top: 31px; left: 180px; z-index: 45; background-color: #f8fafc !important; }
 .header-col-row th:nth-child(4) {
-  width: 170px; min-width: 170px; max-width: 170px; position: sticky; left: 340px; z-index: 30; background-color: #f8fafc !important;
+  width: 170px; min-width: 170px; max-width: 170px; position: sticky; top: 31px; left: 340px; z-index: 45; background-color: #f8fafc !important;
   border-right: 2px solid #94a3b8 !important;
   box-shadow: 4px 0 8px -2px rgba(0,0,0,0.15);
 }
@@ -518,7 +526,7 @@ tbody tr:hover { background: #f1f5f9; }
 #resultBody td:nth-child(4) {
   position: sticky !important;
   z-index: 15 !important;
-  background-clip: padding-box;
+  background-clip: border-box !important;
   opacity: 1 !important;
 }
 

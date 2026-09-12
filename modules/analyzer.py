@@ -564,6 +564,7 @@ def _set_mui_max_pagination(d):
 def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
     """
     Tự động chọn 50/100 dòng per page và duyệt qua tất cả các trang pagination của bảng MUI để lấy toàn bộ dữ liệu cell.
+    Chỉ lấy các dòng (tr/row) đang hiển thị (is_displayed).
     """
     _set_mui_max_pagination(d)
     time.sleep(1)
@@ -579,6 +580,8 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
         current_page_added = 0
         for row in rows_elements:
             try:
+                if not row.is_displayed():
+                    continue
                 cells = row.find_elements(By.XPATH, './td | ./th | ./div[@role="cell" or @role="gridcell"]')
                 if cells:
                     row_texts = [c.text.strip() for c in cells]
@@ -611,6 +614,39 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
             break
 
     return all_rows
+
+
+def _find_header_indices(d) -> dict:
+    """Tự động quét các header <th> hiển thị để tìm vị trí cột 'Vào mạng', 'Ra mạng', 'Thời gian', 'Trạng thái', 'Nguyên nhân'."""
+    indices = {
+        "vao_mang": -1,
+        "ra_mang": -1,
+        "thoi_gian": -1,
+        "trang_thai": -1,
+        "nguyen_nhan": -1
+    }
+    try:
+        header_els = d.find_elements(By.XPATH, '//thead//th | //div[@role="columnheader"]')
+        visible_headers = []
+        for h in header_els:
+            if h.is_displayed():
+                visible_headers.append(h.text.strip().lower())
+        
+        for idx, text in enumerate(visible_headers):
+            if "vào mạng" in text or "vao mang" in text:
+                indices["vao_mang"] = idx
+            elif "ra mạng" in text or "ra mang" in text:
+                indices["ra_mang"] = idx
+            elif "thời gian" in text or "thoi gian" in text:
+                indices["thoi_gian"] = idx
+            elif "trạng thái" in text or "trang thai" in text:
+                indices["trang_thai"] = idx
+            elif "nguyên nhân" in text or "nguyen nhan" in text:
+                indices["nguyen_nhan"] = idx
+        log.info(f"  Dynamic table header indices: {indices}")
+    except Exception as e:
+        log.warning(f"  Lỗi khi quét header indices: {e}")
+    return indices
 
 
 def _click_sub_tab(d, keyword: str) -> bool:
@@ -691,17 +727,26 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
 
     # 1. Sub-tab 'Các lần kết nối'
     _click_sub_tab(d, "Các lần kết nối")
+    hdr_conn = _find_header_indices(d)
+    ra_idx = hdr_conn["ra_mang"]
+    vao_idx = hdr_conn["vao_mang"]
+
     rows_conn = _get_all_table_rows_from_all_pages(d)
 
     ra_mang_events = set()
     for row_cells in rows_conn:
         ra_mang_val = ""
-        if len(row_cells) >= 5:
+        if ra_idx != -1 and ra_idx < len(row_cells):
+            ra_mang_val = row_cells[ra_idx]
+        elif len(row_cells) >= 5:
             ra_mang_val = row_cells[4]
-        elif len(row_cells) >= 4:
-            ra_mang_val = row_cells[3]
 
-        if not ra_mang_val or ra_mang_val in ("--", "-", "") or "Vào mạng" in ra_mang_val:
+        # Kiểm tra xem cell có phải timestamp 'Ra mạng' hợp lệ hay không
+        if not ra_mang_val or ra_mang_val in ("--", "-", "") or "Vào mạng" in ra_mang_val or "vào mạng" in ra_mang_val:
+            continue
+
+        # Đảm bảo không trùng với cell 'Vào mạng'
+        if vao_idx != -1 and vao_idx < len(row_cells) and row_cells[vao_idx] == ra_mang_val:
             continue
 
         ev_dt = _parse_dt(ra_mang_val)
@@ -717,19 +762,21 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
     _click_sub_tab(d, "Nguyên nhân rớt kết nối OLT")
     time.sleep(18)
 
+    hdr_olt = _find_header_indices(d)
+    time_idx = hdr_olt["thoi_gian"] if hdr_olt["thoi_gian"] != -1 else 0
+    status_idx = hdr_olt["trang_thai"] if hdr_olt["trang_thai"] != -1 else 1
+    cause_idx = hdr_olt["nguyen_nhan"] if hdr_olt["nguyen_nhan"] != -1 else 2
+
     rows_olt = _get_all_table_rows_from_all_pages(d)
 
     olt_cause = "Bình thường / Không rõ"
     olt_offline_events_after_t0 = set()
 
     for row_cells in rows_olt:
-        # Col 0: Thời gian (vd: '11/09/2026, 18:13:12')
-        # Col 1: Trạng thái (vd: 'Offline' / 'Online')
-        # Col 2: Nguyên nhân (vd: 'POWER_OFF' / '-')
+        time_str = row_cells[time_idx] if time_idx < len(row_cells) else ""
+        status_str = row_cells[status_idx] if status_idx < len(row_cells) else ""
+        cause_str = row_cells[cause_idx] if cause_idx < len(row_cells) else ""
         row_str = " | ".join(row_cells)
-        time_str = row_cells[0] if len(row_cells) > 0 else ""
-        status_str = row_cells[1] if len(row_cells) > 1 else ""
-        cause_str = row_cells[2] if len(row_cells) > 2 else ""
 
         ev_dt = _parse_dt(time_str)
         is_after_t0 = True if (not t0 or (ev_dt and ev_dt > t0)) else False
