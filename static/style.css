@@ -293,20 +293,133 @@ body {
 }
 .error-state { color: var(--error); }
 
-/* PROGRESS WRAP */
+/* PROGRESS WRAP (PREMIUM DASHBOARD TRACKER) */
 .progress-wrap {
-  background: #ffffff; border: 1px solid var(--border);
-  border-radius: var(--radius-md); padding: 16px 24px;
-  display: flex; flex-direction: column; gap: 10px;
-  box-shadow: var(--shadow-sm);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
-.progress-header { display: flex; justify-content: space-between; font-size: .85rem; }
-.progress-header span:first-child { color: var(--text-secondary); font-weight: 500; }
-.progress-header span:last-child  { color: var(--primary); font-weight: 700; }
-.progress-track { height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+
+.progress-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.progress-percent-badge {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 800;
+  padding: 6px 16px;
+  border-radius: 10px;
+  letter-spacing: -0.5px;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+  min-width: 72px;
+  text-align: center;
+}
+
+.progress-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.progress-spinner {
+  color: #2563eb;
+  font-size: 0.9rem;
+}
+
+.progress-sub-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.progress-contract-pill {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #bae6fd;
+}
+
+.progress-count-text {
+  font-weight: 600;
+  color: #475569;
+}
+
+.btn-cancel-job {
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.btn-cancel-job:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.progress-step-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.progress-step-pill i {
+  color: #2563eb;
+}
+
+.progress-track {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
 .progress-bar {
-  height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent));
-  border-radius: 999px; transition: width .4s ease;
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
 /* STATS CARDS (MUI LIGHT DASHBOARD LOOK) */

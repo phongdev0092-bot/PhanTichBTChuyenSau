@@ -30,6 +30,10 @@ _job_total     = 0
 _job_running   = False
 _job_status    = "idle"   # idle | logging_in | running | done | error | cancelled
 _job_message   = ""
+_job_current_contract = ""
+_job_step_msg  = ""
+_job_step_num  = 0
+_job_percent   = 0
 _job_cancel_requested = False
 _login_status  = "unknown"
 
@@ -188,15 +192,21 @@ def api_filter():
 
     # Bắt đầu job chạy nền
     with _job_lock:
-        _job_results  = []
-        _job_progress = 0
-        _job_total    = len(contracts)
-        _job_running  = True
-        _job_status   = "running"
-        _job_message  = f"Đang phân tích {len(contracts)} hợp đồng..."
+        _job_results          = []
+        _job_progress         = 0
+        _job_total            = len(contracts)
+        _job_running          = True
+        _job_status           = "running"
+        _job_message          = f"Đang phân tích {len(contracts)} hợp đồng..."
+        _job_current_contract = ""
+        _job_step_msg         = "Đang khởi tạo tiến trình phân tích..."
+        _job_step_num         = 0
+        _job_percent          = 0
 
     def run_job():
         global _job_results, _job_progress, _job_running, _job_status, _job_message
+        global _job_current_contract, _job_step_msg, _job_step_num, _job_percent
+        total_cnt = len(contracts)
         try:
             for i, c in enumerate(contracts):
                 # Kiểm tra yêu cầu hủy tiến trình từ người dùng
@@ -205,16 +215,35 @@ def api_filter():
                     with _job_lock:
                         _job_running = False
                         _job_status  = "cancelled"
-                        _job_message = f"Đã dừng tiến trình tại HĐ {i}/{len(contracts)}"
+                        _job_message = f"Đã dừng tiến trình tại HĐ {i}/{total_cnt}"
+                        _job_step_msg = "Tiến trình đã bị người dùng dừng"
                     break
 
-                log.info(f"[{i+1}/{len(contracts)}] Phân tích HĐ: {c['so_hd']}")
+                contract_code = c["so_hd"]
+                log.info(f"[{i+1}/{total_cnt}] Phân tích HĐ: {contract_code}")
+
+                # Callback cập nhật từng bước nhỏ & % tiến trình live
+                def make_step_cb(idx, code):
+                    def cb(step_msg, step_num):
+                        global _job_current_contract, _job_step_msg, _job_step_num, _job_percent, _job_message
+                        with _job_lock:
+                            _job_current_contract = code
+                            _job_step_msg = step_msg
+                            _job_step_num = step_num
+                            step_progress = (step_num - 1) / 6.0
+                            pct = int(((idx + step_progress) / total_cnt) * 100)
+                            _job_percent = min(99, max(0, pct))
+                            _job_message = f"Đang chẩn đoán HĐ [{code}] ({idx+1}/{total_cnt})"
+                    return cb
+
+                step_cb = make_step_cb(i, contract_code)
+
                 try:
-                    res = analyze_contract(c["so_hd"], c.get("tg_hoan_tat", ""))
+                    res = analyze_contract(contract_code, c.get("tg_hoan_tat", ""), step_callback=step_cb)
                 except Exception as exc:
-                    log.exception(f"Lỗi khi phân tích HĐ {c['so_hd']}")
+                    log.exception(f"Lỗi khi phân tích HĐ {contract_code}")
                     res = {
-                        "so_hd": c["so_hd"],
+                        "so_hd": contract_code,
                         "nhan_vien": c["nhan_vien"],
                         "tg_hoan_tat": c["tg_hoan_tat"],
                         "ngay": c["ngay"],
@@ -243,12 +272,15 @@ def api_filter():
                 with _job_lock:
                     _job_results.append(res)
                     _job_progress = i + 1
+                    _job_percent = int(((i + 1) / total_cnt) * 100)
 
             if not _job_cancel_requested:
                 with _job_lock:
                     _job_running = False
                     _job_status  = "done"
-                    _job_message = f"Hoàn tất {len(contracts)} hợp đồng"
+                    _job_percent = 100
+                    _job_step_msg = "Hoàn tất phân tích tất cả hợp đồng"
+                    _job_message = f"Hoàn tất {total_cnt} hợp đồng"
 
             # Lưu vào lịch sử phân tích
             try:
@@ -401,27 +433,35 @@ def api_progress():
         last_sent = 0
         while True:
             with _job_lock:
-                progress  = _job_progress
-                total     = _job_total
-                running   = _job_running
-                status    = _job_status
-                message   = _job_message
-                new_results = _job_results[last_sent:]
+                progress         = _job_progress
+                total            = _job_total
+                percent          = _job_percent
+                current_contract = _job_current_contract
+                step_msg         = _job_step_msg
+                step_num         = _job_step_num
+                running          = _job_running
+                status           = _job_status
+                message          = _job_message
+                new_results      = _job_results[last_sent:]
 
             payload = {
-                "progress": progress,
-                "total":    total,
-                "running":  running,
-                "status":   status,
-                "message":  message,
-                "new_results": new_results,
+                "progress":         progress,
+                "total":            total,
+                "percent":          percent,
+                "current_contract": current_contract,
+                "step_msg":         step_msg,
+                "step_num":         step_num,
+                "running":          running,
+                "status":           status,
+                "message":          message,
+                "new_results":      new_results,
             }
             last_sent += len(new_results)
             yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
             if not running and status in ("done", "error", "idle"):
                 break
-            time.sleep(1.5)
+            time.sleep(1.0)
 
     return Response(
         stream_with_context(generate()),

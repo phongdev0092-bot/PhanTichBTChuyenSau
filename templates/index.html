@@ -168,17 +168,32 @@
         </div>
       </div>
 
-      <!-- PROGRESS BAR -->
+      <!-- PROGRESS BAR & REALTIME STEP TRACKER -->
       <div id="progressWrap" class="progress-wrap hidden">
-        <div class="progress-header" style="display: flex; justify-content: space-between; align-items: center;">
-          <span id="progressText">Đang phân tích...</span>
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span id="progressCount">0 / 0</span>
-            <button id="btnCancelJob" class="btn btn-sm" onclick="doCancelJob()" style="background:#dc2626; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-              <i class="fa-solid fa-hand"></i> Ngừng Tiến Trình
-            </button>
+        <div class="progress-header-row">
+          <div class="progress-header-left">
+            <div id="progressPercent" class="progress-percent-badge">0%</div>
+            <div class="progress-meta">
+              <div class="progress-title-line">
+                <i class="fa-solid fa-spinner fa-spin progress-spinner"></i>
+                <span id="progressText">Đang chẩn đoán...</span>
+              </div>
+              <div class="progress-sub-line">
+                <span id="progressContractBadge" class="progress-contract-pill" style="display:none;">HĐ: ---</span>
+                <span id="progressCount" class="progress-count-text">0 / 0 Hợp đồng</span>
+              </div>
+            </div>
           </div>
+          <button id="btnCancelJob" class="btn btn-sm btn-cancel-job" onclick="doCancelJob()">
+            <i class="fa-solid fa-hand"></i> Dừng Tiến Trình
+          </button>
         </div>
+
+        <div id="progressStepBar" class="progress-step-pill">
+          <i class="fa-solid fa-layer-group fa-spin"></i>
+          <span id="progressStepText">Đang khởi tạo dữ liệu chẩn đoán...</span>
+        </div>
+
         <div class="progress-track">
           <div id="progressBar" class="progress-bar" style="width:0%"></div>
         </div>
@@ -808,7 +823,7 @@ function startSSE() {
   sseSource = new EventSource("/api/progress");
   sseSource.onmessage = (e) => {
     const d = JSON.parse(e.data);
-    setProgress(d.progress,d.total,d.message);
+    setProgress(d);
     if (d.new_results && d.new_results.length) {
       d.new_results.forEach(res => { allResults.push(res); });
       renderFilteredRows();
@@ -816,17 +831,45 @@ function startSSE() {
     }
     if (!d.running) {
       sseSource.close();
-      showToast("Hoàn tất: "+d.message,"success");
-      document.getElementById("progressWrap").classList.add("hidden");
+      showToast("Hoàn tất: " + (d.message || "Đã chẩn đoán xong"), "success");
+      setTimeout(() => {
+        const wrap = document.getElementById("progressWrap");
+        if (wrap) wrap.classList.add("hidden");
+      }, 2000);
     }
   };
   sseSource.onerror = () => sseSource.close();
 }
 
-function setProgress(current,total,message) {
-  document.getElementById("progressText").textContent = message;
-  document.getElementById("progressCount").textContent = total>0?`${current} / ${total}`:"";
-  document.getElementById("progressBar").style.width = (total>0?current/total*100:0)+"%";
+function setProgress(d) {
+  const pct = (d.percent !== undefined) ? d.percent : (d.total > 0 ? Math.round(d.progress / d.total * 100) : 0);
+  
+  const elPct = document.getElementById("progressPercent");
+  if (elPct) elPct.textContent = `${pct}%`;
+
+  const elBar = document.getElementById("progressBar");
+  if (elBar) elBar.style.width = `${pct}%`;
+
+  const elText = document.getElementById("progressText");
+  if (elText) elText.textContent = d.message || "Đang chẩn đoán...";
+
+  const elCount = document.getElementById("progressCount");
+  if (elCount) elCount.textContent = d.total > 0 ? `${d.progress} / ${d.total} Hợp đồng` : "";
+
+  const elBadge = document.getElementById("progressContractBadge");
+  if (elBadge) {
+    if (d.current_contract) {
+      elBadge.textContent = `HĐ: ${d.current_contract}`;
+      elBadge.style.display = "inline-block";
+    } else {
+      elBadge.style.display = "none";
+    }
+  }
+
+  const elStep = document.getElementById("progressStepText");
+  if (elStep) {
+    elStep.textContent = d.step_msg || "Đang xử lý...";
+  }
 }
 
 function filterTable(type) {

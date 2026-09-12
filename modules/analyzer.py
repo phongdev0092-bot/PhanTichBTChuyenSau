@@ -363,7 +363,7 @@ def _exit_contract(d):
 #  MAIN
 # ─────────────────────────────────────────────────────────────
 
-def analyze_contract(contract_number: str, tg_hoan_tat: str = "") -> dict:
+def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=None) -> dict:
     d = get_driver(headless=False)
 
     result = {
@@ -383,12 +383,17 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "") -> dict:
 
     try:
         log.info(f"\n{'='*55}\n  HĐ: {contract_number}\n{'='*55}")
+        if step_callback:
+            step_callback(f"🔎 Tra cứu thông tin hợp đồng {contract_number}", 1)
 
         # 1. Vào trang
         _go_check_contract(d)
 
         # 2-3. Nhập + Phân tích
         _enter_and_analyze(d, contract_number)
+
+        if step_callback:
+            step_callback(f"📋 Kiểm tra Popup & Chẩn đoán lỗi hợp đồng {contract_number}", 2)
 
         # 3.5 Kiểm tra xem có Popup 'Khởi động lại modem' hay không
         did_reboot = _check_and_handle_reboot_popup(d, timeout_check=8)
@@ -462,6 +467,9 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "") -> dict:
             log.info(f"  can_xu_ly: {result['can_xu_ly'][:100]}")
 
         # 7. Tab "Thông số hệ thống"
+        if step_callback:
+            step_callback(f"⚡ Đọc thông số hệ thống & modem hợp đồng {contract_number}", 3)
+
         log.info(f"[{contract_number}] Tab Thông số hệ thống...")
         _click_mui_tab(d, "Thông số hệ thống")
         _shot(d, contract_number, "2_sys")
@@ -499,8 +507,10 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "") -> dict:
                     rot_val = int(m_rot.group(0))
             if rot_val >= 2:
                 log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Rớt Kết Nối (Rớt = {rot_val} >= 2)...")
+                if step_callback:
+                    step_callback(f"🔄 Đối chiếu Rớt Kết Nối (Ra Mạng & OLT)...", 4)
                 tg_hoan_tat_val = result.get("tg_hoan_tat", "")
-                result["doi_chieu_rot_mang"] = _cross_check_disconnections(d, tg_hoan_tat_val)
+                result["doi_chieu_rot_mang"] = _cross_check_disconnections(d, tg_hoan_tat_val, step_callback=step_callback)
                 log.info(f"  doi_chieu_rot_mang: {result['doi_chieu_rot_mang']}")
         except Exception as ex_rot:
             log.warning(f"Lỗi khi đối chiếu rớt kết nối: {ex_rot}")
@@ -509,11 +519,16 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "") -> dict:
         # Đối chiếu sub-tab 'Hợp đồng cùng tập điểm' (Luôn thực hiện để hiển thị thông tin tập điểm đầy đủ)
         try:
             log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Tập Điểm...")
-            result["doi_chieu_tap_diem"] = _cross_check_tap_diem(d)
+            if step_callback:
+                step_callback(f"🌐 Đối chiếu Hợp Đồng cùng Tập Điểm (Chờ server FPT trả dữ liệu)...", 5)
+            result["doi_chieu_tap_diem"] = _cross_check_tap_diem(d, step_callback=step_callback)
             log.info(f"  doi_chieu_tap_diem: {result['doi_chieu_tap_diem']}")
         except Exception as ex_tap:
             log.warning(f"Lỗi khi đối chiếu tập điểm: {ex_tap}")
             result["doi_chieu_tap_diem"] = "Lỗi khi đọc đối chiếu tập điểm"
+
+        if step_callback:
+            step_callback(f"✅ Hoàn tất chẩn đoán hợp đồng {contract_number}", 6)
 
         log.info(f"[{contract_number}] ✅ Xong")
 
@@ -618,7 +633,7 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
     return all_rows
 
 
-def _wait_for_table_data(d, max_timeout: int = 30, initial_sleep: float = 1.5) -> list[list[str]]:
+def _wait_for_table_data(d, max_timeout: int = 30, initial_sleep: float = 1.5, step_callback=None, step_label="") -> list[list[str]]:
     """
     Cơ chế Chờ Thông Minh Linh Hoạt (Dynamic Smart Polling):
     - Tự động quét bảng mỗi 1.5s.
@@ -635,6 +650,11 @@ def _wait_for_table_data(d, max_timeout: int = 30, initial_sleep: float = 1.5) -
             elapsed = time.time() - start_t + initial_sleep
             log.info(f"  ⚡ Dữ liệu bảng load thành công sau {elapsed:.1f}s (Tìm thấy {len(rows)} dòng)!")
             return rows
+        
+        elapsed = time.time() - start_t + initial_sleep
+        if step_callback and step_label:
+            step_callback(f"{step_label} (Đang chờ server FPT {int(elapsed)}s...)", 5)
+
         time.sleep(1.5)
         
     log.warning(f"  ⚠️ Hết {max_timeout}s chờ nhưng không có dữ liệu dòng nào trong bảng.")
@@ -740,7 +760,7 @@ def _parse_dt(date_str: str):
     return None
 
 
-def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
+def _cross_check_disconnections(d, tg_hoan_tat_str: str, step_callback=None) -> str:
     """
     Đối chiếu 1: Sub-tab 'Các lần kết nối' và 'Nguyên nhân rớt kết nối OLT'.
     - Lọc chính xác các sự cố XẢY RA SAU THỜI GIAN HOÀN TẤT (tg_hoan_tat).
@@ -759,7 +779,7 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
     ra_idx = hdr_conn["ra_mang"]
     vao_idx = hdr_conn["vao_mang"]
 
-    rows_conn = _wait_for_table_data(d, max_timeout=15, initial_sleep=1.5)
+    rows_conn = _wait_for_table_data(d, max_timeout=15, initial_sleep=1.5, step_callback=step_callback, step_label="🔄 Đang đọc dữ liệu Các Lần Kết Nối")
 
     ra_mang_events = set()
     for row_cells in rows_conn:
@@ -792,7 +812,7 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
     status_idx = hdr_olt["trang_thai"] if hdr_olt["trang_thai"] != -1 else 1
     cause_idx = hdr_olt["nguyen_nhan"] if hdr_olt["nguyen_nhan"] != -1 else 2
 
-    rows_olt = _wait_for_table_data(d, max_timeout=25, initial_sleep=2.0)
+    rows_olt = _wait_for_table_data(d, max_timeout=25, initial_sleep=2.0, step_callback=step_callback, step_label="🔄 Đang chờ dữ liệu Rớt OLT")
 
     olt_cause = "Bình thường / Không rõ"
     olt_offline_events_after_t0 = set()
@@ -840,7 +860,7 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
         return "Đảm bảo (Kết nối ổn định)"
 
 
-def _cross_check_tap_diem(d) -> str:
+def _cross_check_tap_diem(d, step_callback=None) -> str:
     """
     Đối chiếu 2: Sub-tab 'Hợp đồng cùng tập điểm'.
     - Chờ linh hoạt dữ liệu hoàn tất (Dynamic Wait max 35s).
@@ -854,7 +874,7 @@ def _cross_check_tap_diem(d) -> str:
     time.sleep(1)
     _click_sub_tab(d, "Hợp đồng cùng tập điểm")
     
-    rows_tap = _wait_for_table_data(d, max_timeout=35, initial_sleep=2.0)
+    rows_tap = _wait_for_table_data(d, max_timeout=35, initial_sleep=2.0, step_callback=step_callback, step_label="🌐 Đang chờ dữ liệu HĐ cùng Tập Điểm")
 
     import re
 
