@@ -915,26 +915,34 @@ def _cross_check_tap_diem(d) -> str:
 
         # 3. Xác định Công suất thu Rx Power & Trạng thái Unknown
         pwr_cell_text = ""
-        if pwr_idx != -1 and pwr_idx < len(r_cells):
-            pwr_cell_text = r_cells[pwr_idx]
-        else:
-            for cell in r_cells:
-                c_low = cell.lower()
-                if "dbm" in c_low or "db" in c_low or "unknown" in c_low:
-                    pwr_cell_text = cell
-                    break
-            if not pwr_cell_text:
-                for cell in r_cells:
-                    if re.search(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', cell):
-                        continue
-                    if re.search(r'[0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}', cell):
-                        continue
-                    m_val = re.search(r'[-+]?\d+\.\d+|[-+]?\d+', cell)
-                    if m_val:
-                        v = float(m_val.group(0))
-                        if 5.0 <= abs(v) <= 45.0:
-                            pwr_cell_text = cell
-                            break
+        for cell in r_cells:
+            c_str = cell.strip()
+            if not c_str:
+                continue
+            # Bỏ qua cell IP address
+            if re.search(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', c_str):
+                continue
+            # Bỏ qua MAC address
+            if re.search(r'[0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}', c_str):
+                continue
+            # Bỏ qua Mã HĐ (SG...)
+            if re.search(r'\bSG[A-Z0-9]{6,10}\b', c_str, re.IGNORECASE):
+                continue
+            # Bỏ qua Trạng thái
+            if c_str.lower() in ("online", "offline", "trực tuyến", "ngoại tuyến"):
+                continue
+            # Bỏ qua Port (số nguyên 1-99)
+            if re.match(r'^\d{1,2}$', c_str):
+                continue
+
+            if "unknown" in c_str.lower() or "khong ro" in c_str.lower() or "none" in c_str.lower():
+                pwr_cell_text = c_str
+                break
+
+            m_dec = re.search(r'[-+]?\d+\.\d+', c_str)
+            if m_dec:
+                pwr_cell_text = c_str
+                break
 
         pwr_lower = pwr_cell_text.lower()
         if "unknown" in pwr_lower or "không rõ" in pwr_lower or "none" in pwr_lower:
