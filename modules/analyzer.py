@@ -758,10 +758,10 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
             else:
                 ra_mang_events.add(str(ev_dt))
 
-    # 2. Sub-tab 'Nguyên nhân rớt kết nối OLT' (Chờ 18s để OLT load dữ liệu)
-    log.info("  Chờ 18s để OLT load dữ liệu...")
+    # 2. Sub-tab 'Nguyên nhân rớt kết nối OLT' (Chờ 10s để OLT load dữ liệu)
+    log.info("  Chờ 10s để OLT load dữ liệu...")
     _click_sub_tab(d, "Nguyên nhân rớt kết nối OLT")
-    time.sleep(18)
+    time.sleep(10)
 
     hdr_olt = _find_header_indices(d)
     time_idx = hdr_olt["thoi_gian"] if hdr_olt["thoi_gian"] != -1 else 0
@@ -803,8 +803,13 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
     # Tổng hợp số lần rớt mạng sau khi hoàn tất (Cột 'Ra Mạng' > TG Hoàn Tất)
     ra_mang_count = len(ra_mang_events)
 
-    if ra_mang_count > 1:
+    if ra_mang_count > 2:
         return f"Chưa đảm bảo (Phát hiện {ra_mang_count} lần Ra Mạng từ mốc hoàn tất - NN OLT: {olt_cause})"
+    elif ra_mang_count == 2:
+        if "POWER_OFF" in olt_cause.upper() or olt_cause == "POWER_OFF":
+            return "Đảm bảo (Sau Xử Lý rớt 2 lần do POWER_OFF)"
+        else:
+            return f"Chưa đảm bảo (Phát hiện 2 lần Ra Mạng từ mốc hoàn tất - NN OLT: {olt_cause})"
     elif ra_mang_count == 1:
         return "Đảm bảo (Sau Xử Lý chỉ ra Mạng 1 Lần)"
     else:
