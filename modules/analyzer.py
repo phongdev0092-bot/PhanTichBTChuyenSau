@@ -363,11 +363,12 @@ def _exit_contract(d):
 #  MAIN
 # ─────────────────────────────────────────────────────────────
 
-def analyze_contract(contract_number: str) -> dict:
+def analyze_contract(contract_number: str, tg_hoan_tat: str = "") -> dict:
     d = get_driver(headless=False)
 
     result = {
         "so_hd":             contract_number,
+        "tg_hoan_tat":        tg_hoan_tat,
         "xu_ly_loi_tu_dong": "",
         "can_xu_ly":         "",
         "canh_bao":          "",

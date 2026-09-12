@@ -210,7 +210,7 @@ def api_filter():
 
                 log.info(f"[{i+1}/{len(contracts)}] Phân tích HĐ: {c['so_hd']}")
                 try:
-                    res = analyze_contract(c["so_hd"])
+                    res = analyze_contract(c["so_hd"], c.get("tg_hoan_tat", ""))
                 except Exception as exc:
                     log.exception(f"Lỗi khi phân tích HĐ {c['so_hd']}")
                     res = {
