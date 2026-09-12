@@ -819,51 +819,104 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
 def _cross_check_tap_diem(d) -> str:
     """
     Đối chiếu 2: Sub-tab 'Hợp đồng cùng tập điểm'.
-    - Quét toàn bộ các trang để lấy Total HĐ.
-    - Đếm số HĐ Online/Total.
+    - Chờ 3.5s để bàn đọc dữ liệu hoàn tất.
+    - Quét toàn bộ các trang để lấy Total HĐ (x HĐ).
+    - Đếm số HĐ Online/Offline.
     - Đếm số HĐ Đạt (> -23.5dBm) và Không đạt (<= -23.5dBm).
-    - Đưa ra kết luận tương ứng.
+    - Nếu Offline >= 50% tổng HĐ >> Cảnh báo tập điểm.
+    - Nếu Offline < 50% tổng HĐ >> Hiển thị chi tiết HĐ Offline & cảnh báo Rx Power.
     """
     _click_mui_tab(d, "Các lần kết nối")
     time.sleep(1)
     _click_sub_tab(d, "Hợp đồng cùng tập điểm")
-    time.sleep(1.5)
+    time.sleep(3.5)
 
     rows_tap = _get_all_table_rows_from_all_pages(d)
 
     import re
 
     total_tap = len(rows_tap)
-    online_count = 0
-    khong_dat_count = 0
-    dat_count = 0
-
-    for r_cells in rows_tap:
-        row_str = " | ".join(r_cells)
-        if "Online" in row_str or "online" in row_str:
-            online_count += 1
-
-        m = re.search(r'-\d+\.\d+', row_str)
-        if m:
-            try:
-                val = float(m.group(0))
-                if val <= -23.5:
-                    khong_dat_count += 1
-                else:
-                    dat_count += 1
-            except Exception:
-                pass
-
     if total_tap == 0:
         return "Tập điểm: Không đọc được danh sách HĐ cùng tập điểm"
 
-    valid_power_total = khong_dat_count + dat_count
-    if valid_power_total > 0 and khong_dat_count == valid_power_total:
-        return f"Tập điểm suy hao cao (Tất cả {khong_dat_count}/{total_tap} HĐ không đạt RX Power <= -23.5dBm; {online_count}/{total_tap} Online)"
-    elif khong_dat_count > 0:
-        return f"Yêu cầu xử lý Rx Power (Tập điểm có {khong_dat_count}/{total_tap} HĐ không đạt <= -23.5dBm; {online_count}/{total_tap} Online)"
+    online_count = 0
+    offline_count = 0
+    khong_dat_count = 0
+    dat_count = 0
+    offline_hds = []
+
+    hdr_tap = _find_header_indices(d)
+    status_idx = hdr_tap["trang_thai"]
+
+    for r_cells in rows_tap:
+        row_str = " | ".join(r_cells)
+
+        # Lấy mã HĐ (ví dụ SG... nếu có)
+        hd_code = ""
+        for cell in r_cells:
+            m_hd = re.search(r'\b(SG[A-Z0-9]{6,10})\b', cell, re.IGNORECASE)
+            if m_hd:
+                hd_code = m_hd.group(1).upper()
+                break
+
+        # Xác định Trạng thái Online / Offline
+        is_online = False
+        is_offline = False
+        row_lower = row_str.lower()
+
+        if "online" in row_lower or "trực tuyến" in row_lower:
+            is_online = True
+        elif "offline" in row_lower or "ngoại tuyến" in row_lower or "mất kết nối" in row_lower:
+            is_offline = True
+        elif status_idx != -1 and status_idx < len(r_cells):
+            st_val = r_cells[status_idx].lower()
+            if "on" in st_val:
+                is_online = True
+            elif "off" in st_val:
+                is_offline = True
+
+        if is_online:
+            online_count += 1
+        elif is_offline:
+            offline_count += 1
+            if hd_code and hd_code not in offline_hds:
+                offline_hds.append(hd_code)
+        else:
+            # Mặc định nếu không thấy offline thì tính online
+            online_count += 1
+
+        # Xác định Công suất thu Rx Power (tìm số thực âm trong chuỗi)
+        powers = re.findall(r'-\d+\.\d+|-\d+', row_str)
+        if powers:
+            try:
+                valid_pwr = None
+                for p in powers:
+                    val = float(p)
+                    if -45.0 <= val <= -5.0:
+                        valid_pwr = val
+                        break
+                if valid_pwr is not None:
+                    if valid_pwr <= -23.5:
+                        khong_dat_count += 1
+                    else:
+                        dat_count += 1
+            except Exception:
+                pass
+
+    offline_pct = (offline_count / total_tap) * 100 if total_tap > 0 else 0
+    offline_str = f" ({', '.join(offline_hds[:3])})" if offline_hds else ""
+
+    # TH1: Offline >= 50% tổng số HĐ trong tập điểm >> Cảnh báo tập điểm
+    if offline_pct >= 50.0:
+        return f"Cảnh báo tập điểm (Tập điểm này có {total_tap} HĐ; {offline_count}/{total_tap} Offline (>=50%){offline_str}; {khong_dat_count}/{total_tap} Rx Power <= -23.5dBm)"
+
+    # TH2: Offline < 50% tổng số HĐ
+    if khong_dat_count > 0:
+        return f"Yêu cầu xử lý Rx Power (Tập điểm này có {total_tap} HĐ; {khong_dat_count}/{total_tap} HĐ Rx Power không đạt <= -23.5dBm; {online_count}/{total_tap} Online, {offline_count}/{total_tap} Offline{offline_str})"
+    elif offline_count > 0:
+        return f"Tập điểm có HĐ Offline (Tập điểm này có {total_tap} HĐ; {online_count}/{total_tap} Online, {offline_count}/{total_tap} Offline{offline_str}; 0/{total_tap} suy hao)"
     else:
-        return f"Tập điểm bình thường (0/{total_tap} HĐ không đạt; {online_count}/{total_tap} Online)"
+        return f"Tập điểm bình thường (Tập điểm này có {total_tap} HĐ; {online_count}/{total_tap} Online; Rx Power đạt)"
 
 
 
