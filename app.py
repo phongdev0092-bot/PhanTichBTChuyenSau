@@ -9,7 +9,7 @@ from flask import Flask, render_template, request, jsonify, Response, stream_wit
 
 from config import FLASK_PORT, SECRET_KEY
 from modules.auth import login, is_logged_in, close_driver
-from modules.sheet_reader import get_employees, get_contracts
+from modules.sheet_reader import get_employees, get_contracts, get_team_captains, get_cll30_analytics
 from modules.analyzer import analyze_contract
 
 logging.basicConfig(
@@ -28,47 +28,15 @@ _job_results   = []
 _job_progress  = 0
 _job_total     = 0
 _job_running   = False
+_job_status    = "idle"   # idle | logging_in | running | done | error | cancelled
+_job_message   = ""
+_job_cancel_requested = False
 _login_status  = "unknown"
-_login_message = ""
-_tunnel_url     = ""
-
-
-def start_cloudflare_tunnel():
-    global _tunnel_url
-    cloudflared_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloudflared.exe")
-    if not os.path.exists(cloudflared_path):
-        return
-
-    import subprocess
-    import re
-    log.info("[*] Dang ket noi Cloudflare Tunnel tao link truy cap tu xa...")
-    try:
-        proc = subprocess.Popen(
-            [cloudflared_path, "tunnel", "--url", f"http://localhost:{FLASK_PORT}"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            encoding="utf-8",
-            errors="ignore"
-        )
-        for line in proc.stdout:
-            match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
-            if match:
-                _tunnel_url = match.group(0)
-                log.info(f"\n{'='*65}\n[*] LINK TRUY CAP TU XA ONLINE (MO BANG DIEN THOAI / LAPTOP BAT KY):\n[>] {_tunnel_url}\n{'='*65}\n")
-                break
-    except Exception as e:
-        log.warning(f"Loi khoi chay Cloudflare Tunnel: {e}")
 
 
 # ─────────────────────────────────────────────
 #  ROUTES
 # ─────────────────────────────────────────────
-
-@app.route("/api/tunnel_url")
-def api_tunnel_url():
-    return jsonify({"url": _tunnel_url})
 
 
 @app.route("/")
@@ -108,6 +76,37 @@ def api_employees():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/team_captains")
+def api_team_captains():
+    try:
+        data = get_team_captains()
+        return jsonify({"success": True, "captains": data.get("sorted_captains", []), "captains_map": data.get("captains_map", {})})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/cll30_top10")
+def api_cll30_top10():
+    try:
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+        captain = request.args.get("captain")
+        data = get_cll30_analytics(start_date=start_date, end_date=end_date, top_n=10, selected_captain=captain)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/cancel", methods=["POST"])
+def api_cancel():
+    global _job_cancel_requested, _job_status, _job_message
+    if not _job_running:
+        return jsonify({"success": False, "message": "Không có tiến trình nào đang chạy"})
+    _job_cancel_requested = True
+    _job_message = "Đang dừng tiến trình..."
+    return jsonify({"success": True, "message": "🛑 Đã gửi lệnh ngừng tiến trình"})
+
+
 import os
 
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analysis_history.json")
@@ -134,22 +133,43 @@ def save_history_run(run_data):
 
 @app.route("/api/filter", methods=["POST"])
 def api_filter():
-    global _job_results, _job_progress, _job_total, _job_running, _job_status, _job_message
+    global _job_results, _job_progress, _job_total, _job_running, _job_status, _job_message, _job_cancel_requested
 
     data = request.get_json() or {}
     selected = data.get("employees", [])
     start_date = data.get("start_date")
     end_date = data.get("end_date")
+    team_captain = str(data.get("team_captain") or "").strip()
+    if not team_captain:
+        team_captain = None
 
-    if not selected:
-        return jsonify({"success": False, "error": "Chưa chọn nhân viên"}), 400
+    # Xử lý ghép danh sách nhân viên:
+    final_selected = set(selected)
+    
+    # 1. Nếu chọn Đội Trưởng, gom nhân viên thuộc Đội Trưởng
+    if team_captain:
+        captains_data = get_team_captains()
+        captain_members = captains_data.get("captains_map", {}).get(team_captain, [])
+        if captain_members:
+            final_selected.update(captain_members)
 
-    if _job_running:
-        return jsonify({"success": False, "error": "Đang xử lý, vui lòng chờ"}), 429
+    # 2. Phân tích TOP 10 CLL30N trong tháng đang xét
+    cll30_analytics = get_cll30_analytics(start_date=start_date, end_date=end_date, top_n=10, selected_captain=team_captain)
+    top10_list = cll30_analytics.get("top_n", [])
+
+    # Khi CHỌN ĐỘI TRƯỞNG: Nếu nhân sự thuộc TOP 10 thuộc quyền quản lý của đội trưởng đó thì mặc định chạy kèm.
+    # Khi CHỈ CHỌN NHÂN VIÊN (team_captain is None): KHÔNG chạy kèm bất kỳ TOP 10 nào.
+    auto_added_top10 = []
+    if team_captain:
+        for item in top10_list:
+            emp = item["nhan_vien"]
+            if item.get("is_captain_member"):
+                final_selected.add(emp)
+                auto_added_top10.append(emp)
 
     # Lấy danh sách hợp đồng
     try:
-        contracts = get_contracts(selected, start_date=start_date, end_date=end_date)
+        contracts = get_contracts(list(final_selected), start_date=start_date, end_date=end_date)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -158,8 +178,13 @@ def api_filter():
             "success": True,
             "total": 0,
             "contracts": [],
+            "cll30_analytics": cll30_analytics,
+            "auto_added_top10": auto_added_top10,
             "message": "Không tìm thấy hợp đồng nào phù hợp trong khoảng thời gian đã chọn."
         })
+
+    # Reset cờ ngắt tiến trình
+    _job_cancel_requested = False
 
     # Bắt đầu job chạy nền
     with _job_lock:
@@ -174,6 +199,15 @@ def api_filter():
         global _job_results, _job_progress, _job_running, _job_status, _job_message
         try:
             for i, c in enumerate(contracts):
+                # Kiểm tra yêu cầu hủy tiến trình từ người dùng
+                if _job_cancel_requested:
+                    log.info("Tiến trình đã bị ngắt bởi người dùng.")
+                    with _job_lock:
+                        _job_running = False
+                        _job_status  = "cancelled"
+                        _job_message = f"Đã dừng tiến trình tại HĐ {i}/{len(contracts)}"
+                    break
+
                 log.info(f"[{i+1}/{len(contracts)}] Phân tích HĐ: {c['so_hd']}")
                 try:
                     res = analyze_contract(c["so_hd"])
@@ -210,10 +244,11 @@ def api_filter():
                     _job_results.append(res)
                     _job_progress = i + 1
 
-            with _job_lock:
-                _job_running = False
-                _job_status  = "done"
-                _job_message = f"Hoàn tất {len(contracts)} hợp đồng"
+            if not _job_cancel_requested:
+                with _job_lock:
+                    _job_running = False
+                    _job_status  = "done"
+                    _job_message = f"Hoàn tất {len(contracts)} hợp đồng"
 
             # Lưu vào lịch sử phân tích
             try:
@@ -222,8 +257,9 @@ def api_filter():
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                     "start_date": start_date or "",
                     "end_date": end_date or "",
-                    "employees": selected,
-                    "total_contracts": len(contracts),
+                    "team_captain": team_captain or "",
+                    "employees": list(final_selected),
+                    "total_contracts": len(_job_results),
                     "auto_count": sum(1 for r in _job_results if r.get("xu_ly_loi_tu_dong") and r.get("xu_ly_loi_tu_dong") != "—"),
                     "need_count": sum(1 for r in _job_results if r.get("can_xu_ly") and r.get("can_xu_ly") != "—"),
                     "warn_count": sum(1 for r in _job_results if r.get("canh_bao") and r.get("canh_bao") != "—"),
@@ -247,8 +283,11 @@ def api_filter():
     return jsonify({
         "success":  True,
         "total":    len(contracts),
+        "cll30_analytics": cll30_analytics,
+        "auto_added_top10": auto_added_top10,
         "message":  f"Bắt đầu phân tích {len(contracts)} hợp đồng",
     })
+
 
 
 @app.route("/api/history", methods=["GET"])
@@ -400,19 +439,10 @@ def api_logout():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", FLASK_PORT))
-    log.info(f"[*] MYBAE AUTO Dashboard khoi dong tai http://0.0.0.0:{port}")
-    
-    # Start Cloudflare Tunnel thread
-    threading.Thread(target=start_cloudflare_tunnel, daemon=True).start()
-
-    if os.environ.get("OPEN_BROWSER", "true").lower() == "true":
-        def open_browser():
-            time.sleep(1.2)
-            import webbrowser
-            try:
-                webbrowser.open(f"http://localhost:{port}")
-            except Exception:
-                pass
-        threading.Thread(target=open_browser, daemon=True).start()
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    log.info(f"🚀 MYBAE AUTO Dashboard khởi động tại http://localhost:{FLASK_PORT}")
+    def open_browser():
+        time.sleep(1.2)
+        import webbrowser
+        webbrowser.open(f"http://localhost:{FLASK_PORT}")
+    threading.Thread(target=open_browser, daemon=True).start()
+    app.run(host="0.0.0.0", port=FLASK_PORT, debug=False, threaded=True)

@@ -247,12 +247,30 @@ def _check_and_handle_reboot_popup(d, timeout_check: int = 8) -> bool:
     return False
 
 
+def _is_instruction_line(ln: str) -> bool:
+    """Kiểm tra xem dòng text có phải là Hướng xử lý / Thông báo KH / Thao tác kỹ thuật hay không."""
+    if not ln:
+        return False
+    prefixes = (
+        "Hướng xử lý", "Thông báo KH", "Kiểm tra", "-", "*", "•",
+        "1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9."
+    )
+    if any(ln.startswith(p) for p in prefixes):
+        return True
+    action_verbs = (
+        "Kiểm tra ", "Xem ", "Di dời ", "Tư vấn ", "Cài đặt ",
+        "Khởi động ", "Thay thế ", "Đổi ", "Rút ", "Cắm ", "Thay ", "Báo "
+    )
+    if any(ln.startswith(v) for v in action_verbs):
+        return True
+    return False
+
+
 def _read_diag_details(d, active_tab: str) -> tuple[str, str]:
     """
-    Đọc tab chẩn đoán, tách riêng:
-    1. Tên lỗi/Cảnh báo (titles)
-    2. Hướng xử lý (instructions dưới phần 'Hướng xử lý')
-    Trả về (titles_str, huong_xu_ly_str)
+    Đọc tab chẩn đoán (Cảnh báo / Cần xử lý / Xử lý lỗi tự động), phân tách chính xác:
+    1. Tên cảnh báo / Tên lỗi (titles) -> Đưa vào cột tương ứng (Cảnh báo / Xử lý tự động)
+    2. Chi tiết Hướng xử lý / Thông báo KH -> Đưa vào cột 'Cần xử lý'
     """
     lines = _get_body_lines(d)
 
@@ -265,14 +283,17 @@ def _read_diag_details(d, active_tab: str) -> tuple[str, str]:
         "Kết quả chẩn đoán", "Mô hình mạng", "Chất lượng Wi-Fi",
         "Thoát hợp đồng", "Lịch sử quét", "Xem chi tiết",
         "Cảnh báo", "Xử lý lỗi tự động", "Cần xử lý",
+        "XÁC NHẬN", "Bỏ qua", "Quay lại"
     }
     hard_stops = {"Chi tiết", "Thông số hệ thống", "Mô hình mạng",
                   "Chất lượng Wi-Fi", "Lưu lượng sử dụng"}
 
     titles = []
-    huong_xu_ly_items = []
+    instruction_groups = []
+    current_instructions = []
+
     found_tab = False
-    is_capturing_huong_xu_ly = False
+    is_collecting_instructions = False
 
     for i, ln in enumerate(lines):
         if not found_tab:
@@ -286,34 +307,37 @@ def _read_diag_details(d, active_tab: str) -> tuple[str, str]:
                 if nxt.isdigit():
                     break
 
-            if ln.startswith("Hướng xử lý"):
-                is_capturing_huong_xu_ly = True
+            if ln in noise or ln.isdigit():
                 continue
 
-            if is_capturing_huong_xu_ly:
-                if (len(ln) > 8 
-                    and not ln.isdigit() 
-                    and ln not in noise 
-                    and not ln.startswith("*") 
-                    and not any(ln.startswith(f"{n}.") for n in range(1, 10))
-                    and not any(ln.startswith(verb) for verb in ["Kiểm tra ", "Xem ", "Di dời ", "Tư vấn ", "Cài đặt ", "Khởi động ", "Thay thế ", "Đổi "])):
-                    is_capturing_huong_xu_ly = False
-                    if ln not in titles:
-                        titles.append(ln)
+            if _is_instruction_line(ln) or is_collecting_instructions:
+                if _is_instruction_line(ln):
+                    is_collecting_instructions = True
+                    if ln.startswith("Hướng xử lý"):
+                        continue
+                    current_instructions.append(ln)
                 else:
-                    if ln not in huong_xu_ly_items and ln not in noise and not ln.isdigit():
-                        huong_xu_ly_items.append(ln)
+                    if len(ln) > 8 and not _is_instruction_line(ln) and not ln.startswith("-") and not ln.startswith("*"):
+                        is_collecting_instructions = False
+                        if current_instructions:
+                            instruction_groups.append(" ".join(current_instructions))
+                            current_instructions = []
+                        if ln not in titles:
+                            titles.append(ln)
+                    else:
+                        current_instructions.append(ln)
             else:
-                if (len(ln) > 8
-                        and not ln.isdigit()
-                        and ln not in noise
-                        and not ln.startswith("*")
-                        and not any(ln.startswith(f"{n}.") for n in range(1, 10))):
-                    if ln not in titles:
-                        titles.append(ln)
+                if current_instructions:
+                    instruction_groups.append(" ".join(current_instructions))
+                    current_instructions = []
+                if ln not in titles:
+                    titles.append(ln)
 
-    titles_str = " | ".join(titles[:5])
-    huong_xu_ly_str = " | ".join(huong_xu_ly_items[:5])
+    if current_instructions:
+        instruction_groups.append(" ".join(current_instructions))
+
+    titles_str = " | ".join(titles)
+    huong_xu_ly_str = " | ".join(instruction_groups)
     return titles_str, huong_xu_ly_str
 
 
@@ -611,34 +635,63 @@ def _click_sub_tab(d, keyword: str) -> bool:
     return False
 
 
+def _parse_dt(date_str: str):
+    if not date_str:
+        return None
+    from datetime import datetime
+    import re
+
+    date_str = str(date_str).strip()
+    date_str = date_str.replace(',', '').replace('  ', ' ')
+
+    formats = [
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d",
+        "%d/%m/%Y"
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except Exception:
+            pass
+
+    m = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', date_str)
+    if m:
+        try:
+            return datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
+
+    m2 = re.search(r'(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})', date_str)
+    if m2:
+        try:
+            return datetime.strptime(m2.group(1), "%d/%m/%Y %H:%M:%S")
+        except Exception:
+            pass
+
+    return None
+
+
 def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
     """
     Đối chiếu 1: Sub-tab 'Các lần kết nối' và 'Nguyên nhân rớt kết nối OLT'.
-    - Lọc chính xác Cột 5 (Ra mạng). Bỏ qua dấu '--' (đang Online).
-    - Đếm số mốc thời gian Ra Mạng > tg_hoan_tat.
-    - Chờ 18s cho tab OLT load log rồi đọc nguyên nhân OLT.
+    - Lọc chính xác các sự cố XẢY RA SAU THỜI GIAN HOÀN TẤT (tg_hoan_tat).
+    - Sub-tab 1 'Các lần kết nối': Lọc Cột 'Ra mạng' > tg_hoan_tat (Bỏ qua '--' / đang Online).
+    - Sub-tab 2 'Nguyên nhân rớt kết nối OLT': Lọc Cột 'Thời gian' > tg_hoan_tat VÀ Trạng thái == 'Offline', trích xuất Nguyên nhân OLT.
     """
     _click_mui_tab(d, "Các lần kết nối")
     time.sleep(1.5)
 
-    from datetime import datetime
-    import re
-
-    t0 = None
-    if tg_hoan_tat_str:
-        for fmt in ["%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
-            try:
-                t0 = datetime.strptime(tg_hoan_tat_str.strip(), fmt)
-                break
-            except Exception:
-                pass
+    t0 = _parse_dt(tg_hoan_tat_str)
+    log.info(f"  Thời gian hoàn tất (t0): {t0} (Gốc: '{tg_hoan_tat_str}')")
 
     # 1. Sub-tab 'Các lần kết nối'
     _click_sub_tab(d, "Các lần kết nối")
     rows_conn = _get_all_table_rows_from_all_pages(d)
-
-    date_fmt_list = ["%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y, %H:%M:%S"]
-    date_regex = re.compile(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}|\d{2}/\d{2}/\d{4},?\s+\d{2}:\d{2}:\d{2})')
 
     ra_mang_events = set()
     for row_cells in rows_conn:
@@ -648,25 +701,16 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
         elif len(row_cells) >= 4:
             ra_mang_val = row_cells[3]
 
-        if not ra_mang_val or ra_mang_val == "--" or ra_mang_val == "-" or "Vào mạng" in ra_mang_val:
+        if not ra_mang_val or ra_mang_val in ("--", "-", "") or "Vào mạng" in ra_mang_val:
             continue
 
-        m = date_regex.search(ra_mang_val)
-        if m:
-            t_str = m.group(0).strip()
-            ev_dt = None
-            for fmt in date_fmt_list:
-                try:
-                    ev_dt = datetime.strptime(t_str, fmt)
-                    break
-                except Exception:
-                    pass
-
-            if t0 and ev_dt:
+        ev_dt = _parse_dt(ra_mang_val)
+        if ev_dt:
+            if t0:
                 if ev_dt > t0:
-                    ra_mang_events.add(t_str)
+                    ra_mang_events.add(str(ev_dt))
             else:
-                ra_mang_events.add(t_str)
+                ra_mang_events.add(str(ev_dt))
 
     # 2. Sub-tab 'Nguyên nhân rớt kết nối OLT' (Chờ 18s để OLT load dữ liệu)
     log.info("  Chờ 18s để OLT load dữ liệu...")
@@ -676,17 +720,44 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
     rows_olt = _get_all_table_rows_from_all_pages(d)
 
     olt_cause = "Bình thường / Không rõ"
-    for row_cells in rows_olt:
-        row_str = " | ".join(row_cells)
-        for token in ["POWER_OFF", "LOSi", "LINK_DOWN", "DYING_GASP", "SYSTEM_RESET"]:
-            if token in row_str:
-                olt_cause = token
-                break
-        if olt_cause != "Bình thường / Không rõ":
-            break
+    olt_offline_events_after_t0 = set()
 
+    for row_cells in rows_olt:
+        # Col 0: Thời gian (vd: '11/09/2026, 18:13:12')
+        # Col 1: Trạng thái (vd: 'Offline' / 'Online')
+        # Col 2: Nguyên nhân (vd: 'POWER_OFF' / '-')
+        row_str = " | ".join(row_cells)
+        time_str = row_cells[0] if len(row_cells) > 0 else ""
+        status_str = row_cells[1] if len(row_cells) > 1 else ""
+        cause_str = row_cells[2] if len(row_cells) > 2 else ""
+
+        ev_dt = _parse_dt(time_str)
+        is_after_t0 = True if (not t0 or (ev_dt and ev_dt > t0)) else False
+        is_offline = True if ("Offline" in status_str or "offline" in status_str or "OFFLINE" in status_str) else False
+
+        if is_after_t0 and is_offline:
+            if ev_dt:
+                olt_offline_events_after_t0.add(str(ev_dt))
+            else:
+                olt_offline_events_after_t0.add(time_str)
+
+            # Trích xuất nguyên nhân OLT của đợt rớt sau hoàn tất
+            if cause_str and cause_str.strip() not in ("-", "--", "None", "nan", ""):
+                if olt_cause == "Bình thường / Không rõ":
+                    olt_cause = cause_str.strip()
+            else:
+                for token in ["POWER_OFF", "LOSi", "LINK_DOWN", "DYING_GASP", "SYSTEM_RESET"]:
+                    if token in row_str:
+                        if olt_cause == "Bình thường / Không rõ":
+                            olt_cause = token
+                        break
+
+    # Tổng hợp số lần rớt mạng sau khi hoàn tất
     ra_mang_count = len(ra_mang_events)
-    if ra_mang_count > 1:
+    if ra_mang_count == 0 and len(olt_offline_events_after_t0) > 0:
+        ra_mang_count = len(olt_offline_events_after_t0)
+
+    if ra_mang_count > 0:
         return f"Chưa đảm bảo (Phát hiện {ra_mang_count} lần Ra Mạng từ mốc hoàn tất - NN OLT: {olt_cause})"
     else:
         return "Đảm bảo (Kết nối ổn định)"

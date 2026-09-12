@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MYBAE AUTO – Dashboard Đánh Giá Hợp Đồng</title>
-  <meta name="description" content="Dashboard tự động đánh giá và cảnh báo hợp đồng FPT Telecom"/>
+  <title>Hệ Thống Phân Tích Chất Lượng Bảo Trì Sài Gòn 01</title>
+  <meta name="description" content="Hệ Thống Phân Tích Chất Lượng Bảo Trì Sài Gòn 01 – Tác giả: phongnh5"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="/static/style.css"/>
@@ -21,10 +21,10 @@
   <header class="header">
     <div class="header-left">
       <div class="logo-wrap">
-        <div class="logo-icon"><i class="fa-solid fa-bolt"></i></div>
-        <div>
-          <span class="logo-title">MYBAE AUTO</span>
-          <span class="logo-sub">FPT Telecom Dashboard</span>
+        <img src="https://management.mypt.vn/images/fpt-logo-2.svg" alt="FPT Logo" class="logo-img" style="height: 40px; width: auto; object-fit: contain; flex-shrink: 0;"/>
+        <div style="display: flex; flex-direction: column;">
+          <span class="logo-title" style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em;">Hệ Thống Phân Tích Chất Lượng Bảo Trì Sài Gòn 01</span>
+          <span class="logo-sub" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Tác giả: <strong style="color: var(--primary);">phongnh5</strong></span>
         </div>
       </div>
     </div>
@@ -94,6 +94,53 @@
             </div>
           </div>
 
+          <!-- CAPTAIN FILTER SECTION -->
+          <div class="captain-filter-section" style="margin-top:14px; margin-bottom: 14px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border);">
+            <label for="captainSelect" style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <i class="fa-solid fa-user-tie" style="color: var(--primary);"></i> Bộ Lọc Đội Trưởng:
+            </label>
+            <select id="captainSelect" class="date-input" style="width: 100%; font-weight: 500; height: 38px; border-radius: 6px; background:#fff;" onchange="onCaptainChange(this.value)">
+              <option value="">-- Tất cả Đội Trưởng (Hoặc chọn tùy chỉnh nhân viên) --</option>
+            </select>
+          </div>
+
+          <!-- BẢNG TOP 10 CLL30N DƯỚI BỘ LỌC NGÀY & ĐỘI TRƯỞNG -->
+          <div class="cll30-table-section" style="margin-bottom: 16px; background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: var(--error); font-size: 1.1rem;"></i>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0;">Bảng Thống Kê TOP 10 Nhân Viên Có Tỷ Lệ CLL30N Cao Nhất Tháng</h3>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="loadCll30Top10Table()" title="Cập nhật lại dữ liệu Top 10">
+                <i class="fa-solid fa-rotate"></i> Làm mới
+              </button>
+            </div>
+            
+            <div style="background:#fff7ed; border-left:4px solid var(--accent); padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:0.82rem; color:#9a3412; line-height: 1.5;">
+              <i class="fa-solid fa-circle-info"></i> <strong>Quy Tắc Chạy Kèm:</strong> Khi chọn <strong>Đội Trưởng</strong>, nhân sự TOP 10 thuộc quản lý sẽ <strong>mặc định chạy kèm</strong>. Nếu chỉ chọn <strong>Nhân Viên</strong> cá nhân, hệ thống <strong>không chạy kèm</strong> TOP 10.
+            </div>
+
+            <div class="table-scroll" style="max-height: 320px;">
+              <table class="leaderboard-table" style="font-size: 0.82rem;">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Tên Nhân Viên</th>
+                    <th>Đội Trưởng Giám Sát</th>
+                    <th style="text-align:center;">Tỷ Lệ CLL30N (%)</th>
+                    <th style="text-align:center;">Số HĐ CLL30N</th>
+                    <th style="text-align:center;">Tổng KH Có Cls</th>
+                    <th style="text-align:center;">Đánh Giá Chỉ Số</th>
+                    <th style="text-align:center;">Trạng Thái Chạy Kèm</th>
+                  </tr>
+                </thead>
+                <tbody id="cll30CardTableBody">
+                  <tr><td colspan="8" class="td-muted" style="text-align:center;">Đang tải dữ liệu...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="search-wrap">
             <i class="fa-solid fa-magnifying-glass"></i>
             <input id="searchInput" type="text" placeholder="Tìm nhân viên..."
@@ -123,9 +170,14 @@
 
       <!-- PROGRESS BAR -->
       <div id="progressWrap" class="progress-wrap hidden">
-        <div class="progress-header">
+        <div class="progress-header" style="display: flex; justify-content: space-between; align-items: center;">
           <span id="progressText">Đang phân tích...</span>
-          <span id="progressCount">0 / 0</span>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span id="progressCount">0 / 0</span>
+            <button id="btnCancelJob" class="btn btn-sm" onclick="doCancelJob()" style="background:#dc2626; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-hand"></i> Ngừng Tiến Trình
+            </button>
+          </div>
         </div>
         <div class="progress-track">
           <div id="progressBar" class="progress-bar" style="width:0%"></div>
@@ -199,60 +251,31 @@
           </div>
         </div>
 
-        <div class="table-group-header">
-          <div class="tgh-base">Thông tin cơ bản</div>
-          <div class="tgh-diag">
-            <i class="fa-solid fa-stethoscope"></i> Kết quả chẩn đoán
-          </div>
-          <div class="tgh-sys">
-            <i class="fa-solid fa-server"></i> Thông số hệ thống
-          </div>
-          <div class="tgh-modem">
-            <i class="fa-solid fa-wifi"></i> Thông số modem
-          </div>
-          <div class="tgh-doichieu" style="background:#fffbeb;color:#d97706;padding:6px 12px;border-radius:6px;font-weight:700;">
-            <i class="fa-solid fa-magnifying-glass-chart"></i> Đối chiếu chuyên sâu
-          </div>
-        </div>
-
         <div class="table-scroll">
           <table id="resultTable">
             <thead>
-              <tr>
+              <tr class="header-group-row">
+                <th colspan="4" class="group-th group-base">THÔNG TIN CƠ BẢN</th>
+                <th colspan="3" class="group-th group-diag"><i class="fa-solid fa-stethoscope"></i> KẾT QUẢ CHẨN ĐOÁN</th>
+                <th colspan="2" class="group-th group-sys"><i class="fa-solid fa-server"></i> THÔNG SỐ HỆ THỐNG</th>
+                <th colspan="3" class="group-th group-modem"><i class="fa-solid fa-wifi"></i> THÔNG SỐ MODEM</th>
+                <th colspan="2" class="group-th group-check"><i class="fa-solid fa-magnifying-glass-chart"></i> ĐỐI CHIẾU CHUYÊN SÂU</th>
+              </tr>
+              <tr class="header-col-row">
                 <th class="col-num">#</th>
                 <th class="col-hd">Số HĐ</th>
                 <th class="col-nv">Nhân Viên</th>
                 <th class="col-date">TG Hoàn Tất</th>
-                <th class="col-diag col-auto-h">
-                  <i class="fa-solid fa-robot th-icon icon-blue"></i> Xử lý tự động
-                </th>
-                <th class="col-diag col-need-h">
-                  <i class="fa-solid fa-wrench th-icon icon-red"></i> Cần xử lý
-                </th>
-                <th class="col-diag col-warn-h">
-                  <i class="fa-solid fa-triangle-exclamation th-icon icon-yellow"></i> Cảnh báo
-                </th>
-                <th class="col-sys">
-                  <i class="fa-solid fa-signal th-icon icon-teal"></i> Công suất thu
-                </th>
-                <th class="col-sys">
-                  <i class="fa-solid fa-plug-circle-xmark th-icon icon-teal"></i> Số lần rớt KN
-                </th>
-                <th class="col-modem">
-                  <i class="fa-solid fa-microchip th-icon icon-purple"></i> Loại modem
-                </th>
-                <th class="col-modem">
-                  <i class="fa-solid fa-code-branch th-icon icon-purple"></i> Phiên bản PM
-                </th>
-                <th class="col-modem">
-                  <i class="fa-solid fa-network-wired th-icon icon-purple"></i> DNS WAN
-                </th>
-                <th class="col-doichieu">
-                  <i class="fa-solid fa-plug-circle-exclamation th-icon icon-yellow"></i> Đối chiếu Rớt KN
-                </th>
-                <th class="col-doichieu">
-                  <i class="fa-solid fa-network-wired th-icon icon-purple"></i> Đối chiếu Tập điểm
-                </th>
+                <th class="col-auto"><i class="fa-solid fa-robot th-icon icon-blue"></i> Xử lý tự động</th>
+                <th class="col-need"><i class="fa-solid fa-wrench th-icon icon-red"></i> Cần xử lý</th>
+                <th class="col-warn"><i class="fa-solid fa-triangle-exclamation th-icon icon-yellow"></i> Cảnh báo</th>
+                <th class="col-pwr"><i class="fa-solid fa-signal th-icon icon-teal"></i> Công suất thu</th>
+                <th class="col-drop"><i class="fa-solid fa-plug-circle-xmark th-icon icon-teal"></i> Số lần rớt KN</th>
+                <th class="col-modem-type"><i class="fa-solid fa-microchip th-icon icon-purple"></i> Loại modem</th>
+                <th class="col-modem-fw"><i class="fa-solid fa-code-branch th-icon icon-purple"></i> Phiên bản PM</th>
+                <th class="col-modem-dns"><i class="fa-solid fa-network-wired th-icon icon-purple"></i> DNS WAN</th>
+                <th class="col-check-rot"><i class="fa-solid fa-plug-circle-exclamation th-icon icon-yellow"></i> Đối chiếu Rớt KN</th>
+                <th class="col-check-tap"><i class="fa-solid fa-network-wired th-icon icon-purple"></i> Đối chiếu Tập điểm</th>
               </tr>
             </thead>
             <tbody id="resultBody"></tbody>
@@ -382,15 +405,20 @@
       </div>
     </div>
 
+
+
   </main>
 </div>
 
 <!-- TOAST -->
 <div id="toast" class="toast"></div>
 
+
+
 <script>
 let allEmployees = [];
 let selectedEmployees = new Set();
+let teamCaptainsMap = {};
 let allResults = [];
 let historyRuns = [];
 let sseSource = null;
@@ -406,6 +434,8 @@ let historyRowsPerPage = 5;
 document.addEventListener("DOMContentLoaded", () => {
   createParticles();
   loadEmployees();
+  loadTeamCaptains();
+  loadCll30Top10Table();
   pollLoginStatus();
   checkTunnelUrl();
   setInterval(checkTunnelUrl, 4000);
@@ -448,6 +478,10 @@ function switchTab(tabId) {
   if (tabId === 'analytics-tab') {
     document.getElementById("tabBtn-analytics").classList.add("active");
     loadAnalytics();
+  }
+  if (tabId === 'cll30-tab') {
+    document.getElementById("tabBtn-cll30").classList.add("active");
+    loadCll30Top10Table();
   }
   document.getElementById(tabId).classList.add("active");
 }
@@ -526,22 +560,31 @@ function filterEmployees() {
 }
 
 function toggleEmployee(name) {
+  const cs = document.getElementById("captainSelect");
+  if (cs) cs.value = "";
   if (selectedEmployees.has(name)) selectedEmployees.delete(name);
   else selectedEmployees.add(name);
   updateSelectedCount(); filterEmployees();
   document.getElementById("btnFilter").disabled = selectedEmployees.size === 0;
+  loadCll30Top10Table();
 }
 
 function selectAll() {
+  const cs = document.getElementById("captainSelect");
+  if (cs) cs.value = "";
   const q = document.getElementById("searchInput").value.toLowerCase();
   allEmployees.filter(n => n.toLowerCase().includes(q)).forEach(n => selectedEmployees.add(n));
   updateSelectedCount(); filterEmployees();
   document.getElementById("btnFilter").disabled = false;
+  loadCll30Top10Table();
 }
 
 function clearAll() {
+  const cs = document.getElementById("captainSelect");
+  if (cs) cs.value = "";
   selectedEmployees.clear(); updateSelectedCount(); filterEmployees();
   document.getElementById("btnFilter").disabled = true;
+  loadCll30Top10Table();
 }
 
 function updateSelectedCount() {
@@ -572,14 +615,164 @@ function setBadge(type,text) {
   document.getElementById("loginText").textContent = text;
 }
 
+async function loadTeamCaptains() {
+  try {
+    const r = await fetch("/api/team_captains");
+    const d = await r.json();
+    if (d.success) {
+      teamCaptainsMap = d.captains_map || {};
+      const sel = document.getElementById("captainSelect");
+      if (sel) {
+        sel.innerHTML = `<option value="">-- Tất cả Đội Trưởng (Hoặc chọn tùy chỉnh nhân viên) --</option>` +
+          (d.captains || []).map(c => `<option value="${esc(c)}">${esc(c)} (${(teamCaptainsMap[c]||[]).length} NV)</option>`).join("");
+      }
+    }
+  } catch(e) {
+    console.error("Lỗi tải danh sách Đội Trưởng:", e);
+  }
+}
+
+function onCaptainChange(captainName) {
+  if (!captainName) {
+    loadCll30Top10Table();
+    return;
+  }
+  const members = teamCaptainsMap[captainName] || [];
+  selectedEmployees.clear();
+  members.forEach(m => selectedEmployees.add(m));
+  updateSelectedCount();
+  filterEmployees();
+  document.getElementById("btnFilter").disabled = selectedEmployees.size === 0;
+  loadCll30Top10Table();
+  showToast(`Đã chọn toàn bộ ${members.length} Nhân Viên thuộc Đội Trưởng ${captainName}`, "info");
+}
+
+async function loadCll30Top10Table() {
+  const startDate = document.getElementById("startDate")?.value || "";
+  const endDate = document.getElementById("endDate")?.value || "";
+  const selectedCap = document.getElementById("captainSelect")?.value || "";
+
+  try {
+    const url = `/api/cll30_top10?start_date=${startDate}&end_date=${endDate}&captain=${encodeURIComponent(selectedCap)}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    if (d.success && d.data && d.data.top_n) {
+      renderCll30TableRows(d.data.top_n, selectedCap);
+    }
+  } catch(e) {
+    console.error("Lỗi khi tải Bảng Top 10 CLL30N:", e);
+  }
+}
+
+function renderCll30TableRows(topList, selectedCaptain) {
+  if (!topList || !topList.length) {
+    const emptyRow = `<tr><td colspan="8" class="td-muted" style="text-align:center;">Không có dữ liệu TOP 10 CLL30N.</td></tr>`;
+    ["cll30CardTableBody", "cll30ModalBody"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = emptyRow;
+    });
+    return;
+  }
+
+  const rows = topList.map((item, idx) => {
+    const isFail = item.status === "KHONG_DAT";
+    const statusBadge = isFail 
+      ? `<span class="tag-fail"><i class="fa-solid fa-triangle-exclamation"></i> Không Đạt (≥7%)</span>`
+      : `<span class="tag-pass"><i class="fa-solid fa-check"></i> Đạt (<7%)</span>`;
+    
+    let autoRunStatus = `<span style="color:var(--text-muted); font-size:0.82rem;"><i class="fa-solid fa-circle-xmark"></i> Không chạy kèm (Chỉ chọn nhân viên)</span>`;
+    if (selectedCaptain) {
+      if (item.is_captain_member) {
+        autoRunStatus = `<span style="color:#c2410c; font-weight:700; font-size:0.82rem;"><i class="fa-solid fa-bolt"></i> Mặc định chạy kèm (Thuộc ${esc(selectedCaptain)})</span>`;
+      } else {
+        autoRunStatus = `<span style="color:var(--text-muted); font-size:0.82rem;">Không chạy kèm (Khác Đội Trưởng)</span>`;
+      }
+    }
+
+    const rowBg = item.is_captain_member ? `style="background:#fff7ed;"` : ``;
+
+    return `
+      <tr ${rowBg}>
+        <td>${idx + 1}</td>
+        <td><strong>${esc(item.nhan_vien)}</strong></td>
+        <td>${esc(item.doi_truong || "Chưa phân công")}</td>
+        <td style="text-align:center; font-weight:bold; font-size:0.95rem; color:${isFail?'#dc2626':'#059669'};">${item.rate}%</td>
+        <td style="text-align:center; font-weight:bold; color:var(--error);">${item.cll30_count}</td>
+        <td style="text-align:center;">${item.total_cls_count}</td>
+        <td style="text-align:center;">${statusBadge}</td>
+        <td style="text-align:center;">${autoRunStatus}</td>
+      </tr>
+    `;
+  }).join("");
+
+  ["cll30CardTableBody", "cll30ModalBody"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = rows;
+  });
+}
+
+async function doCancelJob() {
+  try {
+    const r = await fetch("/api/cancel", {method: "POST"});
+    const d = await r.json();
+    if (d.success) {
+      showToast(d.message, "warning");
+      document.getElementById("progressText").textContent = "🛑 Đang dừng tiến trình...";
+    } else {
+      showToast(d.message, "error");
+    }
+  } catch(e) {
+    showToast("Lỗi ngắt tiến trình", "error");
+  }
+}
+
+function showCll30Modal(analyticsData) {
+  if (!analyticsData || !analyticsData.top_n || !analyticsData.top_n.length) return;
+  const tbody = document.getElementById("cll30ModalBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = analyticsData.top_n.map((item, idx) => {
+    const isFail = item.status === "KHONG_DAT";
+    const statusBadge = isFail 
+      ? `<span class="tag-fail"><i class="fa-solid fa-triangle-exclamation"></i> Không Đạt (≥7%)</span>`
+      : `<span class="tag-pass"><i class="fa-solid fa-check"></i> Đạt (<7%)</span>`;
+    
+    const highlight = item.is_captain_member ? `style="background:#fff7ed; font-weight:600;"` : ``;
+
+    return `
+      <tr ${highlight}>
+        <td style="padding:8px 10px;">${idx + 1}</td>
+        <td style="padding:8px 10px;"><strong>${esc(item.nhan_vien)}</strong></td>
+        <td style="padding:8px 10px;">${esc(item.doi_truong || "Chưa phân công")}</td>
+        <td style="padding:8px 10px; text-align:center; font-weight:bold; color:var(--error);">${item.cll30_count}</td>
+        <td style="padding:8px 10px; text-align:center;">${item.total_cls_count}</td>
+        <td style="padding:8px 10px; text-align:center; font-weight:bold; font-size:0.95rem; color:${isFail?'#dc2626':'#059669'};">${item.rate}%</td>
+        <td style="padding:8px 10px; text-align:center;">${statusBadge}</td>
+      </tr>
+    `;
+  }).join("");
+
+  document.getElementById("cll30Modal").classList.remove("hidden");
+}
+
+function closeCll30Modal() {
+  const modal = document.getElementById("cll30Modal");
+  if (modal) modal.classList.add("hidden");
+}
+
 async function doFilter() {
-  if (!selectedEmployees.size) return;
+  const selectedCap = document.getElementById("captainSelect").value;
+  if (!selectedEmployees.size && !selectedCap) {
+    showToast("Vui lòng chọn nhân viên hoặc chọn Đội Trưởng!", "warning");
+    return;
+  }
+  
   allResults = []; currentFilter = null;
   analysisCurrentPage = 1;
   document.getElementById("resultBody").innerHTML = "";
   ["resultCard","progressWrap","statsRow"].forEach(id => document.getElementById(id).classList.remove("hidden"));
   clearFilter();
-  setProgress(0,0,"Đang lấy danh sách hợp đồng...");
+  setProgress(0,0,"Đang kiểm tra dữ liệu hợp đồng...");
 
   const startDate = document.getElementById("startDate").value;
   const endDate = document.getElementById("endDate").value;
@@ -590,14 +783,22 @@ async function doFilter() {
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
         employees:[...selectedEmployees],
+        team_captain: selectedCap,
         start_date: startDate,
         end_date: endDate
       })
     });
     const d = await r.json();
     if (!d.success) { showToast("Lỗi: "+d.error,"error"); return; }
+
     if (d.total===0) { showToast(d.message,"info"); document.getElementById("progressWrap").classList.add("hidden"); return; }
-    showToast(`Phân tích ${d.total} hợp đồng...`,"info");
+    
+    if (d.auto_added_top10 && d.auto_added_top10.length > 0) {
+      showToast(`Đã tự động thêm các HĐ của TOP 10 CLL30N thuộc Đội Trưởng vào tiến trình (${d.total} HĐ tổng cộng)!`, "info");
+    } else {
+      showToast(`Phân tích ${d.total} hợp đồng...`,"info");
+    }
+
     startSSE();
   } catch(e) { showToast("Lỗi kết nối server","error"); }
 }
@@ -752,15 +953,27 @@ function appendRowTo(tbody,res,idx) {
 
 function doiChieuBadge(type, text) {
   if (!text || text === "—" || text === "") return `<span class="tag tag-empty">—</span>`;
-  let cls = "tag-info";
-  if (text.includes("vẫn rớt") || text.includes("Cảnh báo")) cls = "tag-warn";
-  else if (text.includes("ổn định") || text.includes("đơn lẻ")) cls = "tag-auto";
-  return `<span class="tag ${cls}" title="${esc(text)}" style="max-width:220px; white-space:normal; line-height:1.2; padding:4px 6px;">${esc(text)}</span>`;
+  const items = String(text).split(/\s*\|\s*/).map(s => s.trim()).filter(Boolean);
+  if (!items.length) return `<span class="tag tag-empty">—</span>`;
+  
+  return items.map(item => {
+    let cls = "tag-info";
+    if (item.includes("vẫn rớt") || item.includes("Cảnh báo") || item.includes("Chưa đảm bảo")) cls = "tag-warn";
+    else if (item.includes("ổn định") || item.includes("đơn lẻ")) cls = "tag-auto";
+    return `<div class="tag ${cls} tag-block" title="${esc(item)}">${esc(item)}</div>`;
+  }).join("");
 }
 
-function badge(type,text) {
-  if (!text||text==="—") return `<span class="tag tag-empty">—</span>`;
-  return `<span class="tag tag-${type}" title="${esc(text)}">${esc(truncate(text,40))}</span>`;
+function badge(type, text) {
+  if (!text || text === "—" || text === "") return `<span class="tag tag-empty">—</span>`;
+  const items = String(text).split(/\s*\|\s*/).map(s => s.trim()).filter(Boolean);
+  if (!items.length) return `<span class="tag tag-empty">—</span>`;
+  
+  return items.map(item => `
+    <div class="tag tag-${type} tag-block" title="${esc(item)}">
+      ${esc(item)}
+    </div>
+  `).join("");
 }
 
 function signalVal(val) {
