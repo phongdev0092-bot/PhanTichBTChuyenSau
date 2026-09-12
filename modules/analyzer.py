@@ -618,6 +618,29 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
     return all_rows
 
 
+def _wait_for_table_data(d, max_timeout: int = 30, initial_sleep: float = 1.5) -> list[list[str]]:
+    """
+    Cơ chế Chờ Thông Minh Linh Hoạt (Dynamic Smart Polling):
+    - Tự động quét bảng mỗi 1.5s.
+    - Ngay khi bảng hết Loading và xuất hiện dữ liệu dòng (tbody/tr) -> Trả về kết quả ngắt ngay lập tức!
+    - Nếu server FPT phản hồi nhanh (2s - 5s) -> Chạy xong trong 2s - 5s (Tối ưu 100% thời gian).
+    - Nếu server FPT phản hồi chậm (15s - 25s) -> Tự động kiên nhẫn chờ đến khi có dữ liệu (Tối đa max_timeout giây).
+    """
+    time.sleep(initial_sleep)
+    start_t = time.time()
+    
+    while time.time() - start_t < max_timeout:
+        rows = _get_all_table_rows_from_all_pages(d)
+        if len(rows) > 0:
+            elapsed = time.time() - start_t + initial_sleep
+            log.info(f"  ⚡ Dữ liệu bảng load thành công sau {elapsed:.1f}s (Tìm thấy {len(rows)} dòng)!")
+            return rows
+        time.sleep(1.5)
+        
+    log.warning(f"  ⚠️ Hết {max_timeout}s chờ nhưng không có dữ liệu dòng nào trong bảng.")
+    return []
+
+
 def _find_header_indices(d) -> dict:
     """Tự động quét các header <th> hiển thị để tìm vị trí các cột."""
     indices = {
@@ -736,7 +759,7 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
     ra_idx = hdr_conn["ra_mang"]
     vao_idx = hdr_conn["vao_mang"]
 
-    rows_conn = _get_all_table_rows_from_all_pages(d)
+    rows_conn = _wait_for_table_data(d, max_timeout=15, initial_sleep=1.5)
 
     ra_mang_events = set()
     for row_cells in rows_conn:
@@ -762,17 +785,14 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
             else:
                 ra_mang_events.add(str(ev_dt))
 
-    # 2. Sub-tab 'Nguyên nhân rớt kết nối OLT' (Chờ 10s để OLT load dữ liệu)
-    log.info("  Chờ 10s để OLT load dữ liệu...")
+    # 2. Sub-tab 'Nguyên nhân rớt kết nối OLT' (Chờ linh hoạt tối đa 25s)
     _click_sub_tab(d, "Nguyên nhân rớt kết nối OLT")
-    time.sleep(10)
-
     hdr_olt = _find_header_indices(d)
     time_idx = hdr_olt["thoi_gian"] if hdr_olt["thoi_gian"] != -1 else 0
     status_idx = hdr_olt["trang_thai"] if hdr_olt["trang_thai"] != -1 else 1
     cause_idx = hdr_olt["nguyen_nhan"] if hdr_olt["nguyen_nhan"] != -1 else 2
 
-    rows_olt = _get_all_table_rows_from_all_pages(d)
+    rows_olt = _wait_for_table_data(d, max_timeout=25, initial_sleep=2.0)
 
     olt_cause = "Bình thường / Không rõ"
     olt_offline_events_after_t0 = set()
@@ -823,7 +843,7 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
 def _cross_check_tap_diem(d) -> str:
     """
     Đối chiếu 2: Sub-tab 'Hợp đồng cùng tập điểm'.
-    - Chờ 3.5s để đọc dữ liệu hoàn tất.
+    - Chờ linh hoạt dữ liệu hoàn tất (Dynamic Wait max 35s).
     - Quét toàn bộ các trang để lấy Total HĐ (x HĐ).
     - Đếm số HĐ Online/Offline.
     - Đếm số HĐ Đạt (> -23.5dBm), Không đạt (<= -23.5dBm) và Unknown (Không rõ/N/A).
@@ -833,14 +853,8 @@ def _cross_check_tap_diem(d) -> str:
     _click_mui_tab(d, "Các lần kết nối")
     time.sleep(1)
     _click_sub_tab(d, "Hợp đồng cùng tập điểm")
-    log.info("  Chờ 25s để dữ liệu Tập Điểm load hoàn tất...")
-    time.sleep(25)
-
-    rows_tap = _get_all_table_rows_from_all_pages(d)
-    if len(rows_tap) == 0:
-        log.info("  Bảng chưa load xong, thử chờ thêm 5s và đọc lại...")
-        time.sleep(5)
-        rows_tap = _get_all_table_rows_from_all_pages(d)
+    
+    rows_tap = _wait_for_table_data(d, max_timeout=35, initial_sleep=2.0)
 
     import re
 
