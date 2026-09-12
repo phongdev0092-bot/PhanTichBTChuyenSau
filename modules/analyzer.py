@@ -556,9 +556,8 @@ def _set_mui_max_pagination(d):
 def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
     """
     Duyệt qua tất cả các trang pagination của bảng MUI để lấy toàn bộ dữ liệu cell hiển thị.
-    Chỉ lấy các dòng (tr/row) đang hiển thị (is_displayed).
     """
-    time.sleep(1)
+    time.sleep(1.5)
 
     all_rows = []
     seen_row_sigs = set()
@@ -568,20 +567,24 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
     while page_count < max_pages:
         page_count += 1
         rows_elements = d.find_elements(By.XPATH,
-            '//div[contains(@class,"MuiTabPanel") and not(@hidden)]//tbody/tr'
-            ' | //div[@role="tabpanel" and not(@hidden)]//tbody/tr'
+            '//div[contains(@class,"MuiTabPanel") and not(@hidden) and not(contains(@style,"display: none"))]//tbody/tr'
+            ' | //div[@role="tabpanel" and not(@hidden) and not(contains(@style,"display: none"))]//tbody/tr'
+            ' | //div[contains(@class,"MuiPaper-root") and not(contains(@style,"display: none"))]//tbody/tr'
             ' | //tbody/tr'
         )
         current_page_added = 0
         for row in rows_elements:
             try:
-                if not row.is_displayed():
-                    continue
                 cells = row.find_elements(By.XPATH, './td | ./th | ./div[@role="cell" or @role="gridcell"]')
                 if cells:
-                    row_texts = [c.text.strip() for c in cells]
+                    row_texts = []
+                    for c in cells:
+                        t = (c.text or c.get_attribute("textContent") or "").strip()
+                        row_texts.append(t)
+                    
                     sig = " || ".join(row_texts)
-                    if sig and sig not in seen_row_sigs:
+                    # Bỏ qua các dòng trống hoàn toàn
+                    if sig and any(t for t in row_texts) and sig not in seen_row_sigs:
                         seen_row_sigs.add(sig)
                         all_rows.append(row_texts)
                         current_page_added += 1
@@ -611,6 +614,7 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
         if not clicked_next or current_page_added == 0:
             break
 
+    log.info(f"  _get_all_table_rows_from_all_pages: Scraped {len(all_rows)} rows across {page_count} pages.")
     return all_rows
 
 
