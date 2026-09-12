@@ -799,13 +799,13 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str) -> str:
                             olt_cause = token
                         break
 
-    # Tổng hợp số lần rớt mạng sau khi hoàn tất
+    # Tổng hợp số lần rớt mạng sau khi hoàn tất (Cột 'Ra Mạng' > TG Hoàn Tất)
     ra_mang_count = len(ra_mang_events)
-    if ra_mang_count == 0 and len(olt_offline_events_after_t0) > 0:
-        ra_mang_count = len(olt_offline_events_after_t0)
 
-    if ra_mang_count > 0:
+    if ra_mang_count > 1:
         return f"Chưa đảm bảo (Phát hiện {ra_mang_count} lần Ra Mạng từ mốc hoàn tất - NN OLT: {olt_cause})"
+    elif ra_mang_count == 1:
+        return "Đảm bảo (Sau Xử Lý chỉ ra Mạng 1 Lần)"
     else:
         return "Đảm bảo (Kết nối ổn định)"
 
