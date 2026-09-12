@@ -506,20 +506,11 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "") -> dict:
             log.warning(f"Lỗi khi đối chiếu rớt kết nối: {ex_rot}")
             result["doi_chieu_rot_mang"] = "Lỗi khi đọc đối chiếu rớt KN"
 
-        # Điều kiện 2: Công suất thu <= -23.5 dBm -> Đối chiếu sub-tab 'Hợp đồng cùng tập điểm'
+        # Đối chiếu sub-tab 'Hợp đồng cùng tập điểm' (Luôn thực hiện để hiển thị thông tin tập điểm đầy đủ)
         try:
-            pwr_val = None
-            if result["cong_suat_thu"]:
-                import re
-                m_pwr = re.search(r'[-+]?\d*\.\d+|\d+', str(result["cong_suat_thu"]))
-                if m_pwr:
-                    pwr_val = float(m_pwr.group(0))
-                    if pwr_val > 0 and "-" in str(result["cong_suat_thu"]):
-                        pwr_val = -pwr_val
-            if pwr_val is not None and pwr_val <= -23.5:
-                log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Tập Điểm (Công suất = {pwr_val} dBm <= -23.5 dBm)...")
-                result["doi_chieu_tap_diem"] = _cross_check_tap_diem(d)
-                log.info(f"  doi_chieu_tap_diem: {result['doi_chieu_tap_diem']}")
+            log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Tập Điểm...")
+            result["doi_chieu_tap_diem"] = _cross_check_tap_diem(d)
+            log.info(f"  doi_chieu_tap_diem: {result['doi_chieu_tap_diem']}")
         except Exception as ex_tap:
             log.warning(f"Lỗi khi đối chiếu tập điểm: {ex_tap}")
             result["doi_chieu_tap_diem"] = "Lỗi khi đọc đối chiếu tập điểm"
@@ -618,13 +609,14 @@ def _get_all_table_rows_from_all_pages(d) -> list[list[str]]:
 
 
 def _find_header_indices(d) -> dict:
-    """Tự động quét các header <th> hiển thị để tìm vị trí cột 'Vào mạng', 'Ra mạng', 'Thời gian', 'Trạng thái', 'Nguyên nhân'."""
+    """Tự động quét các header <th> hiển thị để tìm vị trí các cột."""
     indices = {
         "vao_mang": -1,
         "ra_mang": -1,
         "thoi_gian": -1,
         "trang_thai": -1,
-        "nguyen_nhan": -1
+        "nguyen_nhan": -1,
+        "rx_power": -1,
     }
     try:
         header_els = d.find_elements(By.XPATH, '//thead//th | //div[@role="columnheader"]')
@@ -644,6 +636,8 @@ def _find_header_indices(d) -> dict:
                 indices["trang_thai"] = idx
             elif "nguyên nhân" in text or "nguyen nhan" in text:
                 indices["nguyen_nhan"] = idx
+            elif "công suất" in text or "cong suat" in text or "rx" in text or "power" in text or "suy hao" in text:
+                indices["rx_power"] = idx
         log.info(f"  Dynamic table header indices: {indices}")
     except Exception as e:
         log.warning(f"  Lỗi khi quét header indices: {e}")
@@ -846,7 +840,8 @@ def _cross_check_tap_diem(d) -> str:
     offline_hds = []
 
     hdr_tap = _find_header_indices(d)
-    status_idx = hdr_tap["trang_thai"]
+    status_idx = hdr_tap.get("trang_thai", -1)
+    pwr_idx = hdr_tap.get("rx_power", -1)
 
     for r_cells in rows_tap:
         row_str = " | ".join(r_cells)
@@ -885,23 +880,43 @@ def _cross_check_tap_diem(d) -> str:
             # Mặc định nếu không thấy offline thì tính online
             online_count += 1
 
-        # Xác định Công suất thu Rx Power (tìm số thực âm trong chuỗi)
-        powers = re.findall(r'-\d+\.\d+|-\d+', row_str)
-        if powers:
-            try:
-                valid_pwr = None
-                for p in powers:
-                    val = float(p)
-                    if -45.0 <= val <= -5.0:
-                        valid_pwr = val
-                        break
-                if valid_pwr is not None:
-                    if valid_pwr <= -23.5:
+        # Xác định Công suất thu Rx Power (Bỏ qua các ô chứa IP address / MAC address)
+        pwr_cell_text = ""
+        if pwr_idx != -1 and pwr_idx < len(r_cells):
+            pwr_cell_text = r_cells[pwr_idx]
+        else:
+            for cell in r_cells:
+                c_low = cell.lower()
+                if "dbm" in c_low or "db" in c_low:
+                    pwr_cell_text = cell
+                    break
+            if not pwr_cell_text:
+                for cell in r_cells:
+                    # Bỏ qua cell IP address
+                    if re.search(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', cell):
+                        continue
+                    # Bỏ qua MAC address
+                    if re.search(r'[0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}', cell):
+                        continue
+                    m_val = re.search(r'[-+]?\d+\.\d+|[-+]?\d+', cell)
+                    if m_val:
+                        v = float(m_val.group(0))
+                        if 5.0 <= abs(v) <= 45.0:
+                            pwr_cell_text = cell
+                            break
+
+        if pwr_cell_text:
+            m_num = re.search(r'[-+]?\d+\.\d+|[-+]?\d+', pwr_cell_text)
+            if m_num:
+                try:
+                    val = float(m_num.group(0))
+                    val_pwr = -abs(val)
+                    if val_pwr <= -23.5:
                         khong_dat_count += 1
                     else:
                         dat_count += 1
-            except Exception:
-                pass
+                except Exception:
+                    pass
 
     offline_pct = (offline_count / total_tap) * 100 if total_tap > 0 else 0
     offline_str = f" ({', '.join(offline_hds[:3])})" if offline_hds else ""
