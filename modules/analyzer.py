@@ -833,13 +833,13 @@ def _cross_check_tap_diem(d) -> str:
     _click_mui_tab(d, "Các lần kết nối")
     time.sleep(1)
     _click_sub_tab(d, "Hợp đồng cùng tập điểm")
-    log.info("  Chờ 10s để dữ liệu Tập Điểm load hoàn tất...")
-    time.sleep(10)
+    log.info("  Chờ 25s để dữ liệu Tập Điểm load hoàn tất...")
+    time.sleep(25)
 
     rows_tap = _get_all_table_rows_from_all_pages(d)
     if len(rows_tap) == 0:
-        log.info("  Bảng chưa load xong, thử chờ thêm 3s và đọc lại...")
-        time.sleep(3)
+        log.info("  Bảng chưa load xong, thử chờ thêm 5s và đọc lại...")
+        time.sleep(5)
         rows_tap = _get_all_table_rows_from_all_pages(d)
 
     import re
