@@ -15,6 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     libxss1 \
     libgtk-3-0 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxrandr2 \
+    zbar-tools \
+    libzbar0 \
     && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
@@ -32,5 +37,7 @@ EXPOSE 10000
 
 ENV PORT=10000
 ENV PYTHONUNBUFFERED=1
+# Chrome cần --no-sandbox khi chạy trong Docker container
+ENV CHROME_NO_SANDBOX=1
 
 CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 300 app:app

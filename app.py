@@ -10,7 +10,17 @@ from flask import Flask, render_template, request, jsonify, Response, stream_wit
 from config import FLASK_PORT, SECRET_KEY
 from modules.auth import login, is_logged_in, close_driver
 from modules.sheet_reader import get_employees, get_contracts, get_team_captains, get_cll30_analytics
+from modules.supabase_db import (
+    fetch_table_summary, fetch_table_data, import_records,
+    clear_table_data, update_supabase_key, get_supabase_key, extract_row_fields
+)
 from modules.analyzer import analyze_contract
+from modules import inside_fpt
+import io
+import pandas as pd
+
+
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -73,9 +83,11 @@ def api_login_status():
 
 @app.route("/api/employees")
 def api_employees():
+    """Trả về danh sách nhân viên từ đúng bảng (bao_tri / ton_bao_tri)."""
     try:
-        employees = get_employees()
-        return jsonify({"success": True, "employees": employees})
+        source = request.args.get("source", "bao_tri")
+        employees = get_employees(table=source)
+        return jsonify({"success": True, "employees": employees, "source": source})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -101,7 +113,237 @@ def api_cll30_top10():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# ─────────────────────────────────────────────
+#  SUPABASE DATABASE & IMPORT API ENDPOINTS
+# ─────────────────────────────────────────────
+
+@app.route("/api/supabase/tables_summary")
+def api_supabase_tables_summary():
+    try:
+        summary = fetch_table_summary()
+        return jsonify({"success": True, "summary": summary, "current_key": get_supabase_key()})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/supabase/update_key", methods=["POST"])
+def api_supabase_update_key():
+    try:
+        data = request.get_json() or {}
+        key = data.get("key", "").strip()
+        if not key:
+            return jsonify({"success": False, "error": "Khóa Supabase API Key không được rỗng"}), 400
+
+        ok, msg = update_supabase_key(key)
+        if ok:
+            return jsonify({"success": True, "message": msg})
+        else:
+            return jsonify({"success": False, "error": msg}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+@app.route("/api/supabase/table_data")
+def api_supabase_table_data():
+    try:
+        table_name = request.args.get("table", "contracts")
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 50))
+        search = request.args.get("search", "").strip()
+        data = fetch_table_data(table_name=table_name, page=page, per_page=per_page, search=search)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/supabase/import", methods=["POST"])
+def api_supabase_import():
+    try:
+        table_name = request.form.get("table_name") or (request.get_json() or {}).get("table_name")
+        if not table_name:
+            return jsonify({"success": False, "error": "Thiếu tên bảng cần import"}), 400
+
+        records = []
+
+        # 1. Nếu upload qua File (CSV / Excel / JSON)
+        if "file" in request.files:
+            file = request.files["file"]
+            filename = file.filename.lower()
+            
+            if filename.endswith(".csv"):
+                df = pd.read_csv(file, header=0, dtype=str)
+            elif filename.endswith(".xlsx") or filename.endswith(".xls"):
+                df = pd.read_excel(file, header=0, dtype=str)
+            elif filename.endswith(".json"):
+                records = json.load(file)
+                df = None
+            else:
+                return jsonify({"success": False, "error": "Định dạng file không hỗ trợ. Vui lòng chọn .csv, .xlsx, .xls hoặc .json"}), 400
+
+            if df is not None:
+                # Giữ NGUYÊN VẸN 100% tên và thứ tự cột từ file gốc
+                df.columns = [str(c).strip() for c in df.columns]
+                raw_rows = df.fillna("").to_dict(orient="records")
+
+                records = []
+                for row_dict in raw_rows:
+                    so_hd, nhan_vien, tg_hoan_tat = extract_row_fields({"data": row_dict}, table=table_name)
+                    record = {
+                        "so_hd": so_hd,
+                        "nhan_vien": nhan_vien,
+                        "tg_hoan_tat": tg_hoan_tat,
+                        "data": row_dict  # BẢO LƯU 100% CẤU TRÚC FILE GỐC CỦA BẠN
+                    }
+                    records.append(record)
+
+        # 2. Nếu gửi qua JSON body trực tiếp
+        elif request.is_json:
+            json_data = request.get_json() or {}
+            records = json_data.get("records", [])
+
+        if not records:
+            return jsonify({"success": False, "error": "Không đọc được bản ghi nào từ file hoặc dữ liệu gửi lên."}), 400
+
+        # Đối với bảng ton_bao_tri: Xóa sạch dữ liệu cũ trước khi gán dữ liệu mới vào
+        if table_name == "ton_bao_tri":
+            log.info("Bảng ton_bao_tri: Tiến hành xóa dữ liệu cũ trước khi gán dữ liệu mới vào...")
+            clear_ok, clear_msg = clear_table_data("ton_bao_tri")
+            if not clear_ok:
+                log.warning(f"Cảnh báo khi làm sạch bảng ton_bao_tri: {clear_msg}")
+
+        # Tiến hành import dữ liệu mới vào Supabase
+        ok, msg, inserted_count = import_records(table_name, records)
+        if ok:
+            msg_custom = f"✅ Đã xóa dữ liệu cũ và gán thành công {inserted_count} bản ghi mới vào Bảng Tồn Bảo Trì" if table_name == "ton_bao_tri" else msg
+            return jsonify({"success": True, "message": msg_custom, "count": inserted_count})
+        else:
+            return jsonify({"success": False, "error": msg}), 500
+
+    except Exception as e:
+        log.error(f"Lỗi API import: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/supabase/clear_table", methods=["POST"])
+def api_supabase_clear_table():
+    try:
+        data = request.get_json() or {}
+        table_name = data.get("table_name")
+        if not table_name:
+            return jsonify({"success": False, "error": "Thiếu tên bảng cần xóa"}), 400
+
+        ok, msg = clear_table_data(table_name)
+        if ok:
+            return jsonify({"success": True, "message": msg})
+        else:
+            return jsonify({"success": False, "error": msg}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ─────────────────────────────────────────────
+#  AUTO NOTE TON BAO TRI - API ENDPOINTS
+# ─────────────────────────────────────────────
+
+@app.route("/api/auto_note/start", methods=["POST"])
+def api_auto_note_start():
+    """Bắt đầu job tự động ghi chú vào FPT Inside."""
+    if inside_fpt._auto_note_running:
+        return jsonify({"success": False, "error": "Job đang chạy, vui lòng đợi hoặc dừng trước"}), 400
+
+    data = request.get_json() or {}
+    results_list = data.get("results", [])
+    totp_secret  = data.get("totp_secret", "").strip() or None
+
+    if not results_list:
+        return jsonify({"success": False, "error": "Không có hợp đồng nào được chọn để ghi chú"}), 400
+
+    # Chỉ lấy những hợp đồng có cảnh báo hoặc cần xử lý
+    to_note = [
+        r for r in results_list
+        if (r.get("canh_bao") and r.get("canh_bao") != "—")
+        or (r.get("can_xu_ly") and r.get("can_xu_ly") != "—")
+    ]
+
+    if not to_note:
+        return jsonify({"success": False, "error": "Không có hợp đồng nào có Cảnh Báo hoặc Cần Xử Lý cần ghi chú"}), 400
+
+    def run_job():
+        inside_fpt.run_auto_note(to_note, totp_secret=totp_secret)
+
+    t = threading.Thread(target=run_job, daemon=True)
+    t.start()
+
+    return jsonify({
+        "success": True,
+        "total":   len(to_note),
+        "message": f"Bắt đầu Auto Note {len(to_note)} hợp đồng..."
+    })
+
+
+@app.route("/api/auto_note/status")
+def api_auto_note_status():
+    """Trả về trạng thái hiện tại của job Auto Note."""
+    state = inside_fpt.get_auto_note_state()
+    return jsonify({"success": True, "state": state})
+
+
+@app.route("/api/auto_note/cancel", methods=["POST"])
+def api_auto_note_cancel():
+    inside_fpt.cancel_auto_note()
+    return jsonify({"success": True, "message": "Da gui lenh dung Auto Note"})
+
+
+@app.route("/api/auto_note/test_totp")
+def api_test_totp():
+    """Kiểm tra TOTP secret hiện tại – generate mã OTP ngậy bây giờ."""
+    try:
+        import config
+        import pyotp, time as _time
+        secret = getattr(config, "TOTP_SECRET", "").strip()
+        if not secret:
+            return jsonify({"success": False, "error": "Chưa cấu hình TOTP Secret"})
+        totp  = pyotp.TOTP(secret)
+        code  = totp.now()
+        remaining = 30 - int(_time.time()) % 30
+        return jsonify({"success": True, "otp": code, "remaining_seconds": remaining,
+                        "account": "Phuongnam.phongnh5@inside.fpt.net"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/auto_note/decode_qr", methods=["POST"])
+def api_decode_qr():
+    """Nhận file ảnh QR, giải mã và lưu TOTP secret vào config."""
+    try:
+        if "file" not in request.files:
+            return jsonify({"success": False, "error": "Không có file QR gửi lên"}), 400
+        file = request.files["file"]
+        import tempfile, os
+        suffix = os.path.splitext(file.filename)[-1] or ".png"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+
+        secret = inside_fpt.decode_qr_secret(tmp_path)
+        os.unlink(tmp_path)
+
+        if secret:
+            inside_fpt.save_totp_secret(secret)
+            import pyotp
+            otp = pyotp.TOTP(secret).now()
+            return jsonify({"success": True, "secret": secret, "otp_sample": otp,
+                            "message": "Da giai ma QR va luu TOTP Secret thanh cong!"})
+        else:
+            return jsonify({"success": False, "error": "Khong doc duoc QR code tu anh nay"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/cancel", methods=["POST"])
+
+
 def api_cancel():
     global _job_cancel_requested, _job_status, _job_message
     if not _job_running:
@@ -144,6 +386,9 @@ def api_filter():
     start_date = data.get("start_date")
     end_date = data.get("end_date")
     team_captain = str(data.get("team_captain") or "").strip()
+    data_source = data.get("data_source", "bao_tri")  # bao_tri | ton_bao_tri
+    if data_source not in ("bao_tri", "ton_bao_tri"):
+        data_source = "bao_tri"
     if not team_captain:
         team_captain = None
 
@@ -171,9 +416,10 @@ def api_filter():
                 final_selected.add(emp)
                 auto_added_top10.append(emp)
 
-    # Lấy danh sách hợp đồng
+    # Lấy danh sách hợp đồng từ đúng bảng
     try:
-        contracts = get_contracts(list(final_selected), start_date=start_date, end_date=end_date)
+        contracts = get_contracts(list(final_selected), start_date=start_date,
+                                  end_date=end_date, table=data_source)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -239,7 +485,12 @@ def api_filter():
                 step_cb = make_step_cb(i, contract_code)
 
                 try:
-                    res = analyze_contract(contract_code, c.get("tg_hoan_tat", ""), step_callback=step_cb)
+                    res = analyze_contract(
+                        contract_code,
+                        c.get("tg_hoan_tat", ""),
+                        step_callback=step_cb,
+                        data_source=c.get("data_source", data_source)
+                    )
                 except Exception as exc:
                     log.exception(f"Lỗi khi phân tích HĐ {contract_code}")
                     res = {
@@ -257,6 +508,7 @@ def api_filter():
                         "dns_wan": "",
                         "doi_chieu_rot_mang": "",
                         "doi_chieu_tap_diem": "",
+                        "phan_tich_client": "—",
                         "status": "error",
                         "error": str(exc),
                     }
@@ -290,6 +542,7 @@ def api_filter():
                     "start_date": start_date or "",
                     "end_date": end_date or "",
                     "team_captain": team_captain or "",
+                    "data_source": data_source,
                     "employees": list(final_selected),
                     "total_contracts": len(_job_results),
                     "auto_count": sum(1 for r in _job_results if r.get("xu_ly_loi_tu_dong") and r.get("xu_ly_loi_tu_dong") != "—"),

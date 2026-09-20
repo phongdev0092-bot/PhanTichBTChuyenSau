@@ -563,7 +563,7 @@ thead {
 .header-group-row th.group-diag  { width: 840px; min-width: 840px; }
 .header-group-row th.group-sys   { width: 260px; min-width: 260px; }
 .header-group-row th.group-modem { width: 460px; min-width: 460px; }
-.header-group-row th.group-check { width: 720px; min-width: 720px; }
+.header-group-row th.group-check { width: 1080px; min-width: 1080px; }
 
 /* Row 2: Column Headers */
 .header-col-row th {
@@ -598,6 +598,7 @@ thead {
 .col-modem-dns  { width: 180px; min-width: 180px; }
 .col-check-rot  { width: 360px; min-width: 360px; }
 .col-check-tap  { width: 360px; min-width: 360px; }
+.col-check-client { width: 360px; min-width: 360px; }
 
 /* BODY CELLS */
 td {

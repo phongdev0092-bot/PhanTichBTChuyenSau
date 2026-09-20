@@ -55,7 +55,15 @@
       <button class="nav-tab" id="tabBtn-analytics" onclick="switchTab('analytics-tab')">
         <i class="fa-solid fa-chart-pie"></i> Thống Kê Cảnh Báo
       </button>
+      <button class="nav-tab" id="tabBtn-import" onclick="switchTab('import-tab')">
+        <i class="fa-solid fa-database"></i> Import / Data (Supabase)
+      </button>
+      <button class="nav-tab" id="tabBtn-autonote" onclick="switchTab('autonote-tab')">
+        <i class="fa-solid fa-robot"></i> Auto Note Tồn BT
+        <span id="autonoteRunningDot" class="dot" style="display:none;background:#22c55e;margin-left:4px;"></span>
+      </button>
     </div>
+
 
     <!-- TAB 1: PHAN TICH -->
     <div id="analysis-tab" class="tab-panel active">
@@ -94,6 +102,39 @@
             </div>
           </div>
 
+          <!-- NGUỒN DỮ LIỆU SELECTOR -->
+          <div style="margin-top:14px;margin-bottom:14px;background:linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%);padding:14px 16px;border-radius:10px;border:2px solid #bfdbfe;">
+            <div style="font-size:0.88rem;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <i class="fa-solid fa-layer-group" style="color:var(--primary);"></i>
+              Chọn Nguồn Dữ Liệu Phân Tích:
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <label id="srcBaoTriLabel" style="flex:1;min-width:180px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;border:2px solid #3b82f6;background:#eff6ff;cursor:pointer;transition:all 0.2s;">
+                <input type="radio" name="dataSource" id="srcBaoTri" value="bao_tri" checked onchange="onDataSourceChange()" style="accent-color:#3b82f6;width:18px;height:18px;">
+                <div>
+                  <div style="font-weight:700;font-size:0.9rem;color:#1e40af;">
+                    <i class="fa-solid fa-wrench"></i> Bảo Trì
+                  </div>
+                  <div style="font-size:0.75rem;color:#60a5fa;">Hợp đồng bảo trì thông thường</div>
+                </div>
+              </label>
+              <label id="srcTonBaoTriLabel" style="flex:1;min-width:180px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;border:2px solid #e2e8f0;background:#fff;cursor:pointer;transition:all 0.2s;">
+                <input type="radio" name="dataSource" id="srcTonBaoTri" value="ton_bao_tri" onchange="onDataSourceChange()" style="accent-color:#f97316;width:18px;height:18px;">
+                <div>
+                  <div style="font-weight:700;font-size:0.9rem;color:#9a3412;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Tồn Bảo Trì
+                  </div>
+                  <div style="font-size:0.75rem;color:#fb923c;">Hợp đồng tồn – kèm Auto Note vào Inside</div>
+                </div>
+              </label>
+            </div>
+            <!-- Banner khi chọn Tồn BT -->
+            <div id="tonBaoTriBanner" style="display:none;margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;font-size:0.83rem;color:#9a3412;display:none;align-items:center;gap:10px;">
+              <i class="fa-solid fa-robot" style="font-size:1.2rem;color:#f97316;"></i>
+              <span>Chế độ <strong>Tồn Bảo Trì</strong>: Sau khi phân tích xong, hệ thống sẽ hỏi bạn có muốn <strong>tự động ghi chú cảnh báo vào FPT Inside</strong> không.</span>
+            </div>
+          </div>
+
           <!-- CAPTAIN FILTER SECTION -->
           <div class="captain-filter-section" style="margin-top:14px; margin-bottom: 14px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border);">
             <label for="captainSelect" style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
@@ -103,6 +144,7 @@
               <option value="">-- Tất cả Đội Trưởng (Hoặc chọn tùy chỉnh nhân viên) --</option>
             </select>
           </div>
+
 
           <!-- BẢNG TOP 10 CLL30N DƯỚI BỘ LỌC NGÀY & ĐỘI TRƯỞNG -->
           <div class="cll30-table-section" style="margin-bottom: 16px; background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; box-shadow: var(--shadow-sm);">
@@ -274,7 +316,7 @@
                 <th colspan="3" class="group-th group-diag"><i class="fa-solid fa-stethoscope"></i> KẾT QUẢ CHẨN ĐOÁN</th>
                 <th colspan="2" class="group-th group-sys"><i class="fa-solid fa-server"></i> THÔNG SỐ HỆ THỐNG</th>
                 <th colspan="3" class="group-th group-modem"><i class="fa-solid fa-wifi"></i> THÔNG SỐ MODEM</th>
-                <th colspan="2" class="group-th group-check"><i class="fa-solid fa-magnifying-glass-chart"></i> ĐỐI CHIẾU CHUYÊN SÂU</th>
+                <th colspan="3" class="group-th group-check"><i class="fa-solid fa-magnifying-glass-chart"></i> ĐỐI CHIẾU CHUYÊN SÂU</th>
               </tr>
               <tr class="header-col-row">
                 <th class="col-num">#</th>
@@ -291,6 +333,7 @@
                 <th class="col-modem-dns"><i class="fa-solid fa-network-wired th-icon icon-purple"></i> DNS WAN</th>
                 <th class="col-check-rot"><i class="fa-solid fa-plug-circle-exclamation th-icon icon-yellow"></i> Đối chiếu Rớt KN</th>
                 <th class="col-check-tap"><i class="fa-solid fa-network-wired th-icon icon-purple"></i> Đối chiếu Tập điểm</th>
+                <th class="col-check-client"><i class="fa-solid fa-mobile-screen-button th-icon icon-blue"></i> Phân Tích Client</th>
               </tr>
             </thead>
             <tbody id="resultBody"></tbody>
@@ -421,12 +464,307 @@
     </div>
 
 
+    <!-- TAB 4: IMPORT & SUPABASE DATA -->
+    <div id="import-tab" class="tab-panel">
+
+      <!-- CARD 1: SUPABASE OVERVIEW -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <i class="fa-solid fa-server" style="color: var(--primary);"></i>
+          <h2>Tổng Quan Kết Nối Supabase Database</h2>
+          <span class="chip chip-success" id="sbStatusBadge">https://zqkithrewcorqyckfdrr.supabase.co</span>
+        </div>
+        <div class="card-body">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+            
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 18px 24px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 0.88rem; color: #1e40af; font-weight: 800; text-transform: uppercase;">BẢNG BẢO TRÌ (bao_tri)</div>
+                <div id="summary-bao_tri" style="font-size: 2rem; font-weight: 800; color: #1e3a8a; margin-top: 4px;">0</div>
+              </div>
+              <i class="fa-solid fa-wrench" style="font-size: 2.8rem; color: #3b82f6; opacity: 0.85;"></i>
+            </div>
+
+            <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 18px 24px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 0.88rem; color: #9a3412; font-weight: 800; text-transform: uppercase;">BẢNG TỒN BẢO TRÌ (ton_bao_tri)</div>
+                <div id="summary-ton_bao_tri" style="font-size: 2rem; font-weight: 800; color: #7c2d12; margin-top: 4px;">0</div>
+              </div>
+              <i class="fa-solid fa-clock-rotate-left" style="font-size: 2.8rem; color: #f97316; opacity: 0.85;"></i>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+
+      <!-- CARD 2: IMPORT DATA -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary);"></i>
+          <h2>Import Dữ Liệu vào Supabase (CSV / Excel / JSON)</h2>
+        </div>
+        <div class="card-body">
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;">
+            <div style="flex: 1; min-width: 250px;">
+              <label style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 6px;">Chọn Bảng Mục Tiêu:</label>
+              <select id="importTargetTable" class="date-input" style="width: 100%; height: 40px; font-weight: 700;">
+                <option value="bao_tri">Bảng Bảo Trì (bao_tri)</option>
+                <option value="ton_bao_tri">Bảng Tồn Bảo Trì (ton_bao_tri)</option>
+              </select>
+            </div>
+            
+            <div style="flex: 2; min-width: 300px;">
+              <label style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 6px;">Chọn File (.csv, .xlsx, .xls, .json):</label>
+              <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls, .json" class="date-input" style="width: 100%; height: 40px; padding: 6px 12px;" onchange="onImportFileSelected(event)"/>
+            </div>
+          </div>
+
+          <!-- DROPZONE -->
+          <div id="dropzoneArea" style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s ease;" onclick="document.getElementById('importFileInput').click()">
+            <i class="fa-solid fa-file-excel" style="font-size: 2.4rem; color: #64748b; margin-bottom: 8px;"></i>
+            <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);" id="dropzoneText">Kéo &amp; thả file vào đây hoặc bấm để chọn file từ máy tính</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Hệ thống sẽ tự động đọc dữ liệu và chuẩn hóa các cột để đẩy vào Supabase</div>
+          </div>
+
+          <!-- PREVIEW & SUBMIT -->
+          <div id="importPreviewArea" style="display: none; margin-top: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+              <span id="previewCountBadge" class="chip chip-info" style="font-weight: 700;">Đã sẵn sàng bản ghi</span>
+              <button class="btn btn-primary" id="btnSubmitImport" onclick="submitImportData()">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Tải Dữ Liệu Lên Supabase
+              </button>
+            </div>
+            <div class="table-scroll" style="max-height: 250px; border: 1px solid var(--border); border-radius: 8px;">
+              <table class="leaderboard-table" style="font-size: 0.8rem;">
+                <thead id="previewTableHead"></thead>
+                <tbody id="previewTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 3: BẢNG DỮ LIỆU SUPABASE -->
+      <div class="card">
+        <div class="card-header" style="justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-table" style="color: var(--primary);"></i>
+            <h2>Bảng Trực Truyền Dữ Liệu Supabase</h2>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <select id="browserTableSelect" class="date-input" style="height: 36px; font-weight: 700;" onchange="loadSupabaseTableData(1)">
+              <option value="bao_tri">bao_tri (Bảo Trì)</option>
+              <option value="ton_bao_tri">ton_bao_tri (Tồn Bảo Trì)</option>
+            </select>
+
+            <input type="text" id="browserSearchInput" placeholder="Tìm trong bảng..." class="date-input" style="height: 36px; width: 180px;" oninput="loadSupabaseTableData(1)"/>
+            <button class="btn btn-ghost btn-sm" onclick="loadSupabaseTableData(sbBrowserCurrentPage)">
+              <i class="fa-solid fa-rotate"></i> Làm mới
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="confirmClearSupabaseTable()">
+              <i class="fa-solid fa-trash"></i> Xóa Bảng
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-scroll" style="max-height: 420px; border: 1px solid var(--border); border-radius: 8px;">
+            <table class="leaderboard-table" style="font-size: 0.82rem;">
+              <thead id="sbBrowserTableHead">
+                <tr><th>Đang tải...</th></tr>
+              </thead>
+              <tbody id="sbBrowserTableBody">
+                <tr><td style="text-align:center;">Đang tải dữ liệu Supabase...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- PAGINATION -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 0.85rem;">
+            <span id="sbBrowserPaginationInfo" style="color: var(--text-muted); font-weight: 600;">Trang 1 / 1 (0 bản ghi)</span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-ghost btn-sm" id="btnSbPrev" onclick="changeSbPage(-1)"><i class="fa-solid fa-chevron-left"></i> Trang trước</button>
+              <button class="btn btn-ghost btn-sm" id="btnSbNext" onclick="changeSbPage(1)">Trang sau <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 5: AUTO NOTE TỒN BẢO TRÌ -->
+    <div id="autonote-tab" class="tab-panel">
+
+      <!-- CARD: THÔNG TIN & TOTP STATUS -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <i class="fa-solid fa-robot" style="color:var(--primary);"></i>
+          <h2>Auto Note Tồn Bảo Trì – FPT Inside</h2>
+          <span class="chip chip-info">Tự động ghi chú cảnh báo vào hệ thống</span>
+        </div>
+        <div class="card-body">
+
+          <!-- TOTP Status row -->
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 18px;margin-bottom:16px;">
+            <div style="flex:1;min-width:220px;">
+              <div style="font-size:0.85rem;font-weight:700;color:#15803d;">
+                <i class="fa-solid fa-shield-halved"></i> Google Authenticator (TOTP)
+              </div>
+              <div style="font-size:0.82rem;color:#166534;margin-top:3px;">
+                Tài khoản: <strong>Phuongnam.phongnh5@inside.fpt.net</strong>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-ghost btn-sm" onclick="testTOTP()" id="btnTestTotp">
+                <i class="fa-solid fa-key"></i> Kiểm Tra OTP Hiện Tại
+              </button>
+              <span id="totpOtpDisplay" style="font-size:1.5rem;font-weight:800;color:#15803d;letter-spacing:4px;display:none;"></span>
+              <span id="totpTimer" style="font-size:0.8rem;color:#6b7280;display:none;"></span>
+            </div>
+          </div>
+
+          <!-- Hướng dẫn -->
+          <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:10px 14px;border-radius:6px;font-size:0.83rem;color:#1e40af;margin-bottom:14px;line-height:1.6;">
+            <i class="fa-solid fa-circle-info"></i>
+            <strong>Quy trình Auto Note:</strong> Hệ thống tự động đăng nhập FPT Inside →
+            Điều hướng <em>Inside New V5 → Hỗ trợ kỹ thuật → Thông tin chung → Bảo Trì</em> →
+            Nhập từng số HĐ → Bấm Xem CL → Mở tab mới → Thêm ghi chú (<strong>+</strong>) →
+            Điền Cảnh Báo / Cần Xử Lý → Bấm <strong>Cập nhật</strong>.
+          </div>
+
+          <!-- Nguồn dữ liệu -->
+          <div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:12px 16px;font-size:0.85rem;color:#713f12;margin-bottom:14px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <strong>Lưu ý:</strong> Tính năng này lấy dữ liệu từ kết quả phân tích gần nhất.
+            Hãy chạy <strong>Phân Tích Hợp Đồng</strong> trước, sau đó quay lại đây để ghi chú.
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CARD: DANH SÁCH HỢP ĐỒNG SẼ GHI CHÚ -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <i class="fa-solid fa-list-check" style="color:var(--accent);"></i>
+          <h2>Danh Sách Hợp Đồng Sẽ Ghi Chú</h2>
+          <button class="btn btn-ghost btn-sm" onclick="refreshAutoNoteList()">
+            <i class="fa-solid fa-rotate"></i> Làm mới từ kết quả phân tích
+          </button>
+        </div>
+        <div class="card-body">
+
+          <div id="autoNoteContractList">
+            <div style="text-align:center;padding:30px;color:var(--text-muted);">
+              <i class="fa-solid fa-arrow-left" style="margin-right:6px;"></i>
+              Vui lòng chạy <strong>Phân Tích Hợp Đồng</strong> trước, sau đó bấm <em>Làm mới</em> để xem danh sách HĐ cần ghi chú.
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;align-items:center;">
+            <button class="btn btn-primary" id="btnStartAutoNote" onclick="startAutoNote()" disabled style="gap:8px;">
+              <i class="fa-solid fa-robot"></i> Bắt Đầu Auto Note
+            </button>
+            <button class="btn btn-ghost btn-sm" id="btnCancelAutoNote" onclick="cancelAutoNote()" style="display:none;">
+              <i class="fa-solid fa-hand"></i> Dừng
+            </button>
+            <span id="autoNoteStatusBadge" class="chip" style="display:none;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD: LIVE LOG -->
+      <div class="card" style="margin-bottom:20px;" id="autoNoteLogCard" style="display:none;">
+        <div class="card-header">
+          <i class="fa-solid fa-terminal" style="color:var(--primary);"></i>
+          <h2>Live Log – Tiến Trình Auto Note</h2>
+          <div id="autoNoteProgressBadge" class="chip chip-info" style="display:none;">0%</div>
+        </div>
+        <div class="card-body">
+          <!-- Progress bar -->
+          <div id="autoNoteProgressBar" style="display:none;height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-bottom:14px;">
+            <div id="autoNoteProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:99px;transition:width 0.4s ease;"></div>
+          </div>
+
+          <!-- Log terminal -->
+          <div id="autoNoteLogBox" style="background:#0f172a;border-radius:10px;padding:14px 16px;font-family:'Courier New',monospace;font-size:0.80rem;color:#94a3b8;min-height:180px;max-height:380px;overflow-y:auto;line-height:1.7;">
+            <span style="color:#64748b;">Chờ bắt đầu Auto Note...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD: KẾT QUẢ -->
+      <div class="card" id="autoNoteResultCard" style="display:none;">
+        <div class="card-header">
+          <i class="fa-solid fa-chart-bar" style="color:var(--success);"></i>
+          <h2>Kết Quả Auto Note</h2>
+        </div>
+        <div class="card-body">
+          <div id="autoNoteResultSummary" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;"></div>
+          <div class="table-scroll">
+            <table class="leaderboard-table" style="font-size:0.83rem;">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Số Hợp Đồng</th>
+                  <th>Trạng Thái</th>
+                  <th>Chi Tiết</th>
+                </tr>
+              </thead>
+              <tbody id="autoNoteResultBody">
+                <tr><td colspan="4" class="td-muted" style="text-align:center;">Chưa có kết quả</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end #autonote-tab -->
 
   </main>
+
 </div>
 
 <!-- TOAST -->
 <div id="toast" class="toast"></div>
+
+<!-- MODAL: Xác nhận Auto Note sau phân tích Tồn BT -->
+<div id="autoNoteModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:32px 36px;max-width:520px;width:90%;box-shadow:0 25px 50px rgba(0,0,0,0.35);animation:slideUp 0.3s ease;">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+      <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#f97316,#ea580c);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fa-solid fa-robot" style="font-size:1.6rem;color:#fff;"></i>
+      </div>
+      <div>
+        <div style="font-size:1.2rem;font-weight:800;color:#1e293b;">Auto Note Tồn Bảo Trì</div>
+        <div style="font-size:0.83rem;color:#64748b;margin-top:2px;">Phân tích hoàn tất – chọn hành động tiếp theo</div>
+      </div>
+    </div>
+
+    <div id="autoNoteModalSummary" style="background:#f8fafc;border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:0.85rem;color:#475569;line-height:1.7;"></div>
+
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#9a3412;margin-bottom:20px;display:flex;gap:8px;align-items:flex-start;">
+      <i class="fa-solid fa-circle-info" style="margin-top:2px;flex-shrink:0;"></i>
+      <span>Hệ thống sẽ tự động đăng nhập <strong>FPT Inside</strong>, điều hướng đến trang Bảo Trì và ghi chú kết quả phân tích vào từng hợp đồng có Cảnh Báo / Cần Xử Lý.</span>
+    </div>
+
+    <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="closeAutoNoteModal(false)" style="min-width:120px;">
+        <i class="fa-solid fa-xmark"></i> Không, bỏ qua
+      </button>
+      <button class="btn btn-primary" onclick="closeAutoNoteModal(true)" style="min-width:160px;background:linear-gradient(135deg,#f97316,#ea580c);border:none;">
+        <i class="fa-solid fa-robot"></i> Có, Auto Note ngay!
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes slideUp {
+  from { opacity:0; transform: translateY(30px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+</style>
+
 
 
 
@@ -445,6 +783,16 @@ let analysisRowsPerPage = 10;
 
 let historyCurrentPage = 1;
 let historyRowsPerPage = 5;
+
+// Auto Note state
+let autoNoteContracts = [];   // filtered list from allResults
+let autoNotePolling = null;   // setInterval id
+let autoNotePrevLogLen = 0;
+
+// Data source (bao_tri | ton_bao_tri)
+let currentDataSource = 'bao_tri';
+let autoNoteEnabledForRun = false;  // set khi user chọn "Có" trong modal
+
 
 document.addEventListener("DOMContentLoaded", () => {
   createParticles();
@@ -498,6 +846,20 @@ function switchTab(tabId) {
     document.getElementById("tabBtn-cll30").classList.add("active");
     loadCll30Top10Table();
   }
+  if (tabId === 'import-tab') {
+    document.getElementById("tabBtn-import").classList.add("active");
+    loadSupabaseSummary();
+  }
+  if (tabId === 'autonote-tab') {
+    document.getElementById("tabBtn-autonote").classList.add("active");
+  }
+  if (tabId === 'analysis-tab') {
+    document.getElementById("tabBtn-analysis").classList.add("active");
+  }
+  if (tabId === 'history-tab') {
+    document.getElementById("tabBtn-history").classList.add("active");
+    loadHistory();
+  }
   document.getElementById(tabId).classList.add("active");
 }
 
@@ -547,9 +909,10 @@ function onDateInputChange() {
 
 function createParticles() { }
 
-async function loadEmployees() {
+async function loadEmployees(source) {
+  source = source || 'bao_tri';
   try {
-    const r = await fetch("/api/employees");
+    const r = await fetch(`/api/employees?source=${source}`);
     const d = await r.json();
     if (d.success) { allEmployees = d.employees; renderEmployees(allEmployees); }
     else document.getElementById("employeeList").innerHTML = `<div class="error-state"><i class="fa-solid fa-circle-exclamation"></i> ${d.error}</div>`;
@@ -792,6 +1155,10 @@ async function doFilter() {
   const startDate = document.getElementById("startDate").value;
   const endDate = document.getElementById("endDate").value;
 
+  // Lấy nguồn dữ liệu đang được chọn
+  const srcRadio = document.querySelector('input[name="dataSource"]:checked');
+  currentDataSource = srcRadio ? srcRadio.value : 'bao_tri';
+
   try {
     const r = await fetch("/api/filter",{
       method:"POST",
@@ -800,7 +1167,8 @@ async function doFilter() {
         employees:[...selectedEmployees],
         team_captain: selectedCap,
         start_date: startDate,
-        end_date: endDate
+        end_date: endDate,
+        data_source: currentDataSource
       })
     });
     const d = await r.json();
@@ -811,12 +1179,14 @@ async function doFilter() {
     if (d.auto_added_top10 && d.auto_added_top10.length > 0) {
       showToast(`Đã tự động thêm các HĐ của TOP 10 CLL30N thuộc Đội Trưởng vào tiến trình (${d.total} HĐ tổng cộng)!`, "info");
     } else {
-      showToast(`Phân tích ${d.total} hợp đồng...`,"info");
+      const srcLabel = currentDataSource === 'ton_bao_tri' ? 'Tồn Bảo Trì' : 'Bảo Trì';
+      showToast(`[${srcLabel}] Phân tích ${d.total} hợp đồng...`,"info");
     }
 
     startSSE();
   } catch(e) { showToast("Lỗi kết nối server","error"); }
 }
+
 
 function startSSE() {
   if (sseSource) sseSource.close();
@@ -831,15 +1201,106 @@ function startSSE() {
     }
     if (!d.running) {
       sseSource.close();
-      showToast("Hoàn tất: " + (d.message || "Đã chẩn đoán xong"), "success");
       setTimeout(() => {
         const wrap = document.getElementById("progressWrap");
         if (wrap) wrap.classList.add("hidden");
       }, 2000);
+
+      // Nếu đang ở chế độ Tồn Bảo Trì → hiện modal hỏi Auto Note
+      if (currentDataSource === 'ton_bao_tri' && d.status !== 'cancelled' && allResults.length > 0) {
+        setTimeout(() => showAutoNoteModal(), 2200);
+      } else {
+        showToast("Hoàn tất: " + (d.message || "Đã chẩn đoán xong"), "success");
+      }
     }
   };
   sseSource.onerror = () => sseSource.close();
 }
+
+// ── Nguồn dữ liệu đổi ────────────────────────────────────────────────────────
+function onDataSourceChange() {
+  const srcRadio = document.querySelector('input[name="dataSource"]:checked');
+  currentDataSource = srcRadio ? srcRadio.value : 'bao_tri';
+
+  const isTon = currentDataSource === 'ton_bao_tri';
+
+  // Cập nhật style label
+  const lbBT  = document.getElementById('srcBaoTriLabel');
+  const lbTon = document.getElementById('srcTonBaoTriLabel');
+  if (lbBT)  lbBT.style.cssText  = `flex:1;min-width:180px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;border:2px solid ${isTon ? '#e2e8f0' : '#3b82f6'};background:${isTon ? '#fff' : '#eff6ff'};cursor:pointer;transition:all 0.2s;`;
+  if (lbTon) lbTon.style.cssText = `flex:1;min-width:180px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;border:2px solid ${isTon ? '#f97316' : '#e2e8f0'};background:${isTon ? '#fff7ed' : '#fff'};cursor:pointer;transition:all 0.2s;`;
+
+  // Hiện/ẩn banner Tồn BT
+  const banner = document.getElementById('tonBaoTriBanner');
+  if (banner) banner.style.display = isTon ? 'flex' : 'none';
+
+  // Reload danh sách nhân viên từ đúng nguồn
+  loadEmployees(currentDataSource);
+
+  showToast(isTon ? 'Đã chọn nguồn Tồn Bảo Trì – kèm Auto Note sau phân tích' : 'Đã chọn nguồn Bảo Trì thông thường', 'info');
+}
+
+// ── Modal Auto Note ────────────────────────────────────────────────────────────
+function showAutoNoteModal() {
+  const toNote = allResults.filter(r =>
+    (r.canh_bao && r.canh_bao !== '—') || (r.can_xu_ly && r.can_xu_ly !== '—')
+  );
+  autoNoteContracts = toNote;
+
+  const warnCount = allResults.filter(r => r.canh_bao && r.canh_bao !== '—').length;
+  const needCount = allResults.filter(r => r.can_xu_ly && r.can_xu_ly !== '—').length;
+  const total     = allResults.length;
+
+  const summaryEl = document.getElementById('autoNoteModalSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:1.8rem;font-weight:800;color:#1e40af;">${total}</div>
+          <div style="font-size:0.78rem;color:#64748b;font-weight:700;">HĐ đã phân tích</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:1.8rem;font-weight:800;color:#dc2626;">${warnCount}</div>
+          <div style="font-size:0.78rem;color:#64748b;font-weight:700;">Có Cảnh Báo</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:1.8rem;font-weight:800;color:#d97706;">${needCount}</div>
+          <div style="font-size:0.78rem;color:#64748b;font-weight:700;">Cần Xử Lý</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:1.8rem;font-weight:800;color:#f97316;">${toNote.length}</div>
+          <div style="font-size:0.78rem;color:#64748b;font-weight:700;">HĐ cần ghi chú</div>
+        </div>
+      </div>
+      ${toNote.length === 0 
+        ? '<div style="color:#15803d;font-weight:700;text-align:center;">✅ Tất cả hợp đồng đều không có cảnh báo – không cần ghi chú!</div>'
+        : `<div style="font-size:0.83rem;color:#475569;">Sẽ tự động ghi chú vào <strong>${toNote.length} hợp đồng</strong> có cảnh báo / cần xử lý trên FPT Inside.</div>`
+      }
+    `;
+  }
+
+  const modal = document.getElementById('autoNoteModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    // Ẩn nút Có nếu không có gì cần ghi
+    const yesBtn = modal.querySelector('button[onclick="closeAutoNoteModal(true)"]');
+    if (yesBtn) yesBtn.style.display = toNote.length > 0 ? 'inline-flex' : 'none';
+  }
+
+  showToast('Phân tích Tồn BT hoàn tất! Xem kết quả bên dưới.', 'success');
+}
+
+function closeAutoNoteModal(doNote) {
+  const modal = document.getElementById('autoNoteModal');
+  if (modal) modal.style.display = 'none';
+
+  if (doNote && autoNoteContracts.length > 0) {
+    // Chuyển sang tab Auto Note và bắt đầu ngay
+    switchTab('autonote-tab');
+    setTimeout(() => startAutoNote(), 500);
+  }
+}
+
 
 function setProgress(d) {
   const pct = (d.percent !== undefined) ? d.percent : (d.total > 0 ? Math.round(d.progress / d.total * 100) : 0);
@@ -990,7 +1451,8 @@ function appendRowTo(tbody,res,idx) {
     <td class="td-modem-cell td-small">${esc(res.phien_ban_pm||"—")}</td>
     <td class="td-modem-cell">${esc(res.dns_wan||"—")}</td>
     <td class="td-doichieu-cell">${doiChieuBadge('rot', res.doi_chieu_rot_mang)}</td>
-    <td class="td-doichieu-cell">${doiChieuBadge('tap', res.doi_chieu_tap_diem)}</td>`;
+    <td class="td-doichieu-cell">${doiChieuBadge('tap', res.doi_chieu_tap_diem)}</td>
+    <td class="td-doichieu-cell">${doiChieuBadge('client', res.phan_tich_client)}</td>`;
   tbody.appendChild(tr);
 }
 
@@ -1001,8 +1463,11 @@ function doiChieuBadge(type, text) {
   
   return items.map(item => {
     let cls = "tag-info";
-    if (item.includes("vẫn rớt") || item.includes("Cảnh báo") || item.includes("Chưa đảm bảo")) cls = "tag-warn";
-    else if (item.includes("ổn định") || item.includes("đơn lẻ")) cls = "tag-auto";
+    if (item.includes("vẫn rớt") || item.includes("Cảnh báo") || item.includes("Chưa đảm bảo") || item.includes("Chưa đạt") || item.includes("thiết bị kém") || item.includes("không đạt")) {
+      cls = "tag-warn";
+    } else if (item.includes("ổn định") || item.includes("đơn lẻ") || item.includes("bình thường") || item.startsWith("Đạt") || item.includes("Tốt hơn") || item.includes("không ghi nhận")) {
+      cls = "tag-auto";
+    }
     return `<div class="tag ${cls} tag-block" title="${esc(item)}">${esc(item)}</div>`;
   }).join("");
 }
@@ -1053,8 +1518,8 @@ function exportCSV() {
 }
 
 function exportResultsArray(arr, filename) {
-  const headers = ["So HD","Nhan Vien","TG Hoan Tat","Xu ly tu dong","Can xu ly","Canh bao","Cong suat thu","So lan rot","Loai modem","Phien ban PM","DNS WAN","Doi chieu rot mang","Doi chieu tap diem"];
-  const rows = arr.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,r.phien_ban_pm,r.dns_wan,r.doi_chieu_rot_mang,r.doi_chieu_tap_diem].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
+  const headers = ["So HD","Nhan Vien","TG Hoan Tat","Xu ly tu dong","Can xu ly","Canh bao","Cong suat thu","So lan rot","Loai modem","Phien ban PM","DNS WAN","Doi chieu rot mang","Doi chieu tap diem","Phan tich Client"];
+  const rows = arr.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,r.phien_ban_pm,r.dns_wan,r.doi_chieu_rot_mang,r.doi_chieu_tap_diem,r.phan_tich_client].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
   const csv = [headers.join(","),...rows.map(r=>r.join(","))].join("\n");
   const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
   const a = document.createElement("a");
@@ -1103,6 +1568,11 @@ function renderHistory(runs) {
 
   container.innerHTML = pageRuns.map((run, idx) => {
     const runNumber = totalItems - (startIdx + idx);
+    const isTon = (run.data_source === 'ton_bao_tri');
+    const sourceBadge = isTon
+      ? `<span class="h-badge" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-weight:700;"><i class="fa-solid fa-list-check"></i> TỒN BẢO TRÌ</span>`
+      : `<span class="h-badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:700;"><i class="fa-solid fa-wrench"></i> BẢO TRÌ</span>`;
+
     return `
     <div class="history-card">
       <div class="history-meta">
@@ -1111,6 +1581,7 @@ function renderHistory(runs) {
           Phiên #${runNumber} &bull; ${esc(run.timestamp)}
         </div>
         <div class="history-badges">
+          ${sourceBadge}
           <span class="h-badge h-badge-total">${run.total_contracts} HĐ</span>
           <span class="h-badge h-badge-need">Cần xử lý: ${run.need_count||0}</span>
           <span class="h-badge h-badge-warn">Cảnh báo: ${run.warn_count||0}</span>
@@ -1125,9 +1596,14 @@ function renderHistory(runs) {
         <button class="history-details-toggle" onclick="toggleHistoryDetails('${run.id}')">
           <i class="fa-solid fa-chevron-down" id="icon-${run.id}"></i> Xem chi tiết ${run.total_contracts} HĐ
         </button>
-        <button class="btn btn-ghost btn-sm" onclick='exportResultsArray(${JSON.stringify(run.results||[]).replace(/'/g, "&#39;")}, "history_${run.timestamp.replace(/[: ]/g,"_")}.csv")'>
-          <i class="fa-solid fa-download"></i> Xuất CSV phiên này
-        </button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn btn-warning btn-sm" style="background:#f97316;color:#fff;border:none;" onclick='startAutoNoteFromHistory("${run.id}")' title="Gửi danh sách HĐ từ phiên này sang trang Auto Note">
+            <i class="fa-solid fa-robot"></i> Auto Note Tồn Bảo Trì
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick='exportResultsArray(${JSON.stringify(run.results||[]).replace(/'/g, "&#39;")}, "history_${run.timestamp.replace(/[: ]/g,"_")}.csv")'>
+            <i class="fa-solid fa-download"></i> Xuất CSV phiên này
+          </button>
+        </div>
       </div>
       <div id="details-${run.id}" class="history-table-wrap hidden">
         <table style="width:100%; border-collapse:collapse; font-size:.8rem;">
@@ -1142,6 +1618,7 @@ function renderHistory(runs) {
               <th style="padding:8px 10px;">Rớt KN</th>
               <th style="padding:8px 10px;">Đối chiếu Rớt KN</th>
               <th style="padding:8px 10px;">Đối chiếu Tập Điểm</th>
+              <th style="padding:8px 10px;">Phân Tích Client</th>
             </tr>
           </thead>
           <tbody>
@@ -1156,6 +1633,7 @@ function renderHistory(runs) {
                 <td style="padding:8px 10px;">${dropCount(r.so_lan_rot)}</td>
                 <td style="padding:8px 10px;">${doiChieuBadge('rot', r.doi_chieu_rot_mang)}</td>
                 <td style="padding:8px 10px;">${doiChieuBadge('tap', r.doi_chieu_tap_diem)}</td>
+                <td style="padding:8px 10px;">${doiChieuBadge('client', r.phan_tich_client)}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -1166,6 +1644,18 @@ function renderHistory(runs) {
   }).join("");
 
   renderHistoryPagination(totalItems, totalPages);
+}
+
+function startAutoNoteFromHistory(runId) {
+  const run = historyRuns.find(r => r.id === runId);
+  if (!run || !run.results || run.results.length === 0) {
+    showToast("Không tìm thấy kết quả phân tích trong phiên lịch sử này", "warning");
+    return;
+  }
+  allResults = run.results;
+  switchTab('autonote-tab');
+  refreshAutoNoteList();
+  showToast(`Đã nạp ${allResults.length} hợp đồng từ Phiên #${run.timestamp} sang Auto Note`, 'success');
 }
 
 function renderHistoryPagination(totalItems, totalPages) {
@@ -1332,6 +1822,466 @@ function showToast(msg,type="info") {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>t.classList.remove("show"),4000);
 }
+
+/* ──────────────────────────────────────────────
+ *  SUPABASE DATABASE & FILE IMPORT LOGIC
+ * ────────────────────────────────────────────── */
+let sbBrowserCurrentPage = 1;
+let sbBrowserTotalPages = 1;
+
+async function loadSupabaseSummary() {
+  try {
+    const r = await fetch("/api/supabase/tables_summary");
+    const d = await r.json();
+    if (d.success && d.summary) {
+      const elBt = document.getElementById("summary-bao_tri");
+      if (elBt) elBt.textContent = d.summary.bao_tri ?? d.summary.contracts ?? 0;
+
+      const elTon = document.getElementById("summary-ton_bao_tri");
+      if (elTon) elTon.textContent = d.summary.ton_bao_tri ?? 0;
+    }
+  } catch(e) {
+    console.error("Lỗi tải thông số Supabase:", e);
+  }
+}
+
+
+function toggleShowSupabaseKey() {
+  const inp = document.getElementById("supabaseKeyInput");
+  const icon = document.getElementById("btnEyeIcon");
+  if (inp.type === "password") {
+    inp.type = "text";
+    icon.className = "fa-solid fa-eye-slash";
+  } else {
+    inp.type = "password";
+    icon.className = "fa-solid fa-eye";
+  }
+}
+
+async function saveSupabaseKey() {
+  const key = document.getElementById("supabaseKeyInput").value.trim();
+  if (!key) {
+    showToast("Vui lòng dán Supabase API Key vào ô nhập", "warning");
+    return;
+  }
+  try {
+    const r = await fetch("/api/supabase/update_key", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({key: key})
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(d.message || "Đã lưu Supabase Key!", "success");
+      loadSupabaseSummary();
+      loadSupabaseTableData(1);
+    } else {
+      showToast(d.error || "Lưu Key thất bại", "error");
+    }
+  } catch(e) {
+    showToast("Không thể kết nối đến server để lưu Key", "error");
+  }
+}
+
+
+function onImportFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const dropzoneText = document.getElementById("dropzoneText");
+  if (dropzoneText) {
+    dropzoneText.innerHTML = `<span style="color:var(--primary);"><i class="fa-solid fa-file-circle-check"></i> Đã chọn file: <strong>${esc(file.name)}</strong> (${(file.size/1024).toFixed(1)} KB)</span>`;
+  }
+
+  const previewArea = document.getElementById("importPreviewArea");
+  previewArea.style.display = "block";
+  document.getElementById("previewCountBadge").textContent = `File ${file.name} đã sẵn sàng import`;
+}
+
+async function submitImportData() {
+  const fileInput = document.getElementById("importFileInput");
+  const targetTable = document.getElementById("importTargetTable").value;
+
+  if (!fileInput.files || fileInput.files.length === 0) {
+    showToast("Vui lòng chọn file .csv, .xlsx hoặc .json để tải lên", "warning");
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("table_name", targetTable);
+
+  const btn = document.getElementById("btnSubmitImport");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu lên Supabase...`;
+
+  try {
+    const r = await fetch("/api/supabase/import", {
+      method: "POST",
+      body: formData
+    });
+    const d = await r.json();
+
+    if (d.success) {
+      showToast(d.message || "Tải dữ liệu lên Supabase thành công!", "success");
+      fileInput.value = "";
+      document.getElementById("dropzoneText").innerHTML = `Kéo &amp; thả file vào đây hoặc bấm để chọn file từ máy tính`;
+      document.getElementById("importPreviewArea").style.display = "none";
+      loadSupabaseSummary();
+      loadSupabaseTableData(1);
+      loadEmployees(); // Reload danh sách nhân viên nếu import nhân sự
+    } else {
+      showToast(d.error || "Tải dữ liệu lên Supabase thất bại", "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối khi đẩy dữ liệu lên Supabase", "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Tải Dữ Liệu Lên Supabase`;
+  }
+}
+
+async function loadSupabaseTableData(page = 1) {
+  sbBrowserCurrentPage = page;
+  const table = document.getElementById("browserTableSelect").value;
+  const search = document.getElementById("browserSearchInput").value;
+
+  const tHead = document.getElementById("sbBrowserTableHead");
+  const tBody = document.getElementById("sbBrowserTableBody");
+
+  tBody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu từ Supabase...</td></tr>`;
+
+  try {
+    const r = await fetch(`/api/supabase/table_data?table=${table}&page=${page}&per_page=50&search=${encodeURIComponent(search)}`);
+    const d = await r.json();
+
+    if (d.success && d.data) {
+      const records = d.data.records || [];
+      const total = d.data.total || 0;
+      sbBrowserTotalPages = Math.ceil(total / 50) || 1;
+
+      document.getElementById("sbBrowserPaginationInfo").textContent = `Trang ${page} / ${sbBrowserTotalPages} (Tổng ${total} bản ghi)`;
+      document.getElementById("btnSbPrev").disabled = (page <= 1);
+      document.getElementById("btnSbNext").disabled = (page >= sbBrowserTotalPages);
+
+      if (records.length === 0) {
+        tHead.innerHTML = `<tr><th>Trạng Thái</th></tr>`;
+        tBody.innerHTML = `<tr><td style="text-align:center; color: var(--text-muted); padding: 20px;"><i class="fa-solid fa-database"></i> Bảng '${table}' hiện chưa có dữ liệu nào. Vui lòng sử dụng tính năng Import để tải dữ liệu lên.</td></tr>`;
+        return;
+      }
+
+      // Tự động tạo danh sách cột từ bản ghi đầu tiên
+      const sample = records[0];
+      const keys = Object.keys(sample).filter(k => k !== "id");
+      
+      tHead.innerHTML = `<tr><th>#</th>${keys.map(k => `<th>${esc(k)}</th>`).join("")}</tr>`;
+
+      tBody.innerHTML = records.map((rec, i) => `
+        <tr>
+          <td>${(page - 1) * 50 + i + 1}</td>
+          ${keys.map(k => `<td>${esc(String(rec[k] ?? ''))}</td>`).join("")}
+        </tr>
+      `).join("");
+    } else {
+      tBody.innerHTML = `<tr><td colspan="10" class="td-muted" style="text-align:center;">Lỗi: ${esc(d.error || 'Không tải được dữ liệu')}</td></tr>`;
+    }
+  } catch(e) {
+    tBody.innerHTML = `<tr><td colspan="10" class="td-muted" style="text-align:center;">Lỗi kết nối Supabase API</td></tr>`;
+  }
+}
+
+function changeSbPage(delta) {
+  const newPage = sbBrowserCurrentPage + delta;
+  if (newPage >= 1 && newPage <= sbBrowserTotalPages) {
+    loadSupabaseTableData(newPage);
+  }
+}
+
+async function confirmClearSupabaseTable() {
+  const table = document.getElementById("browserTableSelect").value;
+  if (!confirm(`Bạn có chắc chắn muốn XÓA TOÀN BỘ DỮ LIỆU bảng '${table}' trên Supabase? Hành động này không thể hoàn tác!`)) return;
+
+  try {
+    const r = await fetch("/api/supabase/clear_table", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({table_name: table})
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(d.message, "success");
+      loadSupabaseSummary();
+      loadSupabaseTableData(1);
+    } else {
+      showToast(d.error || "Xóa dữ liệu bảng thất bại", "error");
+    }
+  } catch(e) {
+    showToast("Không thể kết nối để xóa dữ liệu bảng", "error");
+  }
+}
+
+// ══════════════════════════════════════════════
+//  AUTO NOTE TỒN BẢO TRÌ – JavaScript Functions
+// ══════════════════════════════════════════════
+
+async function testTOTP() {
+  const btn = document.getElementById('btnTestTotp');
+  const display = document.getElementById('totpOtpDisplay');
+  const timer   = document.getElementById('totpTimer');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lấy OTP...';
+  try {
+    const r = await fetch('/api/auto_note/test_totp');
+    const d = await r.json();
+    if (d.success) {
+      display.textContent = d.otp;
+      display.style.display = 'inline';
+      timer.textContent = `(còn ${d.remaining_seconds}s)`;
+      timer.style.display = 'inline';
+      showToast(`OTP hiện tại: ${d.otp} – còn hiệu lực ${d.remaining_seconds}s`, 'success');
+    } else {
+      showToast(d.error || 'Lỗi lấy OTP', 'error');
+    }
+  } catch(e) {
+    showToast('Không kết nối được server', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-key"></i> Kiểm Tra OTP Hiện Tại';
+  }
+}
+
+function refreshAutoNoteList() {
+  // Lấy từ allResults (kết quả phân tích gần nhất trong session)
+  const hasResults = allResults && allResults.length > 0;
+  const container = document.getElementById('autoNoteContractList');
+  const startBtn  = document.getElementById('btnStartAutoNote');
+
+  if (!hasResults) {
+    container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);">
+      <i class="fa-solid fa-circle-xmark" style="font-size:2rem;margin-bottom:8px;color:#ef4444;"></i><br>
+      Chưa có kết quả phân tích trong phiên này.<br>
+      Vui lòng chạy <strong>Phân Tích Hợp Đồng</strong> trước.
+    </div>`;
+    startBtn.disabled = true;
+    return;
+  }
+
+  // Lọc những HĐ có cảnh báo hoặc cần xử lý
+  autoNoteContracts = allResults.filter(r =>
+    (r.canh_bao && r.canh_bao !== '—') || (r.can_xu_ly && r.can_xu_ly !== '—')
+  );
+
+  if (autoNoteContracts.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--success);font-weight:700;">
+      <i class="fa-solid fa-circle-check" style="font-size:2rem;margin-bottom:8px;"></i><br>
+      Tất cả ${allResults.length} hợp đồng đã phân tích đều <strong>KHÔNG có cảnh báo</strong>.<br>
+      Không cần ghi chú gì thêm!
+    </div>`;
+    startBtn.disabled = true;
+    return;
+  }
+
+  // Render bảng
+  const rows = autoNoteContracts.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><strong>${esc(r.so_hd || '')}</strong></td>
+      <td>${esc(r.nhan_vien || '')}</td>
+      <td style="color:var(--error);">${esc(r.canh_bao || '—')}</td>
+      <td style="color:var(--accent);">${esc(r.can_xu_ly || '—')}</td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <div style="margin-bottom:10px;font-size:0.85rem;color:var(--text-muted);">
+      Tìm thấy <strong style="color:var(--error);">${autoNoteContracts.length}</strong> hợp đồng
+      (trong tổng ${allResults.length}) có Cảnh Báo / Cần Xử Lý cần ghi chú:
+    </div>
+    <div class="table-scroll" style="max-height:300px;">
+      <table class="leaderboard-table" style="font-size:0.82rem;">
+        <thead><tr><th>#</th><th>Số HĐ</th><th>Nhân Viên</th><th>Cảnh Báo</th><th>Cần Xử Lý</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+  startBtn.disabled = false;
+  showToast(`Đã tải ${autoNoteContracts.length} HĐ cần ghi chú`, 'info');
+}
+
+async function startAutoNote() {
+  if (!autoNoteContracts || autoNoteContracts.length === 0) {
+    showToast('Không có HĐ nào để ghi chú. Bấm "Làm mới" trước.', 'warning');
+    return;
+  }
+
+  const startBtn  = document.getElementById('btnStartAutoNote');
+  const cancelBtn = document.getElementById('btnCancelAutoNote');
+  const badge     = document.getElementById('autoNoteStatusBadge');
+  const logCard   = document.getElementById('autoNoteLogCard');
+  const resultCard= document.getElementById('autoNoteResultCard');
+  const runDot    = document.getElementById('autonoteRunningDot');
+
+  startBtn.disabled = true;
+  cancelBtn.style.display = 'inline-flex';
+  badge.style.display = 'inline';
+  badge.className = 'chip chip-info';
+  badge.textContent = 'Đang chạy...';
+  logCard.style.display = 'block';
+  resultCard.style.display = 'none';
+  runDot.style.display = 'inline-block';
+  autoNotePrevLogLen = 0;
+
+  // Clear log
+  document.getElementById('autoNoteLogBox').innerHTML = '<span style="color:#64748b;">Đang khởi động...</span>';
+  document.getElementById('autoNoteProgressBar').style.display = 'block';
+  document.getElementById('autoNoteProgressFill').style.width = '0%';
+  document.getElementById('autoNoteProgressBadge').style.display = 'inline';
+
+  try {
+    const r = await fetch('/api/auto_note/start', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ results: autoNoteContracts })
+    });
+    const d = await r.json();
+    if (!d.success) {
+      showToast(d.error || 'Lỗi khởi động Auto Note', 'error');
+      startBtn.disabled = false;
+      cancelBtn.style.display = 'none';
+      runDot.style.display = 'none';
+      return;
+    }
+    showToast(d.message || 'Đã bắt đầu Auto Note', 'success');
+    // Bắt đầu polling
+    autoNotePrevLogLen = 0;
+    autoNotePolling = setInterval(pollAutoNoteStatus, 2000);
+  } catch(e) {
+    showToast('Lỗi kết nối server', 'error');
+    startBtn.disabled = false;
+    cancelBtn.style.display = 'none';
+    runDot.style.display = 'none';
+  }
+}
+
+async function cancelAutoNote() {
+  try {
+    await fetch('/api/auto_note/cancel', { method: 'POST' });
+    showToast('Đã gửi lệnh dừng Auto Note', 'warning');
+  } catch(e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+async function pollAutoNoteStatus() {
+  try {
+    const r = await fetch('/api/auto_note/status');
+    const d = await r.json();
+    if (!d.success) return;
+
+    const state = d.state;
+    const logBox  = document.getElementById('autoNoteLogBox');
+    const fill    = document.getElementById('autoNoteProgressFill');
+    const pbadge  = document.getElementById('autoNoteProgressBadge');
+    const badge   = document.getElementById('autoNoteStatusBadge');
+    const runDot  = document.getElementById('autonoteRunningDot');
+
+    // Update progress
+    const pct = state.percent || 0;
+    fill.style.width = pct + '%';
+    pbadge.textContent = pct + '%';
+
+    // Append new logs (incremental)
+    const logs = state.logs || [];
+    if (logs.length > autoNotePrevLogLen) {
+      if (autoNotePrevLogLen === 0) logBox.innerHTML = '';
+      const newLogs = logs.slice(autoNotePrevLogLen);
+      autoNotePrevLogLen = logs.length;
+      newLogs.forEach(log => {
+        const color = log.level === 'error' ? '#f87171' : log.level === 'warning' ? '#fbbf24' : '#94a3b8';
+        const prefix = log.level === 'error' ? '❌' : log.level === 'warning' ? '⚠️' : '→';
+        logBox.innerHTML += `<div style="color:${color};"><span style="color:#475569;">[${esc(log.time)}]</span> ${prefix} ${esc(log.msg)}</div>`;
+      });
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // Status badge
+    const statusMap = {
+      idle: ['chip','Sẵn sàng'],
+      logging_in: ['chip chip-info','Đang đăng nhập FPT Inside...'],
+      navigating: ['chip chip-info','Đang điều hướng đến Bảo Trì...'],
+      running: ['chip chip-info',`Đang ghi chú ${state.current}... (${state.progress}/${state.total})`],
+      done: ['chip chip-success','Hoàn tất!'],
+      error: ['chip','Lỗi!'],
+      cancelled: ['chip','Đã dừng'],
+    };
+    const [cls, txt] = statusMap[state.status] || ['chip', state.status];
+    badge.className = cls;
+    badge.textContent = txt;
+
+    // Khi hoàn tất
+    if (!state.running && ['done','error','cancelled'].includes(state.status)) {
+      clearInterval(autoNotePolling);
+      autoNotePolling = null;
+      document.getElementById('btnStartAutoNote').disabled = false;
+      document.getElementById('btnCancelAutoNote').style.display = 'none';
+      runDot.style.display = 'none';
+
+      // Hiển thị kết quả
+      renderAutoNoteResults(state.results || [], state.status);
+    }
+  } catch(e) {
+    console.warn('pollAutoNoteStatus error:', e);
+  }
+}
+
+function renderAutoNoteResults(results, status) {
+  const card   = document.getElementById('autoNoteResultCard');
+  const summary= document.getElementById('autoNoteResultSummary');
+  const tbody  = document.getElementById('autoNoteResultBody');
+  card.style.display = 'block';
+
+  const successCount = results.filter(r => r.status === 'success').length;
+  const failCount    = results.length - successCount;
+
+  summary.innerHTML = `
+    <div style="background:#f0fdf4;border:1px solid #86efac;padding:14px 20px;border-radius:10px;min-width:150px;text-align:center;">
+      <div style="font-size:0.8rem;color:#15803d;font-weight:700;">THÀNH CÔNG</div>
+      <div style="font-size:2.2rem;font-weight:800;color:#15803d;">${successCount}</div>
+    </div>
+    <div style="background:#fef2f2;border:1px solid #fca5a5;padding:14px 20px;border-radius:10px;min-width:150px;text-align:center;">
+      <div style="font-size:0.8rem;color:#b91c1c;font-weight:700;">THẤT BẠI</div>
+      <div style="font-size:2.2rem;font-weight:800;color:#b91c1c;">${failCount}</div>
+    </div>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:14px 20px;border-radius:10px;min-width:150px;text-align:center;">
+      <div style="font-size:0.8rem;color:#1e40af;font-weight:700;">TỔNG</div>
+      <div style="font-size:2.2rem;font-weight:800;color:#1e3a8a;">${results.length}</div>
+    </div>
+  `;
+
+  if (results.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="td-muted" style="text-align:center;">Không có kết quả</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = results.map((r, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td><strong>${esc(r.so_hd || '')}</strong></td>
+      <td>
+        <span class="chip ${r.status === 'success' ? 'chip-success' : ''}" style="${r.status !== 'success' ? 'background:#fee2e2;color:#b91c1c;' : ''}">
+          ${r.status === 'success' ? '✅ Thành công' : '❌ Thất bại'}
+        </span>
+      </td>
+      <td style="font-size:0.8rem;color:var(--text-muted);">${esc(r.message || '')}</td>
+    </tr>
+  `).join('');
+
+  if (status === 'done' && successCount > 0) {
+    showToast(`Auto Note hoàn tất! ✅ ${successCount} thành công / ❌ ${failCount} thất bại`, 'success');
+  }
+}
+
 </script>
 </body>
 </html>
+
