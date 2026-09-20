@@ -348,25 +348,65 @@
 
     <!-- TAB 2: LICH SU CHAY -->
     <div id="history-tab" class="tab-panel">
-      <div class="card">
-        <div class="card-header">
-          <i class="fa-solid fa-clock-rotate-left"></i>
-          <h2>Lịch Sử Các Phiên Phân Tích</h2>
-          <div class="card-header-actions">
-            <button class="btn btn-ghost btn-sm" onclick="loadHistory()">
-              <i class="fa-solid fa-rotate"></i> Làm mới
-            </button>
-            <button class="btn btn-ghost btn-sm" onclick="clearHistory()">
-              <i class="fa-solid fa-trash-can"></i> Xóa lịch sử
-            </button>
+      <!-- SUB-TABS: LỊCH SỬ PHÂN TÍCH & LỊCH SỬ NOTE -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+        <div class="nav-tabs-bar" style="margin-bottom:0;">
+          <button class="nav-tab active" id="subtabBtn-hist-analysis" onclick="switchHistorySubTab('analysis')">
+            <i class="fa-solid fa-microchip"></i> Lịch Sử Phân Tích
+          </button>
+          <button class="nav-tab" id="subtabBtn-hist-note" onclick="switchHistorySubTab('note')">
+            <i class="fa-solid fa-robot"></i> Lịch Sử Note FPT Inside
+          </button>
+        </div>
+      </div>
+
+      <!-- SUBPANEL 1: LỊCH SỬ PHÂN TÍCH -->
+      <div id="subpanel-hist-analysis" class="history-subpanel">
+        <div class="card">
+          <div class="card-header">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <h2>Lịch Sử Các Phiên Phân Tích</h2>
+            <div class="card-header-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadHistory()">
+                <i class="fa-solid fa-rotate"></i> Làm mới
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="clearHistory()">
+                <i class="fa-solid fa-trash-can"></i> Xóa lịch sử
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="historyList" class="history-list">
+              <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải lịch sử...</div>
+            </div>
+            <!-- MUI PAGINATION FOR HISTORY -->
+            <div id="historyPagination" class="mui-pagination-wrap hidden"></div>
           </div>
         </div>
-        <div class="card-body">
-          <div id="historyList" class="history-list">
-            <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải lịch sử...</div>
+      </div>
+
+      <!-- SUBPANEL 2: LỊCH SỬ NOTE -->
+      <div id="subpanel-hist-note" class="history-subpanel" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <i class="fa-solid fa-clipboard-check"></i>
+            <h2>Lịch Sử Các Phiên Note FPT Inside</h2>
+            <div class="card-header-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadNoteHistory()">
+                <i class="fa-solid fa-rotate"></i> Làm mới
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="clearNoteHistory()">
+                <i class="fa-solid fa-trash-can"></i> Xóa lịch sử note
+              </button>
+            </div>
           </div>
-          <!-- MUI PAGINATION FOR HISTORY -->
-          <div id="historyPagination" class="mui-pagination-wrap hidden"></div>
+          <div class="card-body">
+            <div id="noteHistoryList" class="history-list">
+              <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải lịch sử note...</div>
+            </div>
+            <!-- MUI PAGINATION FOR NOTE HISTORY -->
+            <div id="noteHistoryPagination" class="mui-pagination-wrap hidden"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -837,6 +877,7 @@ function switchTab(tabId) {
   if (tabId === 'history-tab') {
     document.getElementById("tabBtn-history").classList.add("active");
     loadHistory();
+    loadNoteHistory();
   }
   if (tabId === 'analytics-tab') {
     document.getElementById("tabBtn-analytics").classList.add("active");
@@ -1722,18 +1763,264 @@ function toggleHistoryDetails(id) {
 }
 
 async function clearHistory() {
-  if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử chạy?")) return;
+  if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử phân tích?")) return;
   try {
     const r = await fetch("/api/history", {method: "DELETE"});
     const d = await r.json();
     if (d.success) {
-      showToast("Đã xóa lịch sử!", "success");
+      showToast("Đã xóa lịch sử phân tích!", "success");
       loadHistory();
     }
   } catch(e) {
     showToast("Không thể xóa lịch sử", "error");
   }
 }
+
+/* SUB-TAB SWITCHING: PHÂN TÍCH vs NOTE */
+function switchHistorySubTab(subTab) {
+  const btnAnalysis = document.getElementById("subtabBtn-hist-analysis");
+  const btnNote = document.getElementById("subtabBtn-hist-note");
+  const panelAnalysis = document.getElementById("subpanel-hist-analysis");
+  const panelNote = document.getElementById("subpanel-hist-note");
+
+  if (btnAnalysis) btnAnalysis.classList.toggle("active", subTab === 'analysis');
+  if (btnNote) btnNote.classList.toggle("active", subTab === 'note');
+
+  if (panelAnalysis) panelAnalysis.style.display = (subTab === 'analysis') ? 'block' : 'none';
+  if (panelNote) panelNote.style.display = (subTab === 'note') ? 'block' : 'none';
+
+  if (subTab === 'note') {
+    loadNoteHistory();
+  } else {
+    loadHistory();
+  }
+}
+
+/* NOTE HISTORY FUNCTIONS */
+let noteHistoryRuns = [];
+let noteHistoryCurrentPage = 1;
+let noteHistoryRowsPerPage = 5;
+
+async function loadNoteHistory() {
+  const container = document.getElementById("noteHistoryList");
+  if (!container) return;
+  container.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải lịch sử note...</div>`;
+  try {
+    const r = await fetch("/api/note_history");
+    const d = await r.json();
+    if (d.success) {
+      noteHistoryRuns = d.history || [];
+      noteHistoryCurrentPage = 1;
+      renderNoteHistory(noteHistoryRuns);
+    } else {
+      container.innerHTML = `<div class="error-state"><i class="fa-solid fa-circle-exclamation"></i> Lỗi: ${esc(d.error)}</div>`;
+      document.getElementById("noteHistoryPagination").classList.add("hidden");
+    }
+  } catch(e) {
+    container.innerHTML = `<div class="error-state"><i class="fa-solid fa-wifi"></i> Không thể kết nối server</div>`;
+    document.getElementById("noteHistoryPagination").classList.add("hidden");
+  }
+}
+
+function renderNoteHistory(runs) {
+  const container = document.getElementById("noteHistoryList");
+  if (!runs || !runs.length) {
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i> Chưa có lịch sử phiên note FPT Inside nào.</div>`;
+    document.getElementById("noteHistoryPagination").classList.add("hidden");
+    return;
+  }
+
+  const totalItems = runs.length;
+  const totalPages = Math.ceil(totalItems / noteHistoryRowsPerPage) || 1;
+
+  if (noteHistoryCurrentPage > totalPages) noteHistoryCurrentPage = totalPages;
+  if (noteHistoryCurrentPage < 1) noteHistoryCurrentPage = 1;
+
+  const startIdx = (noteHistoryCurrentPage - 1) * noteHistoryRowsPerPage;
+  const pageRuns = runs.slice(startIdx, startIdx + noteHistoryRowsPerPage);
+
+  container.innerHTML = pageRuns.map((run, idx) => {
+    const runNumber = totalItems - (startIdx + idx);
+    const successCount = run.success_count || 0;
+    const failCount = run.fail_count || 0;
+    const totalCount = run.total || (successCount + failCount);
+    const statusText = run.status === 'done' ? 'Hoàn tất' : (run.status === 'cancelled' ? 'Đã dừng' : (run.status === 'error' ? 'Lỗi' : run.status));
+    const statusBg = run.status === 'done' ? '#f0fdf4' : (run.status === 'cancelled' ? '#fff7ed' : '#fef2f2');
+    const statusColor = run.status === 'done' ? '#16a34a' : (run.status === 'cancelled' ? '#c2410c' : '#dc2626');
+    const statusBorder = run.status === 'done' ? '#bbf7d0' : (run.status === 'cancelled' ? '#fed7aa' : '#fecaca');
+
+    return `
+    <div class="history-card">
+      <div class="history-meta">
+        <div class="history-time">
+          <i class="fa-solid fa-robot" style="color:#f97316"></i>
+          Phiên Note #${runNumber} &bull; ${esc(run.timestamp)}
+        </div>
+        <div class="history-badges">
+          <span class="h-badge" style="background:${statusBg};color:${statusColor};border:1px solid ${statusBorder};font-weight:700;">
+            <i class="fa-solid ${run.status==='done'?'fa-circle-check':(run.status==='cancelled'?'fa-circle-pause':'fa-triangle-exclamation')}"></i> ${statusText}
+          </span>
+          <span class="h-badge h-badge-total">${totalCount} HĐ</span>
+          <span class="h-badge" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;font-weight:700;">
+            <i class="fa-solid fa-check"></i> Thành công: ${successCount}
+          </span>
+          ${failCount > 0 ? `
+            <span class="h-badge" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;font-weight:700;">
+              <i class="fa-solid fa-xmark"></i> Thất bại: ${failCount}
+            </span>
+          ` : ''}
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap; gap:8px;">
+        <button class="history-details-toggle" onclick="toggleNoteHistoryDetails('${run.id}')">
+          <i class="fa-solid fa-chevron-down" id="icon-note-${run.id}"></i> Xem chi tiết ${totalCount} HĐ đã note
+        </button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn btn-ghost btn-sm" onclick='exportNoteHistoryCSV("${run.id}")'>
+            <i class="fa-solid fa-download"></i> Xuất CSV kết quả note
+          </button>
+        </div>
+      </div>
+      <div id="details-note-${run.id}" class="history-table-wrap hidden">
+        <table style="width:100%; border-collapse:collapse; font-size:.8rem;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border); text-align:left; color:var(--text-secondary); background:#f8fafc;">
+              <th style="padding:8px 10px; width:40px;">#</th>
+              <th style="padding:8px 10px; width:90px;">Thời gian</th>
+              <th style="padding:8px 10px; width:130px;">Số HĐ</th>
+              <th style="padding:8px 10px; width:120px;">Trạng thái</th>
+              <th style="padding:8px 10px;">Nội dung phản hồi / Ghi chú đã gửi</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(run.results||[]).map((r, i) => `
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:8px 10px; color:var(--text-muted);">${i+1}</td>
+                <td style="padding:8px 10px; color:var(--text-muted); font-size:.78rem;">${esc(r.time || '—')}</td>
+                <td style="padding:8px 10px;"><strong>${esc(r.so_hd)}</strong></td>
+                <td style="padding:8px 10px;">
+                  ${r.status === 'success'
+                    ? '<span class="chip chip-success" style="font-size:0.75rem;padding:2px 8px;"><i class="fa-solid fa-check"></i> Thành công</span>'
+                    : '<span class="chip chip-error" style="font-size:0.75rem;padding:2px 8px;"><i class="fa-solid fa-xmark"></i> Thất bại</span>'
+                  }
+                </td>
+                <td style="padding:8px 10px;">
+                  <div style="font-weight:600; color:${r.status==='success'?'#15803d':'#b91c1c'}">${esc(r.message || '')}</div>
+                  ${r.note_parts ? `<div style="font-size:.75rem; color:var(--text-secondary); margin-top:4px; font-family:monospace; background:#f8fafc; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0; white-space:pre-wrap;">${esc(Array.isArray(r.note_parts)?r.note_parts.join('\n'):r.note_parts)}</div>` : ''}
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    `;
+  }).join("");
+
+  renderNoteHistoryPagination(totalItems, totalPages);
+}
+
+function renderNoteHistoryPagination(totalItems, totalPages) {
+  const container = document.getElementById("noteHistoryPagination");
+  if (!container) return;
+  if (totalItems === 0) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+
+  const startNum = (noteHistoryCurrentPage - 1) * noteHistoryRowsPerPage + 1;
+  const endNum = Math.min(noteHistoryCurrentPage * noteHistoryRowsPerPage, totalItems);
+
+  let pageBtns = '';
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= noteHistoryCurrentPage - 1 && p <= noteHistoryCurrentPage + 1)) {
+      pageBtns += `<button class="mui-page-btn ${p === noteHistoryCurrentPage ? 'active' : ''}" onclick="changeNoteHistoryPage(${p})">${p}</button>`;
+    } else if (p === noteHistoryCurrentPage - 2 || p === noteHistoryCurrentPage + 2) {
+      pageBtns += `<span style="padding: 0 4px; color: var(--text-muted);">...</span>`;
+    }
+  }
+
+  container.innerHTML = `
+    <div class="mui-pagination-left">
+      <span>Hiển thị</span>
+      <select class="mui-pagination-select" onchange="changeNoteHistoryRowsPerPage(this.value)">
+        <option value="5" ${noteHistoryRowsPerPage == 5 ? 'selected' : ''}>5</option>
+        <option value="10" ${noteHistoryRowsPerPage == 10 ? 'selected' : ''}>10</option>
+        <option value="20" ${noteHistoryRowsPerPage == 20 ? 'selected' : ''}>20</option>
+      </select>
+      <span>phiên mỗi trang</span>
+    </div>
+    <div class="mui-pagination-right">
+      <span class="mui-pagination-info">${startNum}–${endNum} trên ${totalItems} phiên</span>
+      <button class="mui-page-btn" ${noteHistoryCurrentPage === 1 ? 'disabled' : ''} onclick="changeNoteHistoryPage(${noteHistoryCurrentPage - 1})"><i class="fa-solid fa-chevron-left"></i></button>
+      ${pageBtns}
+      <button class="mui-page-btn" ${noteHistoryCurrentPage === totalPages ? 'disabled' : ''} onclick="changeNoteHistoryPage(${noteHistoryCurrentPage + 1})"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+  `;
+}
+
+function changeNoteHistoryPage(page) {
+  noteHistoryCurrentPage = page;
+  renderNoteHistory(noteHistoryRuns);
+}
+
+function changeNoteHistoryRowsPerPage(size) {
+  noteHistoryRowsPerPage = parseInt(size, 10);
+  noteHistoryCurrentPage = 1;
+  renderNoteHistory(noteHistoryRuns);
+}
+
+function toggleNoteHistoryDetails(id) {
+  const details = document.getElementById(`details-note-${id}`);
+  const icon = document.getElementById(`icon-note-${id}`);
+  if (details.classList.contains("hidden")) {
+    details.classList.remove("hidden");
+    icon.className = "fa-solid fa-chevron-up";
+  } else {
+    details.classList.add("hidden");
+    icon.className = "fa-solid fa-chevron-down";
+  }
+}
+
+function exportNoteHistoryCSV(runId) {
+  const run = noteHistoryRuns.find(r => r.id === runId);
+  if (!run || !run.results || !run.results.length) {
+    showToast("Không có dữ liệu để xuất", "warning");
+    return;
+  }
+  const headers = ["STT", "Thoi Gian", "So HD", "Trang Thai", "Thong Bao", "Noi Dung Note"];
+  const rows = (run.results || []).map((r, i) => [
+    i + 1,
+    r.time || '',
+    r.so_hd || '',
+    r.status === 'success' ? 'Thành công' : 'Thất bại',
+    r.message || '',
+    Array.isArray(r.note_parts) ? r.note_parts.join(' | ') : (r.note_parts || '')
+  ].map(c => `"${String(c).replace(/"/g, '""')}"`));
+
+  const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `note_history_${(run.timestamp || '').replace(/[: ]/g, "_")}.csv`;
+  a.click();
+}
+
+async function clearNoteHistory() {
+  if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử Note FPT Inside?")) return;
+  try {
+    const r = await fetch("/api/note_history", {method: "DELETE"});
+    const d = await r.json();
+    if (d.success) {
+      showToast("Đã xóa lịch sử note!", "success");
+      loadNoteHistory();
+    }
+  } catch(e) {
+    showToast("Không thể xóa lịch sử note", "error");
+  }
+}
+
 
 /* ANALYTICS TAB FUNCTIONS */
 async function loadAnalytics() {

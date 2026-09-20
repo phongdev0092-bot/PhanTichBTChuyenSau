@@ -12,6 +12,7 @@ import time
 import re
 import os
 import sys
+import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -942,9 +943,11 @@ def run_auto_note(results_to_note: list[dict], totp_secret: str = None):
             success, note_msg = add_note_to_contract(so_hd, note_parts)
 
             _auto_note_results.append({
-                "so_hd":   so_hd,
-                "status":  "success" if success else "failed",
-                "message": note_msg,
+                "so_hd":      so_hd,
+                "status":     "success" if success else "failed",
+                "message":    note_msg,
+                "note_parts": note_parts,
+                "time":       time.strftime("%H:%M:%S"),
             })
             _auto_note_progress = i + 1
             _auto_note_percent  = int(((i + 1) / total) * 100)
@@ -966,6 +969,23 @@ def run_auto_note(results_to_note: list[dict], totp_secret: str = None):
         _auto_note_status  = "error"
         _auto_note_running = False
     finally:
+        # Lưu vào lịch sử note nếu có kết quả
+        if _auto_note_results:
+            try:
+                success_c = sum(1 for r in _auto_note_results if r.get("status") == "success")
+                rec = {
+                    "id": f"note_{int(time.time() * 1000)}",
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "total": total if 'total' in locals() else len(_auto_note_results),
+                    "success_count": success_c,
+                    "fail_count": len(_auto_note_results) - success_c,
+                    "status": _auto_note_status,
+                    "results": list(_auto_note_results),
+                }
+                save_note_history_run(rec)
+            except Exception as he:
+                log.error(f"Lỗi lưu lịch sử note: {he}")
+
         # Đảm bảo driver được đóng khi xong
         try:
             close_inside_driver()
@@ -992,3 +1012,32 @@ def cancel_auto_note():
     global _auto_note_cancel
     _auto_note_cancel = True
     _log("⛔ Nhận lệnh dừng từ người dùng...")
+
+
+NOTE_HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "note_history.json")
+
+
+def load_note_history() -> list[dict]:
+    if not os.path.exists(NOTE_HISTORY_FILE):
+        return []
+    try:
+        with open(NOTE_HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        log.error(f"Lỗi đọc lịch sử note: {e}")
+        return []
+
+
+def save_note_history_run(record: dict):
+    history = load_note_history()
+    history.insert(0, record)
+    try:
+        with open(NOTE_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        log.error(f"Lỗi ghi lịch sử note: {e}")
+
+
+def clear_note_history():
+    if os.path.exists(NOTE_HISTORY_FILE):
+        os.remove(NOTE_HISTORY_FILE)

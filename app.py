@@ -602,6 +602,21 @@ def api_clear_history():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/note_history", methods=["GET"])
+def api_get_note_history():
+    return jsonify({"success": True, "history": inside_fpt.load_note_history()})
+
+
+@app.route("/api/note_history", methods=["DELETE"])
+def api_clear_note_history():
+    try:
+        inside_fpt.clear_note_history()
+        return jsonify({"success": True, "message": "Đã xóa lịch sử note"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
 @app.route("/api/analytics")
 def api_analytics():
     history = load_history()
