@@ -427,18 +427,30 @@ def _compact_tap_diem_for_note(t: str) -> str:
     if not t:
         return ""
     import re
-    t = re.sub(r':\s*HĐ\s*[-+]?\d+\.?\d*dBm\s*/\s*TB\s*[-+]?\d+\.?\d*dBm', '', t)
-    t = re.sub(r'\s*\([A-Z0-9_]{4,12}[^\)]*\)', '', t)
-    t = re.sub(r'Suy hao cao hơn TB tập điểm\s*([\d\.]+dBm)?', r'Cao hơn TB \1', t)
-    t = re.sub(r'Tốt hơn hoặc tương đương TB tập điểm\s*([\d\.]+dBm)?', r'Đạt TB \1', t)
-    t = re.sub(r'Tập điểm này có\s*', '', t)
-    t = re.sub(r'\d+/\d+\s*Online,\s*0/\d+\s*Offline;?\s*', '', t)
-    t = re.sub(r'HĐ Rx Power không đạt <=\s*-23\.5dBm', 'HĐ suy hao', t)
-    t = re.sub(r'HĐ không đạt chuẩn -10 đến -23\.5dBm', 'HĐ suy hao', t)
-    t = re.sub(r'Rx Power ngoài chuẩn', 'Rx ngoài chuẩn', t)
-    t = re.sub(r'Tập điểm có HĐ Unknown\s*\(\d+\s*HĐ;[^)]*\)', 'TĐ có HĐ Unknown (đều Unknown)', t)
-    t = re.sub(r'\s+', ' ', t)
-    return t.strip()
+    m_eval = re.match(r'^(.*?\))\s*\|\s*(.*)$', t)
+    if m_eval:
+        prefix_eval = m_eval.group(1).strip()
+        rest = m_eval.group(2).strip()
+    else:
+        prefix_eval = ""
+        rest = t
+
+    rest = re.sub(r':\s*HĐ\s*[-+]?\d+\.?\d*dBm\s*/\s*TB\s*[-+]?\d+\.?\d*dBm', '', rest)
+    rest = re.sub(r'\s*\([A-Z0-9_]{4,12}[^\)]*\)', '', rest)
+    rest = re.sub(r'Tập điểm này có\s*', '', rest)
+    rest = re.sub(r'\d+/\d+\s*Online,\s*0/\d+\s*Offline;?\s*', '', rest)
+    rest = re.sub(r'HĐ Rx Power không đạt <=\s*-23\.5dBm', 'HĐ suy hao', rest)
+    rest = re.sub(r'HĐ không đạt chuẩn -10 đến -23\.5dBm', 'HĐ suy hao', rest)
+    rest = re.sub(r'Rx Power ngoài chuẩn', 'Rx ngoài chuẩn', rest)
+    rest = re.sub(r'Tập điểm có HĐ Unknown\s*\(\d+\s*HĐ;[^)]*\)', 'TĐ có HĐ Unknown (đều Unknown)', rest)
+    rest = re.sub(r'\(.*?\)', '', rest)
+    rest = re.sub(r'\s+', ' ', rest).strip()
+
+    if prefix_eval:
+        if rest and rest not in ("Tập điểm bình thường", "Rx Power đạt chuẩn"):
+            return f"{prefix_eval} | {rest}"
+        return prefix_eval
+    return rest
 
 
 def _compact_client_for_note(client_str: str) -> str:

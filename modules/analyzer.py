@@ -1100,32 +1100,37 @@ def _cross_check_tap_diem(d, step_callback=None, current_pwr_str: str = None) ->
 
     # 4. Tính công suất trung bình tập điểm và so sánh với HĐ hiện tại
     eval_pwr_prefix = ""
+    cur_pwr = None
+    if current_pwr_str:
+        m_cur = re.search(r'[-+]?\d+\.?\d*', str(current_pwr_str))
+        if m_cur:
+            try:
+                val_c = float(m_cur.group(0))
+                if abs(val_c) < 0.001 or val_c == 0.0:
+                    cur_pwr = 0.0
+                else:
+                    cur_pwr = -abs(val_c)
+            except Exception:
+                pass
+
     if valid_online_pwrs:
         avg_tap_pwr = sum(valid_online_pwrs) / len(valid_online_pwrs)
-        cur_pwr = None
-        if current_pwr_str:
-            m_cur = re.search(r'[-+]?\d+\.?\d*', str(current_pwr_str))
-            if m_cur:
-                try:
-                    val_c = float(m_cur.group(0))
-                    if abs(val_c) < 0.001 or val_c == 0.0:
-                        cur_pwr = 0.0
-                    else:
-                        cur_pwr = -abs(val_c)
-                except Exception:
-                    pass
-
         if cur_pwr is not None:
-            if abs(cur_pwr) < 0.001:
+            if abs(cur_pwr) < 0.001 or cur_pwr <= -1000.0:
                 eval_pwr_prefix = "Cảnh báo đứt cáp/lỗi cáp (0.0dBm) | "
-            elif cur_pwr < -23.5 or cur_pwr > -10.0:
-                diff = abs(cur_pwr - avg_tap_pwr)
-                eval_pwr_prefix = f"Chưa đạt (Suy hao cao hơn TB tập điểm {diff:.1f}dBm: HĐ {cur_pwr:.1f}dBm / TB {avg_tap_pwr:.1f}dBm) | "
+            elif cur_pwr >= avg_tap_pwr and -23.5 <= cur_pwr <= -10.0:
+                eval_pwr_prefix = f"Đạt (HĐ {cur_pwr:.1f}dBm / TB Tdiem {avg_tap_pwr:.1f}dBm) | "
             else:
-                diff = abs(cur_pwr - avg_tap_pwr)
-                eval_pwr_prefix = f"Đạt chuẩn (HĐ {cur_pwr:.1f}dBm / TB {avg_tap_pwr:.1f}dBm) | "
+                eval_pwr_prefix = f"Chưa đạt (HĐ {cur_pwr:.1f}dBm / TB Tdiem {avg_tap_pwr:.1f}dBm) | "
         else:
-            eval_pwr_prefix = f"TB tập điểm: {avg_tap_pwr:.1f}dBm ({len(valid_online_pwrs)} HĐ) | "
+            eval_pwr_prefix = f"TB Tdiem: {avg_tap_pwr:.1f}dBm ({len(valid_online_pwrs)} HĐ) | "
+    elif cur_pwr is not None:
+        if abs(cur_pwr) < 0.001 or cur_pwr <= -1000.0:
+            eval_pwr_prefix = "Cảnh báo đứt cáp/lỗi cáp (0.0dBm) | "
+        elif -23.5 <= cur_pwr <= -10.0:
+            eval_pwr_prefix = f"Đạt chuẩn (HĐ {cur_pwr:.1f}dBm) | "
+        else:
+            eval_pwr_prefix = f"Chưa đạt (HĐ {cur_pwr:.1f}dBm) | "
 
     # TH1: Offline >= 50% tổng số HĐ trong tập điểm >> Cảnh báo tập điểm
     if offline_pct >= 50.0:
