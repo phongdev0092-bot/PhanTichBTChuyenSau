@@ -29,7 +29,19 @@ logging.basicConfig(
 )
 log = logging.getLogger("app")
 
-app = Flask(__name__)
+import sys
+import os
+
+if getattr(sys, 'frozen', False):
+    _base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    app = Flask(
+        __name__,
+        template_folder=os.path.join(_base_dir, 'templates'),
+        static_folder=os.path.join(_base_dir, 'static')
+    )
+else:
+    app = Flask(__name__)
+
 app.secret_key = SECRET_KEY
 
 # Global job state

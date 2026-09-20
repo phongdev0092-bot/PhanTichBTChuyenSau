@@ -5,3 +5,6 @@ debug_shots/
 scratch/
 .system_generated/
 *.log
+build/
+*.spec
+
