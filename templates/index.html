@@ -884,9 +884,20 @@
         <div style="font-size:0.74rem;color:#64748b;margin-left:24px;margin-top:2px;">Bỏ tích nếu tài khoản Inside của bạn đăng nhập trực tiếp không cần Google Authenticator OTP.</div>
       </div>
 
-      <div id="totpSection" style="margin-top:8px;">
-        <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">TOTP Secret Key (Nếu dùng OTP):</label>
-        <input type="text" id="cfgTotpSecret" placeholder="Nhập Secret Base32 (nếu có)" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
+      <div id="totpSection" style="margin-top:10px;">
+        <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">
+          TOTP Secret Key (Chuỗi bí mật từ QR Code Authenticator):
+        </label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="cfgTotpSecret" placeholder="Dán chuỗi Secret Base32 hoặc tải ảnh QR lên..." class="date-input" style="flex:1;height:36px;font-size:0.83rem;"/>
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('qrFileInputModal').click()" style="white-space:nowrap;height:36px;font-size:0.8rem;padding:0 12px;">
+            <i class="fa-solid fa-qrcode"></i> Quét Ảnh QR
+          </button>
+          <input type="file" id="qrFileInputModal" accept="image/*" style="display:none;" onchange="uploadQrImageModal(this)"/>
+        </div>
+        <div style="font-size:0.74rem;color:#0284c7;margin-top:6px;background:#f0f9ff;padding:6px 10px;border-radius:6px;border:1px solid #bae6fd;">
+          💡 <strong>Giải thích:</strong> Mã 6 chữ số OTP nhảy 30s/lần được <em>tính toán tự động</em> từ chuỗi Secret Key cố định này. Khi có Secret Key, hệ thống sẽ <strong>tự sinh mã OTP mới nhất</strong> mỗi khi đăng nhập mà bạn không cần mở app điện thoại ra xem.
+        </div>
       </div>
     </div>
 
@@ -1147,6 +1158,31 @@ async function openLoginConfigModal() {
 function closeLoginConfigModal() {
   const modal = document.getElementById("loginConfigModal");
   if (modal) modal.style.display = "none";
+}
+
+async function uploadQrImageModal(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const formData = new FormData();
+  formData.append("file", file);
+
+  showToast("Đang đọc và giải mã QR Code...", "info");
+  try {
+    const r = await fetch("/api/auto_note/decode_qr", {
+      method: "POST",
+      body: formData
+    });
+    const d = await r.json();
+    if (d.success && d.secret) {
+      document.getElementById("cfgTotpSecret").value = d.secret;
+      showToast(`✅ Đã giải mã QR! Secret: ${d.secret} (Mã OTP mẫu: ${d.otp_sample || ''})`, "success");
+    } else {
+      showToast("Lỗi giải mã QR: " + (d.error || "Không đọc được QR code tu ảnh này"), "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối khi quét ảnh QR", "error");
+  }
+  input.value = "";
 }
 
 function toggleLoginMode() {
