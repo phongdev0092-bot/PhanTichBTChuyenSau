@@ -219,16 +219,18 @@ def _wait_for(driver, by, value, timeout=15, condition="clickable"):
 # ─────────────────────────────────────────────────────────────────────────────
 #  ĐĂNG NHẬP FPT INSIDE
 # ─────────────────────────────────────────────────────────────────────────────
-def login_inside_fpt(totp_secret: str = None) -> tuple[bool, str]:
+def login_inside_fpt(account: str = None, password: str = None, use_otp: bool = True, totp_secret: str = None) -> tuple[bool, str]:
     """
     Đăng nhập vào FPT Inside qua login.fpt.net.
-    Luồng: tích cbOTP → nhập tài khoản → nhập mật khẩu → nhập OTP → bấm #btnLogin
+    Luồng:
+      - Nếu use_otp=True: tích cbOTP → nhập tài khoản → nhập mật khẩu → nhập OTP → bấm #btnLogin
+      - Nếu use_otp=False: bỏ tích cbOTP (nếu được tích) → nhập tài khoản → nhập mật khẩu → bấm #btnLogin
     """
     global _inside_logged_in
 
     import config
-    account  = config.INSIDE_ACCOUNT
-    password = config.INSIDE_PASSWORD
+    acc  = account or config.INSIDE_ACCOUNT
+    pwd  = password or config.INSIDE_PASSWORD
     login_url = getattr(config, "INSIDE_FPT_LOGIN_URL", "http://login.fpt.net/")
     secret   = totp_secret or getattr(config, "TOTP_SECRET", "") or ""
 
@@ -242,24 +244,30 @@ def login_inside_fpt(totp_secret: str = None) -> tuple[bool, str]:
     except Exception as e:
         return False, f"❌ Không mở được trang đăng nhập: {e}"
 
-    # ── 2. Bấm "Sử dụng OTP" trước tiên ──────────────────────────────────
+    # ── 2. Xử lý checkbox 'Sử dụng OTP' (cbOTP) ──────────────────────────
     try:
         cb_otp = d.find_element(By.ID, "cbOTP")
-        if not cb_otp.is_selected():
-            _log("Tích vào checkbox 'Sử dụng OTP'...")
-            d.execute_script("arguments[0].click();", cb_otp)
-            time.sleep(0.5)
+        if use_otp:
+            if not cb_otp.is_selected():
+                _log("Tích vào checkbox 'Sử dụng OTP'...")
+                d.execute_script("arguments[0].click();", cb_otp)
+                time.sleep(0.5)
+        else:
+            if cb_otp.is_selected():
+                _log("Bỏ tích checkbox 'Sử dụng OTP' (Tài khoản không yêu cầu OTP)...")
+                d.execute_script("arguments[0].click();", cb_otp)
+                time.sleep(0.5)
     except Exception:
         pass
 
     # ── 3. Nhập tài khoản ─────────────────────────────────────────────────
-    _log(f"Nhập tài khoản: {account}")
+    _log(f"Nhập tài khoản: {acc}")
     try:
         username_el = d.find_element(By.ID, "fUserName")
     except NoSuchElementException:
         username_el = d.find_element(By.XPATH, '//input[@type="text"][1]')
     username_el.clear()
-    username_el.send_keys(account)
+    username_el.send_keys(acc)
     time.sleep(0.3)
 
     # ── 4. Nhập mật khẩu ──────────────────────────────────────────────────
@@ -269,11 +277,11 @@ def login_inside_fpt(totp_secret: str = None) -> tuple[bool, str]:
     except NoSuchElementException:
         password_el = d.find_element(By.XPATH, '//input[@type="password"]')
     password_el.clear()
-    password_el.send_keys(password)
+    password_el.send_keys(pwd)
     time.sleep(0.3)
 
-    # ── 5. Nhập OTP ───────────────────────────────────────────────────────
-    if secret:
+    # ── 5. Nhập OTP (Chỉ khi use_otp=True và có secret OTP) ────────────────
+    if use_otp and secret:
         otp_code = get_totp_code(secret)
         if otp_code:
             _log(f"Nhập mã OTP: {otp_code}")
@@ -883,7 +891,7 @@ def add_note_to_contract(so_hd: str, note_input) -> tuple[bool, str]:
 # ─────────────────────────────────────────────────────────────────────────────
 #  JOB CHÍNH: RUN AUTO NOTE
 # ─────────────────────────────────────────────────────────────────────────────
-def run_auto_note(results_to_note: list[dict], totp_secret: str = None):
+def run_auto_note(results_to_note: list[dict], account: str = None, password: str = None, use_otp: bool = True, totp_secret: str = None):
     """
     Job chính chạy nền: đăng nhập → điều hướng → ghi chú từng HĐ.
     results_to_note: list of result dict từ phân tích (phải có so_hd, canh_bao/can_xu_ly).
@@ -909,7 +917,7 @@ def run_auto_note(results_to_note: list[dict], totp_secret: str = None):
         _log(f"🚀 Bắt đầu Auto Note {len(results_to_note)} hợp đồng")
         _log("═══════════════════════════════════════")
 
-        ok, msg = login_inside_fpt(totp_secret=totp_secret)
+        ok, msg = login_inside_fpt(account=account, password=password, use_otp=use_otp, totp_secret=totp_secret)
         if not ok:
             _log(f"Đăng nhập thất bại: {msg}", "error")
             _auto_note_status  = "error"

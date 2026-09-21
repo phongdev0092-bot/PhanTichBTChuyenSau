@@ -1,5 +1,42 @@
 [
   {
+    "id": "run_1789969653298",
+    "timestamp": "2026-09-21 12:47:33",
+    "start_date": "2026-09-19",
+    "end_date": "2026-09-21",
+    "team_captain": "",
+    "data_source": "ton_bao_tri",
+    "employees": [
+      "PNC01.HADN"
+    ],
+    "total_contracts": 1,
+    "auto_count": 0,
+    "need_count": 1,
+    "warn_count": 1,
+    "error_count": 0,
+    "results": [
+      {
+        "so_hd": "SGAAS0697",
+        "tg_hoan_tat": "21/09/2026 08:56:03",
+        "xu_ly_loi_tu_dong": "",
+        "can_xu_ly": "Kiểm tra các thành phần: 1. Đầu FC modem 2. Cổng quang Modem/SFU 3. Cáp quang 4. Tập điểm | Yêu cầu Swap WF6 Nâng Cao CLDV",
+        "canh_bao": "Yêu cầu Swap WF6 Nâng Cao CLDV | Suy hao không đạt chuẩn (Công suất thu -2.15dBm ngoài chuẩn -10 đến -23.5dBm)",
+        "cong_suat_thu": "2.147484E7",
+        "so_lan_rot": "N/A",
+        "loai_modem": "AC1000C V2",
+        "phien_ban_pm": "N/A",
+        "dns_wan": "N/A",
+        "doi_chieu_rot_mang": "Đảm bảo (Trong 48h qua kết nối ổn định)",
+        "doi_chieu_tap_diem": "Chưa đạt (HĐ -2.1dBm / TB Tdiem -19.7dBm) | Cảnh báo tập điểm (Tập điểm này có 2 HĐ; 1/2 Offline (>=50%) (SGAAS0697); 1/2 Rx Power ngoài chuẩn (SGAAS0697: -21474836.47dBm))",
+        "phan_tich_client": "—",
+        "status": "ok",
+        "error": "",
+        "nhan_vien": "PNC01.HADN",
+        "ngay": "2026-09-21"
+      }
+    ]
+  },
+  {
     "id": "run_1789967209423",
     "timestamp": "2026-09-21 12:06:49",
     "start_date": "2026-09-19",

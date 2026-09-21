@@ -71,27 +71,96 @@ def index():
     return render_template("index.html")
 
 
+USER_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user_config.json")
+
+def load_user_config():
+    default_cfg = {
+        "mode": "default",          # "default" | "custom"
+        "email": "",
+        "email_password": "",
+        "inside_account": "",
+        "inside_password": "",
+        "use_inside_otp": True,
+        "totp_secret": ""
+    }
+    if not os.path.exists(USER_CONFIG_FILE):
+        return default_cfg
+    try:
+        with open(USER_CONFIG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            default_cfg.update(data)
+            return default_cfg
+    except Exception as e:
+        log.error(f"Lỗi đọc user_config.json: {e}")
+        return default_cfg
+
+def save_user_config(cfg_data):
+    try:
+        with open(USER_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        log.error(f"Lỗi ghi user_config.json: {e}")
+
+
+@app.route("/api/user_config", methods=["GET", "POST"])
+def api_user_config():
+    if request.method == "POST":
+        data = request.get_json() or {}
+        cfg = load_user_config()
+        if "mode" in data: cfg["mode"] = data["mode"]
+        if "email" in data: cfg["email"] = data["email"].strip()
+        if "email_password" in data: cfg["email_password"] = data["email_password"].strip()
+        if "inside_account" in data: cfg["inside_account"] = data["inside_account"].strip()
+        if "inside_password" in data: cfg["inside_password"] = data["inside_password"].strip()
+        if "use_inside_otp" in data: cfg["use_inside_otp"] = bool(data["use_inside_otp"])
+        if "totp_secret" in data: cfg["totp_secret"] = data["totp_secret"].strip()
+        save_user_config(cfg)
+        return jsonify({"success": True, "config": cfg})
+    else:
+        return jsonify({"success": True, "config": load_user_config()})
+
+
 @app.route("/api/login", methods=["POST"])
 def api_login():
     global _login_status
-    if _login_status == "ok":
-        return jsonify({"success": True, "message": "✅ Đã đăng nhập"})
+    data = request.get_json() or {}
+    mode = data.get("mode", "default")
+
+    cfg = load_user_config()
+    cfg["mode"] = mode
+    if mode == "custom":
+        if "email" in data: cfg["email"] = data.get("email", "").strip()
+        if "email_password" in data: cfg["email_password"] = data.get("email_password", "").strip()
+        if "inside_account" in data: cfg["inside_account"] = data.get("inside_account", "").strip()
+        if "inside_password" in data: cfg["inside_password"] = data.get("inside_password", "").strip()
+        if "use_inside_otp" in data: cfg["use_inside_otp"] = bool(data.get("use_inside_otp", True))
+        if "totp_secret" in data: cfg["totp_secret"] = data.get("totp_secret", "").strip()
+
+    save_user_config(cfg)
+
+    # Nếu trạng thái login đã OK và mode không đổi, trả về OK luôn trừ khi bấm lại
+    if _login_status == "ok" and not data.get("force_relogin"):
+        return jsonify({"success": True, "message": "✅ Đã đăng nhập", "mode": mode})
 
     _login_status = "pending"
     def do_login():
         global _login_status
-        ok, msg = login()
+        if mode == "custom":
+            ok, msg = login(email_addr=cfg.get("email"), email_pass=cfg.get("email_password"))
+        else:
+            ok, msg = login()   # Mặc định giữ nguyên logic hiện tại
         _login_status = "ok" if ok else "error"
-        log.info(f"Login: {msg}")
+        log.info(f"Login ({mode}): {msg}")
 
     t = threading.Thread(target=do_login, daemon=True)
     t.start()
-    return jsonify({"success": True, "message": "⏳ Đang đăng nhập..."})
+    return jsonify({"success": True, "message": "⏳ Đang đăng nhập...", "mode": mode})
 
 
 @app.route("/api/login_status")
 def api_login_status():
-    return jsonify({"status": _login_status})
+    cfg = load_user_config()
+    return jsonify({"status": _login_status, "mode": cfg.get("mode", "default")})
 
 
 @app.route("/api/employees")
@@ -267,7 +336,9 @@ def api_auto_note_start():
 
     data = request.get_json() or {}
     results_list = data.get("results", [])
-    totp_secret  = data.get("totp_secret", "").strip() or None
+
+    cfg = load_user_config()
+    totp_secret = data.get("totp_secret", "").strip() or cfg.get("totp_secret") or None
 
     if not results_list:
         return jsonify({"success": False, "error": "Không có hợp đồng nào được chọn để ghi chú"}), 400
@@ -287,7 +358,16 @@ def api_auto_note_start():
         return jsonify({"success": False, "error": "Không có hợp đồng nào đủ điều kiện ghi chú (các HĐ có cảnh báo đã được note auto thành công trong 24H qua)"}), 400
 
     def run_job():
-        inside_fpt.run_auto_note(to_note, totp_secret=totp_secret)
+        if cfg.get("mode") == "custom":
+            inside_fpt.run_auto_note(
+                to_note,
+                account=cfg.get("inside_account"),
+                password=cfg.get("inside_password"),
+                use_otp=cfg.get("use_inside_otp", True),
+                totp_secret=totp_secret
+            )
+        else:
+            inside_fpt.run_auto_note(to_note, totp_secret=totp_secret)
 
     t = threading.Thread(target=run_job, daemon=True)
     t.start()

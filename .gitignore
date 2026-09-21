@@ -8,4 +8,5 @@ scratch/
 build/
 dist/
 *.spec
+user_config.json
 

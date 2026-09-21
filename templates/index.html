@@ -798,6 +798,108 @@
   </div>
 </div>
 
+<!-- MODAL: Cấu hình Đăng Nhập Hệ Thống -->
+<div id="loginConfigModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:28px 32px;max-width:580px;width:92%;box-shadow:0 25px 50px rgba(0,0,0,0.35);max-height:92vh;overflow-y:auto;animation:slideUp 0.3s ease;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem;flex-shrink:0;">
+          <i class="fa-solid fa-user-lock"></i>
+        </div>
+        <div>
+          <div style="font-size:1.15rem;font-weight:800;color:#1e293b;">Đăng Nhập &amp; Cấu Hình Tài Khoản</div>
+          <div style="font-size:0.8rem;color:#64748b;">Chọn cơ chế đăng nhập hệ thống linh hoạt cho người dùng</div>
+        </div>
+      </div>
+      <button onclick="closeLoginConfigModal()" style="border:none;background:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;padding:4px;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- KHUNG CHỌN CHẾ ĐỘ -->
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:10px;">
+        <i class="fa-solid fa-sliders" style="color:#3b82f6;"></i> Chọn Chế Độ Đăng Nhập:
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <label id="lblLoginDefault" style="flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #3b82f6;background:#eff6ff;cursor:pointer;transition:all 0.2s;">
+          <input type="radio" name="loginMode" id="modeDefault" value="default" checked onchange="toggleLoginMode()" style="margin-top:2px;accent-color:#3b82f6;"/>
+          <div>
+            <div style="font-weight:700;font-size:0.88rem;color:#1e40af;">Mặc Định</div>
+            <div style="font-size:0.75rem;color:#475569;margin-top:2px;">Sử dụng tài khoản hệ thống có sẵn (Giữ nguyên logic gốc).</div>
+          </div>
+        </label>
+        <label id="lblLoginCustom" style="flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #cbd5e1;background:#fff;cursor:pointer;transition:all 0.2s;">
+          <input type="radio" name="loginMode" id="modeCustom" value="custom" onchange="toggleLoginMode()" style="margin-top:2px;accent-color:#3b82f6;"/>
+          <div>
+            <div style="font-weight:700;font-size:0.88rem;color:#1e293b;">Tùy Chọn</div>
+            <div style="font-size:0.75rem;color:#475569;margin-top:2px;">Điền thông tin tài khoản cá nhân linh hoạt cho nhiều người dùng.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- BANNER NHẮC NHỞ CHO MẶC ĐỊNH -->
+    <div id="defaultNoticeBanner" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 14px;font-size:0.83rem;color:#9a3412;margin-bottom:18px;display:flex;gap:10px;align-items:center;">
+      <i class="fa-solid fa-circle-info" style="font-size:1.3rem;color:#f97316;flex-shrink:0;"></i>
+      <div>
+        <strong>Ghi chú nhắc nhở:</strong> Chế độ <strong>Mặc định</strong> sử dụng tài khoản hệ thống hiện tại và <span style="text-decoration:underline;font-weight:800;">chỉ hỗ trợ tại khu vực Hồ Chí Minh</span>.
+      </div>
+    </div>
+
+    <!-- KHUNG ĐIỀN THÔNG TIN TÙY CHỌN -->
+    <div id="customConfigSection" style="display:none;background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:18px;">
+      <div style="font-size:0.88rem;font-weight:800;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #f1f5f9;padding-bottom:8px;">
+        <i class="fa-solid fa-envelope" style="color:#0284c7;"></i> 1. Đăng nhập Management MyPT (https://management.mypt.vn/)
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Email FPT:</label>
+          <input type="email" id="cfgEmail" placeholder="Ví dụ: name@fpt.net" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Mật khẩu Email (đọc OTP IMAP):</label>
+          <input type="password" id="cfgEmailPassword" placeholder="Mật khẩu mail.fpt.net" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
+        </div>
+      </div>
+
+      <div style="font-size:0.88rem;font-weight:800;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #f1f5f9;padding-bottom:8px;">
+        <i class="fa-solid fa-id-card" style="color:#16a34a;"></i> 2. Đăng nhập FPT Inside (http://inside.fpt.net)
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">User Inside:</label>
+          <input type="text" id="cfgInsideAccount" placeholder="Ví dụ: phuongnam.phongnh5" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Mật khẩu Inside:</label>
+          <input type="password" id="cfgInsidePassword" placeholder="Mật khẩu FPT Inside" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
+        </div>
+      </div>
+
+      <!-- CHECKBOX OTP & TOTP SECRET -->
+      <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px dashed #cbd5e1;margin-bottom:10px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.83rem;font-weight:700;color:#1e293b;">
+          <input type="checkbox" id="cfgUseInsideOtp" checked style="accent-color:#2563eb;width:16px;height:16px;"/>
+          <span>Yêu cầu OTP (Check 'Sử dụng OTP' khi đăng nhập Inside)</span>
+        </label>
+        <div style="font-size:0.74rem;color:#64748b;margin-left:24px;margin-top:2px;">Bỏ tích nếu tài khoản Inside của bạn đăng nhập trực tiếp không cần Google Authenticator OTP.</div>
+      </div>
+
+      <div id="totpSection" style="margin-top:8px;">
+        <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">TOTP Secret Key (Nếu dùng OTP):</label>
+        <input type="text" id="cfgTotpSecret" placeholder="Nhập Secret Base32 (nếu có)" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
+      </div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div style="display:flex;gap:12px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeLoginConfigModal()">Đóng</button>
+      <button class="btn btn-primary" onclick="saveAndDoLogin()" style="min-width:160px;">
+        <i class="fa-solid fa-key"></i> Xác Nhận &amp; Đăng Nhập
+      </button>
+    </div>
+  </div>
+</div>
+
 <style>
 @keyframes slideUp {
   from { opacity:0; transform: translateY(30px); }
@@ -1010,11 +1112,122 @@ function updateSelectedCount() {
   document.getElementById("selectedCount").textContent = `${selectedEmployees.size} đã chọn`;
 }
 
-async function doLogin() {
-  setBadge("pending","Đang đăng nhập...");
+async function openLoginConfigModal() {
+  const modal = document.getElementById("loginConfigModal");
+  if (!modal) return;
+  modal.style.display = "flex";
+
+  try {
+    const r = await fetch("/api/user_config");
+    const d = await r.json();
+    if (d.success && d.config) {
+      const cfg = d.config;
+      const mode = cfg.mode || "default";
+
+      if (mode === "custom") {
+        document.getElementById("modeCustom").checked = true;
+      } else {
+        document.getElementById("modeDefault").checked = true;
+      }
+
+      document.getElementById("cfgEmail").value = cfg.email || "";
+      document.getElementById("cfgEmailPassword").value = cfg.email_password || "";
+      document.getElementById("cfgInsideAccount").value = cfg.inside_account || "";
+      document.getElementById("cfgInsidePassword").value = cfg.inside_password || "";
+      document.getElementById("cfgUseInsideOtp").checked = cfg.use_inside_otp !== false;
+      document.getElementById("cfgTotpSecret").value = cfg.totp_secret || "";
+
+      toggleLoginMode();
+    }
+  } catch(e) {
+    console.error("Lỗi đọc user_config:", e);
+  }
+}
+
+function closeLoginConfigModal() {
+  const modal = document.getElementById("loginConfigModal");
+  if (modal) modal.style.display = "none";
+}
+
+function toggleLoginMode() {
+  const isCustom = document.getElementById("modeCustom")?.checked;
+  const banner = document.getElementById("defaultNoticeBanner");
+  const customSection = document.getElementById("customConfigSection");
+  const lblDef = document.getElementById("lblLoginDefault");
+  const lblCus = document.getElementById("lblLoginCustom");
+
+  if (isCustom) {
+    if (banner) banner.style.display = "none";
+    if (customSection) customSection.style.display = "block";
+    if (lblDef) lblDef.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #cbd5e1;background:#fff;cursor:pointer;transition:all 0.2s;";
+    if (lblCus) lblCus.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #3b82f6;background:#eff6ff;cursor:pointer;transition:all 0.2s;";
+  } else {
+    if (banner) banner.style.display = "flex";
+    if (customSection) customSection.style.display = "none";
+    if (lblDef) lblDef.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #3b82f6;background:#eff6ff;cursor:pointer;transition:all 0.2s;";
+    if (lblCus) lblCus.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #cbd5e1;background:#fff;cursor:pointer;transition:all 0.2s;";
+  }
+}
+
+function doLogin() {
+  openLoginConfigModal();
+}
+
+async function saveAndDoLogin() {
+  const isCustom = document.getElementById("modeCustom")?.checked;
+  const mode = isCustom ? "custom" : "default";
+
+  const payload = {
+    mode: mode,
+    force_relogin: true
+  };
+
+  if (isCustom) {
+    const email = document.getElementById("cfgEmail")?.value.trim();
+    const emailPass = document.getElementById("cfgEmailPassword")?.value.trim();
+    const insideAcc = document.getElementById("cfgInsideAccount")?.value.trim();
+    const insidePass = document.getElementById("cfgInsidePassword")?.value.trim();
+
+    if (!email || !emailPass) {
+      showToast("Vui lòng điền đầy đủ Email và Mật Khẩu Email MyPT!", "error");
+      return;
+    }
+    if (!insideAcc || !insidePass) {
+      showToast("Vui lòng điền đầy đủ User và Mật Khẩu Inside!", "error");
+      return;
+    }
+
+    payload.email = email;
+    payload.email_password = emailPass;
+    payload.inside_account = insideAcc;
+    payload.inside_password = insidePass;
+    payload.use_inside_otp = document.getElementById("cfgUseInsideOtp")?.checked;
+    payload.totp_secret = document.getElementById("cfgTotpSecret")?.value.trim();
+  }
+
+  closeLoginConfigModal();
+  setBadge("pending", "Đang đăng nhập...");
   document.getElementById("btnLogin").disabled = true;
-  try { await fetch("/api/login",{method:"POST"}); showToast("Đang đăng nhập, đọc OTP từ email...","info"); }
-  catch(e) { showToast("Lỗi kết nối","error"); }
+
+  try {
+    const r = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(mode === "custom" ? "Bắt đầu đăng nhập với tài khoản tùy chọn..." : "Bắt đầu đăng nhập hệ thống (Mặc định)...", "info");
+    } else {
+      showToast("Lỗi đăng nhập: " + d.error, "error");
+      setBadge("error", "Đăng nhập thất bại");
+      document.getElementById("btnLogin").disabled = false;
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối server", "error");
+    setBadge("error", "Lỗi mạng");
+    document.getElementById("btnLogin").disabled = false;
+  }
 }
 
 function pollLoginStatus() {
@@ -1022,7 +1235,8 @@ function pollLoginStatus() {
     try {
       const r = await fetch("/api/login_status");
       const d = await r.json();
-      if (d.status==="ok") { setBadge("ok","Đã đăng nhập"); document.getElementById("btnLogin").style.display="none"; }
+      const modeLabel = d.mode === "custom" ? "Tùy chọn" : "Mặc định";
+      if (d.status==="ok") { setBadge("ok",`Đã đăng nhập (${modeLabel})`); }
       else if (d.status==="error") { setBadge("error","Đăng nhập thất bại"); document.getElementById("btnLogin").disabled=false; }
       else if (d.status==="pending") { setBadge("pending","Đang đăng nhập..."); }
     } catch(e) {}

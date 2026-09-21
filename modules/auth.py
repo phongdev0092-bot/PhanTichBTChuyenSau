@@ -132,20 +132,23 @@ def _get_otp_from_imap(mail_conn) -> str | None:
     return None
 
 
-def get_otp_from_email(timeout: int = 75) -> str | None:
+def get_otp_from_email(email_addr: str = None, email_pass: str = None, timeout: int = 75) -> str | None:
     """Thử các server IMAP để lấy OTP"""
-    deadline = time.time() + timeout
+    mail_user = email_addr or EMAIL
+    mail_pwd  = email_pass or EMAIL_PASSWORD
+    deadline  = time.time() + timeout
+
     while time.time() < deadline:
         for server, port, ssl in IMAP_SERVERS:
             try:
-                log.info(f"Kết nối IMAP {server}:{port} (SSL={ssl})")
+                log.info(f"Kết nối IMAP {server}:{port} (SSL={ssl}) cho {mail_user}...")
                 if ssl:
                     conn = imaplib.IMAP4_SSL(server, port)
                 else:
                     conn = imaplib.IMAP4(server, port)
                     conn.starttls()
 
-                conn.login(EMAIL, EMAIL_PASSWORD)
+                conn.login(mail_user, mail_pwd)
                 otp = _get_otp_from_imap(conn)
                 conn.logout()
 
@@ -218,20 +221,23 @@ def _save_session(d):
         log.warning(f"Lưu session thất bại: {e}")
 
 
-def login() -> tuple[bool, str]:
+def login(email_addr: str = None, email_pass: str = None) -> tuple[bool, str]:
     """
     Trả về (success: bool, message: str)
     """
     global _logged_in
+    target_email = email_addr or EMAIL
+    target_pwd   = email_pass or EMAIL_PASSWORD
+
     d = get_driver(headless=True)
 
-    # 1. Thử dùng session cache
-    if _try_load_session(d):
+    # 1. Thử dùng session cache (chỉ nếu không truyền custom email khác)
+    if not email_addr and _try_load_session(d):
         _logged_in = True
         return True, "✅ Đã sử dụng session cache hợp lệ"
 
     # 2. Đăng nhập mới
-    log.info("Đăng nhập mới vào management.mypt.vn ...")
+    log.info(f"Đăng nhập mới vào management.mypt.vn với tài khoản {target_email} ...")
     try:
         d.get(f"{MANAGEMENT_URL}/login")
         time.sleep(3)
@@ -251,7 +257,7 @@ def login() -> tuple[bool, str]:
             return False, "❌ Không tìm thấy ô nhập email"
 
     email_input.clear()
-    email_input.send_keys(EMAIL)
+    email_input.send_keys(target_email)
     # Trigger React events
     d.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", email_input)
     d.execute_script("arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", email_input)
@@ -274,7 +280,7 @@ def login() -> tuple[bool, str]:
     time.sleep(3)
 
     # --- Lấy OTP từ email ---
-    otp = get_otp_from_email(timeout=75)
+    otp = get_otp_from_email(email_addr=target_email, email_pass=target_pwd, timeout=75)
     if not otp:
         return False, "❌ Không lấy được OTP từ email (timeout 75s). Vui lòng kiểm tra hòm thư."
 

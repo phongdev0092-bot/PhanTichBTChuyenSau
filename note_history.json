@@ -1,5 +1,25 @@
 [
   {
+    "id": "note_1789969733107",
+    "timestamp": "2026-09-21 12:48:53",
+    "total": 1,
+    "success_count": 1,
+    "fail_count": 0,
+    "status": "done",
+    "results": [
+      {
+        "so_hd": "SGAAS0697",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGAAS0697 (2 phần note)",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:48\n⚠️ Cảnh Báo: Yêu cầu Swap WF6 Nâng Cao CLDV | Suy hao không đạt chuẩn (Công suất thu -2.15dBm ngoài chuẩn -10 đến -23.5dBm)\n🔧 Cần Xử Lý: Kiểm tra các thành phần: 1. Đầu FC modem 2. Cổng quang Modem/SFU 3. Cáp quang 4. Tập điểm | Yêu cầu Swap WF6 Nâng Cao CLDV\n📶 Rx: 2.147484E7dBm | 📉 Rớt: N/A | 📦 AC1000C V2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:48\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Chưa đạt (HĐ -2.1dBm / TB Tdiem -19.7dBm) | Cảnh báo tập điểm ; 1/2 Rx ngoài chuẩn)\n📱 Tbi WF Kém: Bình thường"
+        ],
+        "time": "12:48:51"
+      }
+    ]
+  },
+  {
     "id": "note_1789967929603",
     "timestamp": "2026-09-21 12:18:49",
     "total": 12,
