@@ -131,7 +131,7 @@
             <!-- Banner khi chọn Tồn BT -->
             <div id="tonBaoTriBanner" style="display:none;margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;font-size:0.83rem;color:#9a3412;display:none;align-items:center;gap:10px;">
               <i class="fa-solid fa-robot" style="font-size:1.2rem;color:#f97316;"></i>
-              <span>Chế độ <strong>Tồn Bảo Trì</strong>: Sau khi phân tích xong, hệ thống sẽ hỏi bạn có muốn <strong>tự động ghi chú cảnh báo vào FPT Inside</strong> không.</span>
+              <span>Chế độ <strong>Tồn Bảo Trì</strong>: Hệ thống tự động bỏ qua HĐ đã phân tích hoặc note auto thành công trong 24H qua. Sau khi phân tích xong sẽ hỗ trợ tự động ghi chú vào FPT Inside.</span>
             </div>
           </div>
 
@@ -1217,7 +1217,9 @@ async function doFilter() {
 
     if (d.total===0) { showToast(d.message,"info"); document.getElementById("progressWrap").classList.add("hidden"); return; }
     
-    if (d.auto_added_top10 && d.auto_added_top10.length > 0) {
+    if (d.skipped_24h_count && d.skipped_24h_count > 0) {
+      showToast(d.message, "info");
+    } else if (d.auto_added_top10 && d.auto_added_top10.length > 0) {
       showToast(`Đã tự động thêm các HĐ của TOP 10 CLL30N thuộc Đội Trưởng vào tiến trình (${d.total} HĐ tổng cộng)!`, "info");
     } else {
       const srcLabel = currentDataSource === 'ton_bao_tri' ? 'Tồn Bảo Trì' : 'Bảo Trì';

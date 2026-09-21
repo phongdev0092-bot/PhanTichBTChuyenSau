@@ -5,6 +5,7 @@ import json
 import threading
 import time
 import logging
+from datetime import datetime
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 
 from config import FLASK_PORT, SECRET_KEY
@@ -271,15 +272,19 @@ def api_auto_note_start():
     if not results_list:
         return jsonify({"success": False, "error": "Không có hợp đồng nào được chọn để ghi chú"}), 400
 
-    # Chỉ lấy những hợp đồng có cảnh báo hoặc cần xử lý
+    # Lấy danh sách HĐ đã note thành công trong 24h qua
+    recently_noted = inside_fpt.get_successful_noted_contracts_24h(hours=24)
+
+    # Chỉ lấy những hợp đồng có cảnh báo hoặc cần xử lý VÀ chưa note thành công trong 24H qua
     to_note = [
         r for r in results_list
-        if (r.get("canh_bao") and r.get("canh_bao") != "—")
-        or (r.get("can_xu_ly") and r.get("can_xu_ly") != "—")
+        if ((r.get("canh_bao") and r.get("canh_bao") != "—")
+            or (r.get("can_xu_ly") and r.get("can_xu_ly") != "—"))
+        and ((r.get("so_hd") or "").strip().upper() not in recently_noted)
     ]
 
     if not to_note:
-        return jsonify({"success": False, "error": "Không có hợp đồng nào có Cảnh Báo hoặc Cần Xử Lý cần ghi chú"}), 400
+        return jsonify({"success": False, "error": "Không có hợp đồng nào đủ điều kiện ghi chú (các HĐ có cảnh báo đã được note auto thành công trong 24H qua)"}), 400
 
     def run_job():
         inside_fpt.run_auto_note(to_note, totp_secret=totp_secret)
@@ -379,6 +384,39 @@ def load_history():
         log.error(f"Error reading history: {e}")
         return []
 
+def get_analyzed_contracts_24h(hours: float = 24.0) -> set[str]:
+    """
+    Trả về tập hợp các mã HĐ (so_hd) đã được phân tích thành công trong vòng `hours` giờ qua.
+    Mã HĐ được chuẩn hóa viết hoa & xén khoảng trắng (upper & strip).
+    """
+    history = load_history()
+    analyzed_contracts = set()
+    now = time.time()
+    cutoff_time = now - (hours * 3600)
+
+    for run in history:
+        ts_str = run.get("timestamp", "")
+        if not ts_str:
+            continue
+        try:
+            run_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+            run_ts = run_dt.timestamp()
+        except Exception:
+            try:
+                run_dt = datetime.fromisoformat(ts_str)
+                run_ts = run_dt.timestamp()
+            except Exception:
+                continue
+
+        if run_ts >= cutoff_time:
+            for item in run.get("results", []):
+                if item.get("status") != "error":
+                    so_hd = (item.get("so_hd") or "").strip().upper()
+                    if so_hd:
+                        analyzed_contracts.add(so_hd)
+
+    return analyzed_contracts
+
 def save_history_run(run_data):
     history = load_history()
     history.insert(0, run_data)
@@ -435,14 +473,38 @@ def api_filter():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+    # Nếu là Phân Tích Tồn (ton_bao_tri): Lọc bỏ các HĐ ĐÃ PHÂN TÍCH hoặc ĐÃ NOTE AUTO thành công trong 24H qua
+    skipped_24h_count = 0
+    if data_source == "ton_bao_tri":
+        try:
+            recently_noted = inside_fpt.get_successful_noted_contracts_24h(hours=24)
+            recently_analyzed = get_analyzed_contracts_24h(hours=24)
+            skip_set_24h = recently_noted.union(recently_analyzed)
+
+            if skip_set_24h:
+                orig_len = len(contracts)
+                contracts = [
+                    c for c in contracts
+                    if (c.get("so_hd") or "").strip().upper() not in skip_set_24h
+                ]
+                skipped_24h_count = orig_len - len(contracts)
+                if skipped_24h_count > 0:
+                    log.info(f"[Tồn Bảo Trì] Đã bỏ qua {skipped_24h_count}/{orig_len} HĐ do đã phân tích hoặc note auto thành công trong 24H qua.")
+        except Exception as e_skip:
+            log.error(f"Lỗi khi lọc HĐ tồn 24h: {e_skip}")
+
     if not contracts:
+        msg = "Không tìm thấy hợp đồng nào phù hợp trong khoảng thời gian đã chọn."
+        if skipped_24h_count > 0:
+            msg = f"Tất cả {skipped_24h_count} HĐ Tồn Bảo Trì đã được phân tích hoặc note auto thành công trong 24H qua nên được bỏ qua không chạy lại."
         return jsonify({
             "success": True,
             "total": 0,
             "contracts": [],
             "cll30_analytics": cll30_analytics,
             "auto_added_top10": auto_added_top10,
-            "message": "Không tìm thấy hợp đồng nào phù hợp trong khoảng thời gian đã chọn."
+            "skipped_24h_count": skipped_24h_count,
+            "message": msg
         })
 
     # Reset cờ ngắt tiến trình
@@ -577,12 +639,17 @@ def api_filter():
     t = threading.Thread(target=run_job, daemon=True)
     t.start()
 
+    start_msg = f"Bắt đầu phân tích {len(contracts)} hợp đồng"
+    if skipped_24h_count > 0:
+        start_msg += f" (Đã bỏ qua {skipped_24h_count} HĐ do đã phân tích hoặc note auto trong 24H)"
+
     return jsonify({
         "success":  True,
         "total":    len(contracts),
         "cll30_analytics": cll30_analytics,
         "auto_added_top10": auto_added_top10,
-        "message":  f"Bắt đầu phân tích {len(contracts)} hợp đồng",
+        "skipped_24h_count": skipped_24h_count,
+        "message":  start_msg,
     })
 
 

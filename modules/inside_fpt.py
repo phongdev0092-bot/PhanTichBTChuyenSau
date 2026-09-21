@@ -13,6 +13,7 @@ import re
 import os
 import sys
 import json
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -1041,3 +1042,38 @@ def save_note_history_run(record: dict):
 def clear_note_history():
     if os.path.exists(NOTE_HISTORY_FILE):
         os.remove(NOTE_HISTORY_FILE)
+
+
+def get_successful_noted_contracts_24h(hours: float = 24.0) -> set[str]:
+    """
+    Trả về tập hợp các mã HĐ (so_hd) đã được Auto Note THÀNH CÔNG trong vòng `hours` giờ qua.
+    Mã HĐ được chuẩn hóa viết hoa & xén khoảng trắng (upper & strip).
+    """
+    history = load_note_history()
+    noted_contracts = set()
+    now = time.time()
+    cutoff_time = now - (hours * 3600)
+
+    for run in history:
+        ts_str = run.get("timestamp", "")
+        if not ts_str:
+            continue
+        try:
+            run_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+            run_ts = run_dt.timestamp()
+        except Exception:
+            try:
+                run_dt = datetime.fromisoformat(ts_str)
+                run_ts = run_dt.timestamp()
+            except Exception:
+                continue
+
+        if run_ts >= cutoff_time:
+            for item in run.get("results", []):
+                if item.get("status") == "success":
+                    so_hd = (item.get("so_hd") or "").strip().upper()
+                    if so_hd:
+                        noted_contracts.add(so_hd)
+
+    return noted_contracts
+

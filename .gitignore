@@ -6,5 +6,6 @@ scratch/
 .system_generated/
 *.log
 build/
+dist/
 *.spec
 
