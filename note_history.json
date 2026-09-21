@@ -1,5 +1,249 @@
 [
   {
+    "id": "note_1789967929603",
+    "timestamp": "2026-09-21 12:18:49",
+    "total": 12,
+    "success_count": 8,
+    "fail_count": 4,
+    "status": "done",
+    "results": [
+      {
+        "so_hd": "SGAAY4828",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGAAY4828",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:13\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: 0 | 📦 AC1000C V2"
+        ],
+        "time": "12:13:34"
+      },
+      {
+        "so_hd": "SGAFT0437",
+        "status": "failed",
+        "message": "❌ HĐ SGAFT0437: Không mở được popup Ghi chú",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:13\n⚠️ Cảnh Báo: Các lần kết nối không ổn định, Rớt kết nối liên tục | Sóng Wifi yếu (Thu phát kém)\n🔧 Cần Xử Lý: Thông báo KH lỗi kết nối không ổn định,Kiểm tra thêm các thành phần sau: - Đầu FC - Cáp Lastmile - Cổng quang Modem (Thay thiết bị để test) - Port tập điểm. | 1. Xem bảng tbi kết nối 2. Di dời modem chính 3. Tư vấn AP\n📶 Rx: -23.18dBm | 📉 Rớt: 11 | 📦 AX3000HV2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:13\n🔄 KN Trong 48H: Chưa đảm bảo (phát hiện 11 lần Ra Mạng - NN OLT: Bình thường / Không rõ)\n🌐 Suy Hao: Đạt chuẩn (HĐ -23.2dBm)\n📱 Tbi WF Kém: Ngày 19/09: 1 tbi [72cc03486153 (-615dBm)]"
+        ],
+        "time": "12:13:55"
+      },
+      {
+        "so_hd": "SGAEM4146",
+        "status": "failed",
+        "message": "❌ HĐ SGAEM4146: Không mở được popup Ghi chú",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:13\n⚠️ Cảnh Báo: Suy hao không đạt chuẩn (Công suất thu < -23.5dBm)\n🔧 Cần Xử Lý: 1. Đầu FC ở vị trí modem 2. Kiểm tra cổng quang Modem/SFU 3. Cáp tín hiệu quang 4. Kiểm tra lại tập điểm\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Chưa đạt (HĐ -30.0dBm) | TĐ có HĐ Unknown\n📱 Tbi WF Kém: Bình thường\n📶 Rx: -30.002dBm | 📉 Rớt: 0 | 📦 AX3000CV2"
+        ],
+        "time": "12:14:17"
+      },
+      {
+        "so_hd": "SGABD5117",
+        "status": "failed",
+        "message": "❌ HĐ SGABD5117: Không mở được popup Ghi chú",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:14\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: N/A | 📦 AC1000Z"
+        ],
+        "time": "12:14:38"
+      },
+      {
+        "so_hd": "SGAFC8071",
+        "status": "failed",
+        "message": "❌ HĐ SGAFC8071: Không mở được popup Ghi chú",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:14\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm) | TĐ có HĐ Unknown\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: 0 | 📦 AX3000HV2"
+        ],
+        "time": "12:15:00"
+      },
+      {
+        "so_hd": "SGH538468",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGH538468",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:15\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: N/A | 📦 AC1000C"
+        ],
+        "time": "12:15:22"
+      },
+      {
+        "so_hd": "SGH816969",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGH816969 (2 phần note)",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:15\n⚠️ Cảnh Báo: Thiết bị chính sử dụng lâu ngày chưa tắt mở | Tắt mở thiết bị thường xuyên ít nhất 7 ngày 1 lần để thiết bị hoạt động ổn định hơn | Suy hao không đạt chuẩn (Công suất thu < -23.5dBm)\n🔧 Cần Xử Lý: 1. Đầu FC ở vị trí modem 2. Kiểm tra cổng quang Modem/SFU 3. Cáp tín hiệu quang 4. Kiểm tra lại tập điểm\n📶 Rx: -25.13dBm | 📦 AC1000C V2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:15\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Chưa đạt (HĐ -25.1dBm)\n📱 Tbi WF Kém: Bình thường"
+        ],
+        "time": "12:16:08"
+      },
+      {
+        "so_hd": "SGAAV9067",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGAAV9067 (2 phần note)",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:16\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm) | Sóng Wifi yếu (Thu phát kém)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang | 1. Xem bảng tbi kết nối 2. Di dời modem chính 3. Tư vấn AP\n📶 Rx: 0.0dBm | 📉 Rớt: 1 | 📦 AX3000CV2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:16\n🔄 KN Trong 48H: Đảm bảo (1 lần ra mạng)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm) | TĐ có HĐ Unknown\n📱 Tbi WF Kém: Ngày 20/09: 25 tbi [de7b7a33fa93 (-81dBm), 26bafddda1b0 (-80dBm), 36c2c151c954 (-89dBm), +3 tbi]"
+        ],
+        "time": "12:16:54"
+      },
+      {
+        "so_hd": "SGAEK5635",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGAEK5635",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:16\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: 0 | 📦 AX3000HV2"
+        ],
+        "time": "12:17:16"
+      },
+      {
+        "so_hd": "SGAFF2972",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGAFF2972",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:17\n⚠️ Cảnh Báo: Suy hao không đạt chuẩn (Công suất thu < -23.5dBm)\n🔧 Cần Xử Lý: 1. Đầu FC ở vị trí modem 2. Kiểm tra cổng quang Modem/SFU 3. Cáp tín hiệu quang 4. Kiểm tra lại tập điểm\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Chưa đạt (HĐ -24.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: -23.98dBm | 📉 Rớt: 0 | 📦 AX3000HV2"
+        ],
+        "time": "12:17:39"
+      },
+      {
+        "so_hd": "SGACK2839",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGACK2839 (2 phần note)",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:17\n⚠️ Cảnh Báo: KH có lịch sử kết nối rớt liên tục. Hiện tại đang online bình thường\n🔧 Cần Xử Lý: Thông báo KH lỗi kết nối không ổn định,Kiểm tra các thành phần sau: - Ổ cắm điện - Rút adapter ra cắm lại - Đổi adapter khác (nếu có) - Đầu FC - Cáp Lastmile - Cổng quang Modem (Thay thiết bị để test) - Port tập điểm.\n📶 Rx: -19.956dBm | 📉 Rớt: 12 | 📦 AX3000CV2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:17\n🔄 KN Trong 48H: Chưa đảm bảo (phát hiện 6 lần Ra Mạng - NN OLT: POWER_OFF)\n🌐 Suy Hao: Đạt chuẩn (HĐ -20.0dBm) | TĐ có HĐ Unknown\n📱 Tbi WF Kém: Bình thường"
+        ],
+        "time": "12:18:24"
+      },
+      {
+        "so_hd": "SGH083936",
+        "status": "success",
+        "message": "✅ Đã ghi chú thành công HĐ SGH083936",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:18\n⚠️ Cảnh Báo: Sóng Wifi yếu (Thu phát kém)\n🔧 Cần Xử Lý: 1. Xem bảng tbi kết nối 2. Di dời modem chính 3. Tư vấn AP\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Đạt chuẩn (HĐ -19.7dBm)\n📱 Tbi WF Kém: Ngày 20/09: 1 tbi [bc0963056dce (-76dBm)]\n📶 Rx: -19.74dBm | 📉 Rớt: 0 | 📦 AX3000CV2"
+        ],
+        "time": "12:18:47"
+      }
+    ]
+  },
+  {
+    "id": "note_1789967556608",
+    "timestamp": "2026-09-21 12:12:36",
+    "total": 12,
+    "success_count": 0,
+    "fail_count": 12,
+    "status": "done",
+    "results": [
+      {
+        "so_hd": "SGAAY4828",
+        "status": "failed",
+        "message": "❌ HĐ SGAAY4828: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:12\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: 0 | 📦 AC1000C V2"
+        ],
+        "time": "12:12:10"
+      },
+      {
+        "so_hd": "SGAFT0437",
+        "status": "failed",
+        "message": "❌ HĐ SGAFT0437: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:12\n⚠️ Cảnh Báo: Các lần kết nối không ổn định, Rớt kết nối liên tục | Sóng Wifi yếu (Thu phát kém)\n🔧 Cần Xử Lý: Thông báo KH lỗi kết nối không ổn định,Kiểm tra thêm các thành phần sau: - Đầu FC - Cáp Lastmile - Cổng quang Modem (Thay thiết bị để test) - Port tập điểm. | 1. Xem bảng tbi kết nối 2. Di dời modem chính 3. Tư vấn AP\n📶 Rx: -23.18dBm | 📉 Rớt: 11 | 📦 AX3000HV2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:12\n🔄 KN Trong 48H: Chưa đảm bảo (phát hiện 11 lần Ra Mạng - NN OLT: Bình thường / Không rõ)\n🌐 Suy Hao: Đạt chuẩn (HĐ -23.2dBm)\n📱 Tbi WF Kém: Ngày 19/09: 1 tbi [72cc03486153 (-615dBm)]"
+        ],
+        "time": "12:12:12"
+      },
+      {
+        "so_hd": "SGAEM4146",
+        "status": "failed",
+        "message": "❌ HĐ SGAEM4146: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:12\n⚠️ Cảnh Báo: Suy hao không đạt chuẩn (Công suất thu < -23.5dBm)\n🔧 Cần Xử Lý: 1. Đầu FC ở vị trí modem 2. Kiểm tra cổng quang Modem/SFU 3. Cáp tín hiệu quang 4. Kiểm tra lại tập điểm\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Chưa đạt (HĐ -30.0dBm) | TĐ có HĐ Unknown\n📱 Tbi WF Kém: Bình thường\n📶 Rx: -30.002dBm | 📉 Rớt: 0 | 📦 AX3000CV2"
+        ],
+        "time": "12:12:14"
+      },
+      {
+        "so_hd": "SGABD5117",
+        "status": "failed",
+        "message": "❌ HĐ SGABD5117: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:12\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: N/A | 📦 AC1000Z"
+        ],
+        "time": "12:12:17"
+      },
+      {
+        "so_hd": "SGAFC8071",
+        "status": "failed",
+        "message": "❌ HĐ SGAFC8071: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:12\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm) | TĐ có HĐ Unknown\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: 0 | 📦 AX3000HV2"
+        ],
+        "time": "12:12:19"
+      },
+      {
+        "so_hd": "SGH538468",
+        "status": "failed",
+        "message": "❌ HĐ SGH538468: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:12\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: N/A | 📦 AC1000C"
+        ],
+        "time": "12:12:21"
+      },
+      {
+        "so_hd": "SGH816969",
+        "status": "failed",
+        "message": "❌ HĐ SGH816969: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:12\n⚠️ Cảnh Báo: Thiết bị chính sử dụng lâu ngày chưa tắt mở | Tắt mở thiết bị thường xuyên ít nhất 7 ngày 1 lần để thiết bị hoạt động ổn định hơn | Suy hao không đạt chuẩn (Công suất thu < -23.5dBm)\n🔧 Cần Xử Lý: 1. Đầu FC ở vị trí modem 2. Kiểm tra cổng quang Modem/SFU 3. Cáp tín hiệu quang 4. Kiểm tra lại tập điểm\n📶 Rx: -25.13dBm | 📦 AC1000C V2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:12\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Chưa đạt (HĐ -25.1dBm)\n📱 Tbi WF Kém: Bình thường"
+        ],
+        "time": "12:12:23"
+      },
+      {
+        "so_hd": "SGAAV9067",
+        "status": "failed",
+        "message": "❌ HĐ SGAAV9067: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:12\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm) | Sóng Wifi yếu (Thu phát kém)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang | 1. Xem bảng tbi kết nối 2. Di dời modem chính 3. Tư vấn AP\n📶 Rx: 0.0dBm | 📉 Rớt: 1 | 📦 AX3000CV2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:12\n🔄 KN Trong 48H: Đảm bảo (1 lần ra mạng)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm) | TĐ có HĐ Unknown\n📱 Tbi WF Kém: Ngày 20/09: 25 tbi [de7b7a33fa93 (-81dBm), 26bafddda1b0 (-80dBm), 36c2c151c954 (-89dBm), +3 tbi]"
+        ],
+        "time": "12:12:25"
+      },
+      {
+        "so_hd": "SGAEK5635",
+        "status": "failed",
+        "message": "❌ HĐ SGAEK5635: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:12\n⚠️ Cảnh Báo: Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)\n🔧 Cần Xử Lý: Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Cảnh báo đứt cáp/lỗi cáp (0.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: 0.0dBm | 📉 Rớt: 0 | 📦 AX3000HV2"
+        ],
+        "time": "12:12:28"
+      },
+      {
+        "so_hd": "SGAFF2972",
+        "status": "failed",
+        "message": "❌ HĐ SGAFF2972: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:12\n⚠️ Cảnh Báo: Suy hao không đạt chuẩn (Công suất thu < -23.5dBm)\n🔧 Cần Xử Lý: 1. Đầu FC ở vị trí modem 2. Kiểm tra cổng quang Modem/SFU 3. Cáp tín hiệu quang 4. Kiểm tra lại tập điểm\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Chưa đạt (HĐ -24.0dBm)\n📱 Tbi WF Kém: Bình thường\n📶 Rx: -23.98dBm | 📉 Rớt: 0 | 📦 AX3000HV2"
+        ],
+        "time": "12:12:30"
+      },
+      {
+        "so_hd": "SGACK2839",
+        "status": "failed",
+        "message": "❌ HĐ SGACK2839: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE (1/2)] 21/09/2026 12:12\n⚠️ Cảnh Báo: KH có lịch sử kết nối rớt liên tục. Hiện tại đang online bình thường\n🔧 Cần Xử Lý: Thông báo KH lỗi kết nối không ổn định,Kiểm tra các thành phần sau: - Ổ cắm điện - Rút adapter ra cắm lại - Đổi adapter khác (nếu có) - Đầu FC - Cáp Lastmile - Cổng quang Modem (Thay thiết bị để test) - Port tập điểm.\n📶 Rx: -19.956dBm | 📉 Rớt: 12 | 📦 AX3000CV2",
+          "[AUTO NOTE - MYBAE (2/2)] 21/09/2026 12:12\n🔄 KN Trong 48H: Chưa đảm bảo (phát hiện 6 lần Ra Mạng - NN OLT: POWER_OFF)\n🌐 Suy Hao: Đạt chuẩn (HĐ -20.0dBm) | TĐ có HĐ Unknown\n📱 Tbi WF Kém: Bình thường"
+        ],
+        "time": "12:12:32"
+      },
+      {
+        "so_hd": "SGH083936",
+        "status": "failed",
+        "message": "❌ HĐ SGH083936: Không tìm thấy ô nhập hợp đồng",
+        "note_parts": [
+          "[AUTO NOTE - MYBAE] 21/09/2026 12:12\n⚠️ Cảnh Báo: Sóng Wifi yếu (Thu phát kém)\n🔧 Cần Xử Lý: 1. Xem bảng tbi kết nối 2. Di dời modem chính 3. Tư vấn AP\n🔄 KN Trong 48H: Đảm bảo (kết nối ổn định)\n🌐 Suy Hao: Đạt chuẩn (HĐ -19.7dBm)\n📱 Tbi WF Kém: Ngày 20/09: 1 tbi [bc0963056dce (-76dBm)]\n📶 Rx: -19.74dBm | 📉 Rớt: 0 | 📦 AX3000CV2"
+        ],
+        "time": "12:12:34"
+      }
+    ]
+  },
+  {
     "id": "note_1789954928573",
     "timestamp": "2026-09-21 08:42:08",
     "total": 14,

@@ -564,8 +564,24 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
         result["dns_wan"]      = _find_value_after_label(lines_modem, "DNS WAN")
         log.info(f"  loai_modem='{result['loai_modem']}'  dns_wan='{result['dns_wan']}'")
 
-        # 9. ĐỐI CHIẾU CHUYÊN SÂU (Nếu đạt điều kiện)
         is_ton = (data_source == "ton_bao_tri")
+
+        # Active 2: Nếu Modem chủng loại là AC/G/N/M >> Thêm hướng xử lý 'Yêu cầu Swap WF6 Nâng Cao CLDV'
+        if is_ton:
+            modem_raw = (result.get("loai_modem") or "").strip().upper()
+            if modem_raw and (
+                modem_raw.startswith("AC") or
+                modem_raw.startswith("G") or
+                modem_raw.startswith("N") or
+                modem_raw.startswith("M")
+            ):
+                swap_act = "Yêu cầu Swap WF6 Nâng Cao CLDV"
+                if swap_act not in result.get("can_xu_ly", ""):
+                    result["can_xu_ly"] = f"{result['can_xu_ly']} | {swap_act}" if result.get("can_xu_ly") else swap_act
+                if swap_act not in result.get("canh_bao", ""):
+                    result["canh_bao"] = f"{swap_act} | {result['canh_bao']}" if result.get("canh_bao") else swap_act
+
+        # 9. ĐỐI CHIẾU CHUYÊN SÂU (Nếu đạt điều kiện)
         try:
             rot_val = 0
             if result["so_lan_rot"]:
@@ -574,12 +590,27 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
                 if m_rot:
                     rot_val = int(m_rot.group(0))
 
-            if rot_val >= 1:
-                log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Rớt Kết Nối (Rớt = {rot_val} >= 1, is_ton={is_ton})...")
+            pwr_is_zero = False
+            pwr_raw = str(result.get("cong_suat_thu") or "").strip()
+            if pwr_raw:
+                import re
+                m_p = re.search(r'[-+]?\d+\.?\d*', pwr_raw)
+                if m_p:
+                    try:
+                        pwr_f = float(m_p.group(0))
+                        if abs(pwr_f) < 0.001 or pwr_f == 0.0:
+                            pwr_is_zero = True
+                    except Exception:
+                        pass
+
+            if rot_val >= 1 or (is_ton and pwr_is_zero):
+                log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Rớt Kết Nối (Rớt = {rot_val}, pwr_is_zero={pwr_is_zero}, is_ton={is_ton})...")
                 if step_callback:
                     step_callback(f"🔄 Đối chiếu Rớt Kết Nối (Ra Mạng & OLT)...", 4)
                 tg_hoan_tat_val = result.get("tg_hoan_tat", "")
-                result["doi_chieu_rot_mang"] = _cross_check_disconnections(d, tg_hoan_tat_val, step_callback=step_callback, is_ton=is_ton)
+                result["doi_chieu_rot_mang"] = _cross_check_disconnections(
+                    d, tg_hoan_tat_val, step_callback=step_callback, is_ton=is_ton, pwr_is_zero=pwr_is_zero
+                )
                 log.info(f"  doi_chieu_rot_mang: {result['doi_chieu_rot_mang']}")
             else:
                 if is_ton:
@@ -845,11 +876,12 @@ def _parse_dt(date_str: str):
     return None
 
 
-def _cross_check_disconnections(d, tg_hoan_tat_str: str, step_callback=None, is_ton: bool = False) -> str:
+def _cross_check_disconnections(d, tg_hoan_tat_str: str, step_callback=None, is_ton: bool = False, pwr_is_zero: bool = False) -> str:
     """
     Đối chiếu 1: Sub-tab 'Các lần kết nối' và 'Nguyên nhân rớt kết nối OLT'.
     - Đối với Tồn Bảo Trì (is_ton=True):
       Đánh giá trong 48 giờ gần nhất tính từ thời điểm hiện tại: [Now - 48h đến Now].
+      Nếu pwr_is_zero=True (Công suất 0.0dBm): Tính thời gian KH đã Ra Mạng bao lâu từ lần Ra Mạng sau cùng (dòng 1).
     - Đối với Bảo Trì hoàn tất (is_ton=False):
       Đánh giá trong 24 giờ tính từ mốc hoàn tất: [TG Hoàn Tất đến TG Hoàn Tất + 24h].
     """
@@ -884,6 +916,58 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str, step_callback=None, is_
     vao_idx = hdr_conn["vao_mang"]
 
     rows_conn = _wait_for_table_data(d, max_timeout=15, initial_sleep=1.5, step_callback=step_callback, step_label=f"🔄 Đang đọc dữ liệu Các Lần Kết Nối ({window_desc})")
+
+    # Active 1 (Tồn Bảo Trì & Công suất 0.0dBm): Tính thời gian KH đã ra mạng bao lâu từ lần Ra Mạng sau cùng (dòng đầu)
+    if is_ton and pwr_is_zero:
+        latest_ra_dt = None
+        if rows_conn:
+            first_row = rows_conn[0]
+            ra_val = ""
+            if ra_idx != -1 and ra_idx < len(first_row):
+                ra_val = first_row[ra_idx]
+            elif len(first_row) >= 5:
+                ra_val = first_row[4]
+
+            if ra_val and ra_val not in ("--", "-", ""):
+                latest_ra_dt = _parse_dt(ra_val)
+
+        if latest_ra_dt:
+            delta = now - latest_ra_dt
+            total_seconds = max(0, int(delta.total_seconds()))
+            hours = total_seconds // 3600
+            mins = (total_seconds % 3600) // 60
+            days = hours // 24
+            rem_hours = hours % 24
+
+            if days > 0:
+                dur_str = f"{days} ngày {rem_hours} giờ {mins} phút"
+            elif hours > 0:
+                dur_str = f"{hours} giờ {mins} phút"
+            else:
+                dur_str = f"{mins} phút"
+
+            return f"KH đã Ra Mạng {dur_str} (Lần Ra Mạng sau cùng: {latest_ra_dt.strftime('%d/%m/%Y %H:%M:%S')})"
+        else:
+            # Nếu bảng không có giá trị: tính từ thời gian tạo và note rõ không có data Các lần kết nối
+            t_tao = _parse_dt(tg_hoan_tat_str)
+            if t_tao:
+                delta = now - t_tao
+                total_seconds = max(0, int(delta.total_seconds()))
+                hours = total_seconds // 3600
+                mins = (total_seconds % 3600) // 60
+                days = hours // 24
+                rem_hours = hours % 24
+
+                if days > 0:
+                    dur_str = f"{days} ngày {rem_hours} giờ {mins} phút"
+                elif hours > 0:
+                    dur_str = f"{hours} giờ {mins} phút"
+                else:
+                    dur_str = f"{mins} phút"
+
+                return f"KH đã Ra Mạng {dur_str} tính từ thời gian tạo (Không có data Các lần kết nối)"
+            else:
+                return "Không có data Các lần kết nối"
 
     ra_mang_events = set()
     for row_cells in rows_conn:
