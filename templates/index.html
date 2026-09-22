@@ -81,7 +81,8 @@
           <!-- DATE PICKER SECTION -->
           <div class="date-filter-section">
             <div class="date-filter-title">
-              <i class="fa-regular fa-calendar-days"></i> Chọn khoảng ngày:
+              <i class="fa-regular fa-calendar-days"></i>
+              <span id="dateLabelText">Lọc theo <strong>TG Hoàn Tất</strong> (Bảo Trì):</span>
             </div>
             <div class="date-inputs-wrap">
               <div class="date-input-group">
@@ -146,42 +147,6 @@
           </div>
 
 
-          <!-- BẢNG TOP 10 CLL30N DƯỚI BỘ LỌC NGÀY & ĐỘI TRƯỞNG -->
-          <div class="cll30-table-section" style="margin-bottom: 16px; background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-triangle-exclamation" style="color: var(--error); font-size: 1.1rem;"></i>
-                <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0;">Bảng Thống Kê TOP 10 Nhân Viên Có Tỷ Lệ CLL30N Cao Nhất Tháng</h3>
-              </div>
-              <button class="btn btn-ghost btn-sm" onclick="loadCll30Top10Table()" title="Cập nhật lại dữ liệu Top 10">
-                <i class="fa-solid fa-rotate"></i> Làm mới
-              </button>
-            </div>
-            
-            <div style="background:#fff7ed; border-left:4px solid var(--accent); padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:0.82rem; color:#9a3412; line-height: 1.5;">
-              <i class="fa-solid fa-circle-info"></i> <strong>Quy Tắc Chạy Kèm:</strong> Khi chọn <strong>Đội Trưởng</strong>, nhân sự TOP 10 thuộc quản lý sẽ <strong>mặc định chạy kèm</strong>. Nếu chỉ chọn <strong>Nhân Viên</strong> cá nhân, hệ thống <strong>không chạy kèm</strong> TOP 10.
-            </div>
-
-            <div class="table-scroll" style="max-height: 320px;">
-              <table class="leaderboard-table" style="font-size: 0.82rem;">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Tên Nhân Viên</th>
-                    <th>Đội Trưởng Giám Sát</th>
-                    <th style="text-align:center;">Tỷ Lệ CLL30N (%)</th>
-                    <th style="text-align:center;">Số HĐ CLL30N</th>
-                    <th style="text-align:center;">Tổng KH Có Cls</th>
-                    <th style="text-align:center;">Đánh Giá Chỉ Số</th>
-                    <th style="text-align:center;">Trạng Thái Chạy Kèm</th>
-                  </tr>
-                </thead>
-                <tbody id="cll30CardTableBody">
-                  <tr><td colspan="8" class="td-muted" style="text-align:center;">Đang tải dữ liệu...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
 
           <div class="search-wrap">
             <i class="fa-solid fa-magnifying-glass"></i>
@@ -320,12 +285,12 @@
               </tr>
               <tr class="header-col-row">
                 <th class="col-num">#</th>
-                <th class="col-hd">Số HĐ</th>
-                <th class="col-nv">Nhân Viên</th>
-                <th class="col-date">TG Hoàn Tất</th>
-                <th class="col-auto"><i class="fa-solid fa-robot th-icon icon-blue"></i> Xử lý tự động</th>
-                <th class="col-need"><i class="fa-solid fa-wrench th-icon icon-red"></i> Cần xử lý</th>
-                <th class="col-warn"><i class="fa-solid fa-triangle-exclamation th-icon icon-yellow"></i> Cảnh báo</th>
+                <th class="col-hd" onclick="sortResultTable('so_hd')" style="cursor:pointer;" title="Bấm để sắp xếp theo Số HĐ">Số HĐ <i class="fa-solid fa-sort" id="sort-icon-so_hd" style="font-size:0.72rem;opacity:0.4;"></i></th>
+                <th class="col-nv" onclick="sortResultTable('nhan_vien')" style="cursor:pointer;" title="Bấm để sắp xếp theo Nhân Viên">Nhân Viên <i class="fa-solid fa-sort" id="sort-icon-nhan_vien" style="font-size:0.72rem;opacity:0.4;"></i></th>
+                <th class="col-date" id="thResultDateCol" onclick="sortResultTable('tg_hoan_tat')" style="cursor:pointer;" title="Bấm để sắp xếp theo Thời Gian">TG Hoàn Tất <i class="fa-solid fa-sort" id="sort-icon-tg_hoan_tat" style="font-size:0.72rem;opacity:0.4;"></i></th>
+                <th class="col-auto" onclick="sortResultTable('xu_ly_loi_tu_dong')" style="cursor:pointer;"><i class="fa-solid fa-robot th-icon icon-blue"></i> Xử lý tự động <i class="fa-solid fa-sort" id="sort-icon-xu_ly_loi_tu_dong" style="font-size:0.72rem;opacity:0.4;"></i></th>
+                <th class="col-need" onclick="sortResultTable('can_xu_ly')" style="cursor:pointer;"><i class="fa-solid fa-wrench th-icon icon-red"></i> Cần xử lý <i class="fa-solid fa-sort" id="sort-icon-can_xu_ly" style="font-size:0.72rem;opacity:0.4;"></i></th>
+                <th class="col-warn" onclick="sortResultTable('canh_bao')" style="cursor:pointer;"><i class="fa-solid fa-triangle-exclamation th-icon icon-yellow"></i> Cảnh báo <i class="fa-solid fa-sort" id="sort-icon-canh_bao" style="font-size:0.72rem;opacity:0.4;"></i></th>
                 <th class="col-pwr"><i class="fa-solid fa-signal th-icon icon-teal"></i> Công suất thu</th>
                 <th class="col-drop"><i class="fa-solid fa-plug-circle-xmark th-icon icon-teal"></i> Số lần rớt KN</th>
                 <th class="col-modem-type"><i class="fa-solid fa-microchip th-icon icon-purple"></i> Loại modem</th>
@@ -569,11 +534,16 @@
 
           <!-- PREVIEW & SUBMIT -->
           <div id="importPreviewArea" style="display: none; margin-top: 16px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap:wrap; gap:8px;">
               <span id="previewCountBadge" class="chip chip-info" style="font-weight: 700;">Đã sẵn sàng bản ghi</span>
-              <button class="btn btn-primary" id="btnSubmitImport" onclick="submitImportData()">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Tải Dữ Liệu Lên Supabase
-              </button>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-danger btn-sm" id="btnClearBeforeImport" onclick="clearTableBeforeImport()" style="display:none;">
+                  <i class="fa-solid fa-trash"></i> Xóa Hết Data Cũ Trước
+                </button>
+                <button class="btn btn-primary" id="btnSubmitImport" onclick="submitImportData()">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Tải Dữ Liệu Lên Supabase
+                </button>
+              </div>
             </div>
             <div class="table-scroll" style="max-height: 250px; border: 1px solid var(--border); border-radius: 8px;">
               <table class="leaderboard-table" style="font-size: 0.8rem;">
@@ -951,7 +921,6 @@ document.addEventListener("DOMContentLoaded", () => {
   createParticles();
   loadEmployees();
   loadTeamCaptains();
-  loadCll30Top10Table();
   pollLoginStatus();
   checkTunnelUrl();
   setInterval(checkTunnelUrl, 4000);
@@ -995,10 +964,6 @@ function switchTab(tabId) {
   if (tabId === 'analytics-tab') {
     document.getElementById("tabBtn-analytics").classList.add("active");
     loadAnalytics();
-  }
-  if (tabId === 'cll30-tab') {
-    document.getElementById("tabBtn-cll30").classList.add("active");
-    loadCll30Top10Table();
   }
   if (tabId === 'import-tab') {
     document.getElementById("tabBtn-import").classList.add("active");
@@ -1098,7 +1063,6 @@ function toggleEmployee(name) {
   else selectedEmployees.add(name);
   updateSelectedCount(); filterEmployees();
   document.getElementById("btnFilter").disabled = selectedEmployees.size === 0;
-  loadCll30Top10Table();
 }
 
 function selectAll() {
@@ -1108,7 +1072,6 @@ function selectAll() {
   allEmployees.filter(n => n.toLowerCase().includes(q)).forEach(n => selectedEmployees.add(n));
   updateSelectedCount(); filterEmployees();
   document.getElementById("btnFilter").disabled = false;
-  loadCll30Top10Table();
 }
 
 function clearAll() {
@@ -1116,7 +1079,6 @@ function clearAll() {
   if (cs) cs.value = "";
   selectedEmployees.clear(); updateSelectedCount(); filterEmployees();
   document.getElementById("btnFilter").disabled = true;
-  loadCll30Top10Table();
 }
 
 function updateSelectedCount() {
@@ -1302,83 +1264,20 @@ async function loadTeamCaptains() {
 }
 
 function onCaptainChange(captainName) {
-  if (!captainName) {
-    loadCll30Top10Table();
-    return;
-  }
+  if (!captainName) { return; }
   const members = teamCaptainsMap[captainName] || [];
   selectedEmployees.clear();
   members.forEach(m => selectedEmployees.add(m));
   updateSelectedCount();
   filterEmployees();
   document.getElementById("btnFilter").disabled = selectedEmployees.size === 0;
-  loadCll30Top10Table();
   showToast(`Đã chọn toàn bộ ${members.length} Nhân Viên thuộc Đội Trưởng ${captainName}`, "info");
 }
 
-async function loadCll30Top10Table() {
-  const startDate = document.getElementById("startDate")?.value || "";
-  const endDate = document.getElementById("endDate")?.value || "";
-  const selectedCap = document.getElementById("captainSelect")?.value || "";
-
-  try {
-    const url = `/api/cll30_top10?start_date=${startDate}&end_date=${endDate}&captain=${encodeURIComponent(selectedCap)}`;
-    const r = await fetch(url);
-    const d = await r.json();
-    if (d.success && d.data && d.data.top_n) {
-      renderCll30TableRows(d.data.top_n, selectedCap);
-    }
-  } catch(e) {
-    console.error("Lỗi khi tải Bảng Top 10 CLL30N:", e);
-  }
-}
-
-function renderCll30TableRows(topList, selectedCaptain) {
-  if (!topList || !topList.length) {
-    const emptyRow = `<tr><td colspan="8" class="td-muted" style="text-align:center;">Không có dữ liệu TOP 10 CLL30N.</td></tr>`;
-    ["cll30CardTableBody", "cll30ModalBody"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = emptyRow;
-    });
-    return;
-  }
-
-  const rows = topList.map((item, idx) => {
-    const isFail = item.status === "KHONG_DAT";
-    const statusBadge = isFail 
-      ? `<span class="tag-fail"><i class="fa-solid fa-triangle-exclamation"></i> Không Đạt (≥7%)</span>`
-      : `<span class="tag-pass"><i class="fa-solid fa-check"></i> Đạt (<7%)</span>`;
-    
-    let autoRunStatus = `<span style="color:var(--text-muted); font-size:0.82rem;"><i class="fa-solid fa-circle-xmark"></i> Không chạy kèm (Chỉ chọn nhân viên)</span>`;
-    if (selectedCaptain) {
-      if (item.is_captain_member) {
-        autoRunStatus = `<span style="color:#c2410c; font-weight:700; font-size:0.82rem;"><i class="fa-solid fa-bolt"></i> Mặc định chạy kèm (Thuộc ${esc(selectedCaptain)})</span>`;
-      } else {
-        autoRunStatus = `<span style="color:var(--text-muted); font-size:0.82rem;">Không chạy kèm (Khác Đội Trưởng)</span>`;
-      }
-    }
-
-    const rowBg = item.is_captain_member ? `style="background:#fff7ed;"` : ``;
-
-    return `
-      <tr ${rowBg}>
-        <td>${idx + 1}</td>
-        <td><strong>${esc(item.nhan_vien)}</strong></td>
-        <td>${esc(item.doi_truong || "Chưa phân công")}</td>
-        <td style="text-align:center; font-weight:bold; font-size:0.95rem; color:${isFail?'#dc2626':'#059669'};">${item.rate}%</td>
-        <td style="text-align:center; font-weight:bold; color:var(--error);">${item.cll30_count}</td>
-        <td style="text-align:center;">${item.total_cls_count}</td>
-        <td style="text-align:center;">${statusBadge}</td>
-        <td style="text-align:center;">${autoRunStatus}</td>
-      </tr>
-    `;
-  }).join("");
-
-  ["cll30CardTableBody", "cll30ModalBody"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = rows;
-  });
-}
+async function loadCll30Top10Table() { /* CLL30N đã bị loại bỏ */ }
+function renderCll30TableRows() {}
+function showCll30Modal() {}
+function closeCll30Modal() {}
 
 async function doCancelJob() {
   try {
@@ -1393,40 +1292,6 @@ async function doCancelJob() {
   } catch(e) {
     showToast("Lỗi ngắt tiến trình", "error");
   }
-}
-
-function showCll30Modal(analyticsData) {
-  if (!analyticsData || !analyticsData.top_n || !analyticsData.top_n.length) return;
-  const tbody = document.getElementById("cll30ModalBody");
-  if (!tbody) return;
-
-  tbody.innerHTML = analyticsData.top_n.map((item, idx) => {
-    const isFail = item.status === "KHONG_DAT";
-    const statusBadge = isFail 
-      ? `<span class="tag-fail"><i class="fa-solid fa-triangle-exclamation"></i> Không Đạt (≥7%)</span>`
-      : `<span class="tag-pass"><i class="fa-solid fa-check"></i> Đạt (<7%)</span>`;
-    
-    const highlight = item.is_captain_member ? `style="background:#fff7ed; font-weight:600;"` : ``;
-
-    return `
-      <tr ${highlight}>
-        <td style="padding:8px 10px;">${idx + 1}</td>
-        <td style="padding:8px 10px;"><strong>${esc(item.nhan_vien)}</strong></td>
-        <td style="padding:8px 10px;">${esc(item.doi_truong || "Chưa phân công")}</td>
-        <td style="padding:8px 10px; text-align:center; font-weight:bold; color:var(--error);">${item.cll30_count}</td>
-        <td style="padding:8px 10px; text-align:center;">${item.total_cls_count}</td>
-        <td style="padding:8px 10px; text-align:center; font-weight:bold; font-size:0.95rem; color:${isFail?'#dc2626':'#059669'};">${item.rate}%</td>
-        <td style="padding:8px 10px; text-align:center;">${statusBadge}</td>
-      </tr>
-    `;
-  }).join("");
-
-  document.getElementById("cll30Modal").classList.remove("hidden");
-}
-
-function closeCll30Modal() {
-  const modal = document.getElementById("cll30Modal");
-  if (modal) modal.classList.add("hidden");
 }
 
 async function doFilter() {
@@ -1469,8 +1334,6 @@ async function doFilter() {
     
     if (d.skipped_24h_count && d.skipped_24h_count > 0) {
       showToast(d.message, "info");
-    } else if (d.auto_added_top10 && d.auto_added_top10.length > 0) {
-      showToast(`Đã tự động thêm các HĐ của TOP 10 CLL30N thuộc Đội Trưởng vào tiến trình (${d.total} HĐ tổng cộng)!`, "info");
     } else {
       const srcLabel = currentDataSource === 'ton_bao_tri' ? 'Tồn Bảo Trì' : 'Bảo Trì';
       showToast(`[${srcLabel}] Phân tích ${d.total} hợp đồng...`,"info");
@@ -1522,6 +1385,17 @@ function onDataSourceChange() {
   const lbTon = document.getElementById('srcTonBaoTriLabel');
   if (lbBT)  lbBT.style.cssText  = `flex:1;min-width:180px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;border:2px solid ${isTon ? '#e2e8f0' : '#3b82f6'};background:${isTon ? '#fff' : '#eff6ff'};cursor:pointer;transition:all 0.2s;`;
   if (lbTon) lbTon.style.cssText = `flex:1;min-width:180px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;border:2px solid ${isTon ? '#f97316' : '#e2e8f0'};background:${isTon ? '#fff7ed' : '#fff'};cursor:pointer;transition:all 0.2s;`;
+
+  // Cập nhật nhãn bộ lọc ngày và tiêu đề cột bảng kết quả
+  const dateLabel = document.getElementById("dateLabelText");
+  const thDate = document.getElementById("thResultDateCol");
+  if (isTon) {
+    if (dateLabel) dateLabel.innerHTML = 'Lọc theo <strong>TG Tạo</strong> (Tồn Bảo Trì):';
+    if (thDate) thDate.innerHTML = 'TG Tạo <i class="fa-solid fa-sort" id="sort-icon-tg_hoan_tat" style="font-size:0.72rem;opacity:0.4;"></i>';
+  } else {
+    if (dateLabel) dateLabel.innerHTML = 'Lọc theo <strong>TG Hoàn Tất</strong> (Bảo Trì):';
+    if (thDate) thDate.innerHTML = 'TG Hoàn Tất <i class="fa-solid fa-sort" id="sort-icon-tg_hoan_tat" style="font-size:0.72rem;opacity:0.4;"></i>';
+  }
 
   // Hiện/ẩn banner Tồn BT
   const banner = document.getElementById('tonBaoTriBanner');
@@ -1647,11 +1521,76 @@ function clearFilter() {
   renderFilteredRows();
 }
 
+let currentSortKey = null;
+let currentSortAsc = false;
+
+function sortResultTable(colKey) {
+  if (currentSortKey === colKey) {
+    currentSortAsc = !currentSortAsc;
+  } else {
+    currentSortKey = colKey;
+    currentSortAsc = false; // Mặc định sắp xếp giảm dần / mới nhất trước
+  }
+
+  // Cập nhật icon sắp xếp
+  const sortCols = ['so_hd', 'nhan_vien', 'tg_hoan_tat', 'xu_ly_loi_tu_dong', 'can_xu_ly', 'canh_bao'];
+  sortCols.forEach(k => {
+    const icon = document.getElementById(`sort-icon-${k}`);
+    if (icon) {
+      if (k === currentSortKey) {
+        icon.className = currentSortAsc ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down';
+        icon.style.opacity = '1';
+        icon.style.color = '#2563eb';
+      } else {
+        icon.className = 'fa-solid fa-sort';
+        icon.style.opacity = '0.4';
+        icon.style.color = '';
+      }
+    }
+  });
+
+  analysisCurrentPage = 1;
+  renderFilteredRows();
+}
+
+function parseCustomDate(s) {
+  if (!s) return 0;
+  const str = String(s).trim();
+  // Format DD/MM/YYYY HH:mm:ss
+  const parts = str.split(/[\s/:]+/);
+  if (parts.length >= 3) {
+    const d = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const y = parseInt(parts[2], 10);
+    const hh = parts[3] ? parseInt(parts[3], 10) : 0;
+    const mm = parts[4] ? parseInt(parts[4], 10) : 0;
+    const ss = parts[5] ? parseInt(parts[5], 10) : 0;
+    return new Date(y, m, d, hh, mm, ss).getTime() || 0;
+  }
+  return new Date(str).getTime() || 0;
+}
+
 function getFilteredResults() {
-  if (currentFilter==="auto") return allResults.filter(r => r.xu_ly_loi_tu_dong && r.xu_ly_loi_tu_dong!=="—");
-  if (currentFilter==="need") return allResults.filter(r => r.can_xu_ly && r.can_xu_ly!=="—");
-  if (currentFilter==="warn") return allResults.filter(r => r.canh_bao && r.canh_bao!=="—");
-  return allResults;
+  let list = allResults;
+  if (currentFilter==="auto") list = allResults.filter(r => r.xu_ly_loi_tu_dong && r.xu_ly_loi_tu_dong!=="—");
+  else if (currentFilter==="need") list = allResults.filter(r => r.can_xu_ly && r.can_xu_ly!=="—");
+  else if (currentFilter==="warn") list = allResults.filter(r => r.canh_bao && r.canh_bao!=="—");
+
+  if (!currentSortKey) return list;
+
+  return [...list].sort((a, b) => {
+    const valA = a[currentSortKey] ?? "";
+    const valB = b[currentSortKey] ?? "";
+
+    if (currentSortKey === 'tg_hoan_tat') {
+      const tA = parseCustomDate(valA);
+      const tB = parseCustomDate(valB);
+      return currentSortAsc ? (tA - tB) : (tB - tA);
+    }
+
+    const cmp = String(valA).localeCompare(String(valB), 'vi', { numeric: true, sensitivity: 'base' });
+    return currentSortAsc ? cmp : -cmp;
+  });
 }
 
 function renderFilteredRows() {
@@ -2434,6 +2373,13 @@ function onImportFileSelected(event) {
   const previewArea = document.getElementById("importPreviewArea");
   previewArea.style.display = "block";
   document.getElementById("previewCountBadge").textContent = `File ${file.name} đã sẵn sàng import`;
+
+  // Hiện nút 'Xóa Hết Data Cũ' chỉ khi bảng là bao_tri (không tự xóa trước)
+  const targetTable = document.getElementById("importTargetTable").value;
+  const btnClear = document.getElementById("btnClearBeforeImport");
+  if (btnClear) {
+    btnClear.style.display = targetTable === 'bao_tri' ? 'inline-flex' : 'none';
+  }
 }
 
 async function submitImportData() {
@@ -2477,6 +2423,32 @@ async function submitImportData() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Tải Dữ Liệu Lên Supabase`;
+  }
+}
+
+async function clearTableBeforeImport() {
+  const targetTable = document.getElementById("importTargetTable").value;
+  const tableName = targetTable === 'bao_tri' ? 'Bảng Bảo Trì (bao_tri)' : 'Bảng Tồn Bảo Trì (ton_bao_tri)';
+  if (!confirm(`Xác nhận xóa TOÀN BỘ dữ liệu ${tableName} trước khi import?\n\nLưu ý: Thao tác này không thể hoàn tác!`)) return;
+  const btn = document.getElementById("btnClearBeforeImport");
+  if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang xóa...`; }
+  try {
+    const r = await fetch("/api/supabase/clear_table", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({table_name: targetTable})
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(`✅ Đã xóa hết data ${tableName}! Bây giờ bấm 'Tải Dữ Liệu Lên' để import mới.`, "success");
+      loadSupabaseSummary();
+    } else {
+      showToast(d.error || "Xóa thất bại", "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối khi xóa data", "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-trash"></i> Xóa Hết Data Cũ Trước`; }
   }
 }
 

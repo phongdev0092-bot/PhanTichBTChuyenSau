@@ -72,32 +72,60 @@ def _make_request(method, endpoint, json_data=None, params=None, timeout=20):
 
 
 def fetch_all_records(table_name: str, select: str = "*", limit: int = 50000) -> list[dict]:
-    """Lấy dữ liệu từ bảng (có hỗ trợ alias fallback giữa bao_tri và contracts)."""
-    params = {"select": select, "limit": str(limit)}
-    resp = _make_request("GET", table_name, params=params)
-    
-    if resp is not None and resp.status_code == 200:
-        try:
-            return resp.json()
-        except Exception:
-            return []
-            
-    # Fallback cho tên bảng legacy
-    fallback = None
-    if table_name == "bao_tri":
-        fallback = "contracts"
-    elif table_name == "contracts":
-        fallback = "bao_tri"
+    """
+    Lấy toàn bộ dữ liệu từ bảng Supabase.
+    Sử dụng Range pagination (0-999, 1000-1999...) để vượt qua giới hạn 1000 bản ghi/lần của PostgREST.
+    Có cache bộ nhớ 120s để tối ưu tốc độ.
+    """
+    global _cache_store, _cache_times
+    now = time.time()
+    cache_key = f"records_{table_name}_{select}_{limit}"
+    if cache_key in _cache_store and (now - _cache_times.get(cache_key, 0)) < 120:
+        return _cache_store[cache_key]
 
-    if fallback:
-        resp_fb = _make_request("GET", fallback, params=params)
-        if resp_fb is not None and resp_fb.status_code == 200:
-            try:
-                return resp_fb.json()
-            except Exception:
-                return []
-                
-    return []
+    headers = get_headers()
+    base_url = config.SUPABASE_URL.rstrip('/')
+    url = f"{base_url}/rest/v1/{table_name}?select={select}"
+
+    all_records = []
+    page = 0
+    page_size = 1000
+
+    while len(all_records) < limit:
+        h = headers.copy()
+        start = page * page_size
+        end = min((page + 1) * page_size - 1, limit - 1)
+        h["Range"] = f"{start}-{end}"
+
+        try:
+            r = requests.get(url, headers=h, timeout=25)
+            if r.status_code in (200, 206):
+                data = r.json()
+                if not data or not isinstance(data, list):
+                    break
+                all_records.extend(data)
+                if len(data) < page_size:
+                    break
+                page += 1
+            elif r.status_code == 404:
+                # Fallback alias giữa bao_tri và contracts
+                fallback = "contracts" if table_name == "bao_tri" else ("bao_tri" if table_name == "contracts" else None)
+                if fallback:
+                    return fetch_all_records(fallback, select=select, limit=limit)
+                break
+            else:
+                log.error(f"Lỗi fetch_all_records({table_name}) page {page}: HTTP {r.status_code}")
+                break
+        except Exception as e:
+            log.error(f"Ngoại lệ fetch_all_records({table_name}): {e}")
+            break
+
+    if all_records:
+        _cache_store[cache_key] = all_records
+        _cache_times[cache_key] = now
+        log.info(f"fetch_all_records({table_name}): Đã nạp thành công {len(all_records)} bản ghi từ Supabase")
+
+    return all_records
 
 
 def fetch_table_summary() -> dict:
@@ -135,17 +163,18 @@ def fetch_table_summary() -> dict:
     return summary
 
 
-def extract_row_fields(r: dict, table: str = "bao_tri") -> tuple[str, str, str]:
+def extract_row_fields(r: dict, table: str = "bao_tri") -> tuple[str, str, str, str]:
     """
-    Trích xuất (so_hd, nhan_vien, tg_hoan_tat) chuẩn xác từ bản ghi r (và r['data']).
+    Trích xuất (so_hd, nhan_vien, tg_hoan_tat, tg_tao) chuẩn xác từ bản ghi r (và r['data']).
     
     Quy tắc Tồn Bảo Trì (ton_bao_tri):
     - Cột F (index 5) là SỐ HD (mã hợp đồng)
-    - Cột H (index 7) là THỜI GIAN (cho lọc datepicker)
+    - Cột H (index 7) là THỜI GIAN TẠO (dùng cho lọc datepicker)
     - Cột S (index 18) là NHÂN VIÊN / NHÂN SỰ
     
     Quy tắc Bảo Trì (bao_tri):
     - Quét các cột contract code, không lấy nhầm 'Loại hợp đồng', 'Trạng thái'...
+    - Cột ngày lọc là TG HOÀN TẤT
     """
     if not isinstance(r, dict):
         return "", "", ""
@@ -158,6 +187,7 @@ def extract_row_fields(r: dict, table: str = "bao_tri") -> tuple[str, str, str]:
     so_hd = ""
     nhan_vien = ""
     tg_hoan_tat = ""
+    tg_tao = ""  # Cột TG Tạo riêng cho ton_bao_tri
 
     is_ton = (table == "ton_bao_tri")
 
@@ -200,40 +230,47 @@ def extract_row_fields(r: dict, table: str = "bao_tri") -> tuple[str, str, str]:
                     so_hd = val
                     break
 
-    # 2. THỜI GIAN (tg_hoan_tat / datepicker)
+    # 2. THỜI GIAN
+    # ton_bao_tri: TG TẠO (cột H index 7) → dùng cho datepicker lọc
+    # bao_tri: TG HOÀN TẤT → dùng cho datepicker lọc
     if is_ton:
-        for cand in ["H", "Thời gian", "THỜI GIAN", "tg_hoan_tat", "Thời gian tạo", "Ngày", "NGÀY"]:
+        # TG TẠO cho ton_bao_tri
+        for cand in ["H", "TG tạo", "Thời gian tạo", "THỜI GIAN TẠO", "tg_tao", "Ngày tạo", "NGÀY TẠO", "Thời gian", "THỜI GIAN", "Ngày", "NGÀY"]:
             if cand in row_data:
                 v = str(row_data[cand]).strip()
                 if v and v.upper() not in ("NAN", "NONE", ""):
-                    tg_hoan_tat = v
+                    tg_tao = v
                     break
-        if not tg_hoan_tat and len(row_vals) > 7:
+        if not tg_tao and len(row_vals) > 7:
             v = str(row_vals[7]).strip()
             if v and v.upper() not in ("NAN", "NONE", ""):
-                tg_hoan_tat = v
-
-    if not tg_hoan_tat:
+                tg_tao = v
+        # tg_hoan_tat cho ton cũng gán bằng tg_tao (để tương thích)
+        tg_hoan_tat = tg_tao
+    else:
+        # TG HOÀN TẤT cho bao_tri
         top_tg = str(r.get("tg_hoan_tat") or r.get("ngay") or "").strip()
         if top_tg and top_tg.upper() not in ("NAN", "NONE", ""):
             tg_hoan_tat = top_tg
 
-    if not tg_hoan_tat:
-        for cand in ["tg_hoan_tat", "Thời gian hoàn tất", "Thời gian", "THỜI GIAN", "Ngày hoàn tất", "Ngày", "ngay", "date"]:
-            if cand in row_data:
-                v = str(row_data[cand]).strip()
-                if v and v.upper() not in ("NAN", "NONE", ""):
-                    tg_hoan_tat = v
-                    break
+        if not tg_hoan_tat:
+            for cand in ["tg_hoan_tat", "TG hoàn tất", "TG Hoàn Tất", "Thời gian hoàn tất", "THỜI GIAN HOÀN TẤT",
+                         "Ngày hoàn tất", "NGÀY HOÀN TẤT", "Thời gian", "THỜI GIAN", "Ngày", "ngay", "date"]:
+                if cand in row_data:
+                    v = str(row_data[cand]).strip()
+                    if v and v.upper() not in ("NAN", "NONE", ""):
+                        tg_hoan_tat = v
+                        break
 
-    if not tg_hoan_tat:
-        for k, v in row_data.items():
-            kl = str(k).lower()
-            if any(x in kl for x in ("hoàn tất", "tg_hoan_tat", "thời gian", "ngày", "date")):
-                val = str(v).strip()
-                if val and val.upper() not in ("NAN", "NONE", ""):
-                    tg_hoan_tat = val
-                    break
+        if not tg_hoan_tat:
+            for k, v in row_data.items():
+                kl = str(k).lower()
+                if any(x in kl for x in ("hoàn tất", "tg_hoan_tat", "thời gian", "ngày", "date")):
+                    val = str(v).strip()
+                    if val and val.upper() not in ("NAN", "NONE", ""):
+                        tg_hoan_tat = val
+                        break
+        tg_tao = tg_hoan_tat  # bao_tri không có TG Tạo riêng
 
     # 3. NHÂN VIÊN (nhan_vien)
     if is_ton:
@@ -270,7 +307,7 @@ def extract_row_fields(r: dict, table: str = "bao_tri") -> tuple[str, str, str]:
                     nhan_vien = val
                     break
 
-    return so_hd, nhan_vien, tg_hoan_tat
+    return so_hd, nhan_vien, tg_hoan_tat, tg_tao
 
 
 def get_employees(force: bool = False, table: str = None) -> list[str]:
@@ -292,7 +329,7 @@ def get_employees(force: bool = False, table: str = None) -> list[str]:
     for tbl in tables_to_query:
         recs = fetch_all_records(tbl)
         for r in recs:
-            _, nv, _ = extract_row_fields(r, table=tbl)
+            _, nv, _, _ = extract_row_fields(r, table=tbl)
             if nv and nv.upper() not in ("NAN", "NONE", ""):
                 employees.add(nv)
 
@@ -329,13 +366,20 @@ def get_contracts(selected_employees: list, start_date=None, end_date=None,
 
     unwrapped_list = []
     for r in records:
-        so_hd, nhan_vien, tg_hoan_tat = extract_row_fields(r, table=table)
+        so_hd, nhan_vien, tg_hoan_tat, tg_tao = extract_row_fields(r, table=table)
         row_data = r.get("data") if isinstance(r.get("data"), dict) else r
+
+        # Dùng cột ngày phù hợp với từng bảng để lọc:
+        # bao_tri → tg_hoan_tat (TG Hoàn Tất)
+        # ton_bao_tri → tg_tao (TG Tạo, cột H)
+        date_for_filter = tg_tao if table == "ton_bao_tri" else tg_hoan_tat
 
         unwrapped_list.append({
             "so_hd": str(so_hd or "").strip(),
             "nhan_vien": str(nhan_vien or "").strip(),
             "tg_hoan_tat": str(tg_hoan_tat or "").strip(),
+            "tg_tao": str(tg_tao or "").strip(),
+            "date_for_filter": str(date_for_filter or "").strip(),
             "raw_row": row_data
         })
 
@@ -343,52 +387,52 @@ def get_contracts(selected_employees: list, start_date=None, end_date=None,
     if df.empty or "nhan_vien" not in df.columns:
         return []
 
-    # 2. Ép kiểu ngày hoàn tất chính xác với format='mixed'
-    parsed_dates = pd.to_datetime(df["tg_hoan_tat"], errors="coerce", format="mixed", dayfirst=True)
+    # 2. Ép kiểu ngày chính xác theo đúng cột lọc của từng bảng:
+    # bao_tri → TG Hoàn Tất; ton_bao_tri → TG Tạo
+    date_col = "date_for_filter" if "date_for_filter" in df.columns else "tg_hoan_tat"
+    parsed_dates = pd.to_datetime(df[date_col], errors="coerce", format="mixed", dayfirst=True)
+    df["_datetime"] = parsed_dates
     df["_date"] = parsed_dates.dt.date
 
     # 3. Lọc theo khoảng ngày người dùng chọn
     if start_date or end_date:
-        try:
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d").date() if isinstance(start_date, str) else start_date
-        except Exception:
-            start_dt = None
-        try:
-            end_dt = datetime.strptime(end_date, "%Y-%m-%d").date() if isinstance(end_date, str) else end_date
-        except Exception:
-            end_dt = None
-
-        if start_dt and not end_dt:
-            end_dt = datetime.now().date()
-        elif end_dt and not start_dt:
-            start_dt = end_dt - timedelta(days=lookback_days)
+        start_dt = None
+        end_dt = None
+        if start_date:
+            try:
+                start_dt = datetime.strptime(str(start_date).strip(), "%Y-%m-%d").date()
+            except Exception:
+                pass
+        if end_date:
+            try:
+                end_dt = datetime.strptime(str(end_date).strip(), "%Y-%m-%d").date()
+            except Exception:
+                pass
 
         if start_dt and end_dt:
             if start_dt > end_dt:
                 start_dt, end_dt = end_dt, start_dt
             mask_date = (df["_date"] >= start_dt) & (df["_date"] <= end_dt)
+        elif start_dt:
+            mask_date = (df["_date"] >= start_dt)
+        elif end_dt:
+            mask_date = (df["_date"] <= end_dt)
         else:
-            today = datetime.now().date()
-            target_dates = {today - timedelta(days=i) for i in range(0, lookback_days + 1)}
-            mask_date = df["_date"].isin(target_dates)
+            mask_date = pd.Series(True, index=df.index)
     else:
-        today = datetime.now().date()
-        target_dates = {today - timedelta(days=i) for i in range(0, lookback_days + 1)}
-        mask_date = df["_date"].isin(target_dates)
+        # Nếu người dùng xóa lọc ngày (để trống) -> Lấy tất cả theo nhân viên đã chọn
+        mask_date = pd.Series(True, index=df.index)
 
     nv_col = df["nhan_vien"].fillna("").astype(str).str.strip().str.upper()
     selected_stripped = [str(e).strip().upper() for e in selected_employees if str(e).strip()]
     mask_nv = nv_col.isin(selected_stripped)
 
-    # Lọc kết hợp CẢ Nhân viên VÀ Ngày hoàn tất
+    # Lọc kết hợp CẢ Nhân viên VÀ Ngày
     filtered = df[mask_date & mask_nv].copy()
 
-    # CHỈ sử dụng fallback nếu người dùng KHÔNG chọn khoảng ngày
-    if filtered.empty and not (start_date or end_date):
-        log.info("Không chọn khoảng ngày cụ thể, thử lấy hợp đồng gần nhất của nhân viên...")
-        filtered = df[mask_nv].copy()
-        if not filtered.empty and "_date" in filtered.columns:
-            filtered = filtered.sort_values(by="_date", ascending=False).head(50)
+    # SẮP XẾP (SORT) kết quả theo thời gian mới nhất lên đầu
+    if not filtered.empty and "_datetime" in filtered.columns:
+        filtered = filtered.sort_values(by="_datetime", ascending=False, na_position="last")
 
     results = []
     seen = set()
@@ -401,11 +445,13 @@ def get_contracts(selected_employees: list, start_date=None, end_date=None,
             "so_hd": so_hd,
             "nhan_vien": str(row.get("nhan_vien")).strip(),
             "tg_hoan_tat": str(row.get("tg_hoan_tat")).strip(),
+            "tg_tao": str(row.get("tg_tao")).strip(),
             "ngay": str(row.get("_date") or ""),
             "data_source": table,
         })
 
-    log.info(f"Supabase ({table}): Đã lọc chính xác {len(results)} hợp đồng cho nhân viên {selected_employees} từ ngày {start_date} đến {end_date}")
+    date_field_used = "TG Tạo" if table == "ton_bao_tri" else "TG Hoàn Tất"
+    log.info(f"Supabase ({table}): Lọc theo [{date_field_used}] – Đã lọc chính xác {len(results)} hợp đồng cho nhân viên {selected_employees} từ ngày {start_date} đến {end_date}")
     return results
 
 
@@ -461,8 +507,8 @@ def get_cll30_analytics(start_date=None, end_date=None, top_n=10, selected_capta
     if ton_records:
         unwrapped_ton = []
         for r in ton_records:
-            _, nv, tg = extract_row_fields(r, table="ton_bao_tri")
-            unwrapped_ton.append({"nhan_vien": nv, "tg_hoan_tat": tg})
+            _, nv, tg_hoan, tg_tao = extract_row_fields(r, table="ton_bao_tri")
+            unwrapped_ton.append({"nhan_vien": nv, "tg_hoan_tat": tg_tao})  # Dùng TG Tạo để thống kê CLL
         df_ton = pd.DataFrame(unwrapped_ton)
         if not df_ton.empty:
             dates = pd.to_datetime(df_ton["tg_hoan_tat"], errors="coerce", dayfirst=True, format="mixed").dt.date
@@ -475,8 +521,8 @@ def get_cll30_analytics(start_date=None, end_date=None, top_n=10, selected_capta
     if bt_records:
         unwrapped_bt = []
         for r in bt_records:
-            _, nv, tg = extract_row_fields(r, table="bao_tri")
-            unwrapped_bt.append({"nhan_vien": nv, "tg_hoan_tat": tg})
+            _, nv, tg_hoan, _ = extract_row_fields(r, table="bao_tri")
+            unwrapped_bt.append({"nhan_vien": nv, "tg_hoan_tat": tg_hoan})  # Dùng TG Hoàn Tất cho bao_tri
         df_bt = pd.DataFrame(unwrapped_bt)
         if not df_bt.empty:
             dates = pd.to_datetime(df_bt["tg_hoan_tat"], errors="coerce", dayfirst=True, format="mixed").dt.date

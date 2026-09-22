@@ -10,7 +10,7 @@ from flask import Flask, render_template, request, jsonify, Response, stream_wit
 
 from config import FLASK_PORT, SECRET_KEY
 from modules.auth import login, is_logged_in, close_driver
-from modules.sheet_reader import get_employees, get_contracts, get_team_captains, get_cll30_analytics
+from modules.sheet_reader import get_employees, get_contracts, get_team_captains
 from modules.supabase_db import (
     fetch_table_summary, fetch_table_data, import_records,
     clear_table_data, update_supabase_key, get_supabase_key, extract_row_fields
@@ -183,16 +183,6 @@ def api_team_captains():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/api/cll30_top10")
-def api_cll30_top10():
-    try:
-        start_date = request.args.get("start_date")
-        end_date = request.args.get("end_date")
-        captain = request.args.get("captain")
-        data = get_cll30_analytics(start_date=start_date, end_date=end_date, top_n=10, selected_captain=captain)
-        return jsonify({"success": True, "data": data})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ─────────────────────────────────────────────
@@ -270,7 +260,7 @@ def api_supabase_import():
 
                 records = []
                 for row_dict in raw_rows:
-                    so_hd, nhan_vien, tg_hoan_tat = extract_row_fields({"data": row_dict}, table=table_name)
+                    so_hd, nhan_vien, tg_hoan_tat, _ = extract_row_fields({"data": row_dict}, table=table_name)
                     record = {
                         "so_hd": so_hd,
                         "nhan_vien": nhan_vien,
@@ -525,26 +515,12 @@ def api_filter():
     # Xử lý ghép danh sách nhân viên:
     final_selected = set(selected)
     
-    # 1. Nếu chọn Đội Trưởng, gom nhân viên thuộc Đội Trưởng
+    # Nếu chọn Đội Trưởng, gom nhân viên thuộc Đội Trưởng
     if team_captain:
         captains_data = get_team_captains()
         captain_members = captains_data.get("captains_map", {}).get(team_captain, [])
         if captain_members:
             final_selected.update(captain_members)
-
-    # 2. Phân tích TOP 10 CLL30N trong tháng đang xét
-    cll30_analytics = get_cll30_analytics(start_date=start_date, end_date=end_date, top_n=10, selected_captain=team_captain)
-    top10_list = cll30_analytics.get("top_n", [])
-
-    # Khi CHỌN ĐỘI TRƯỞNG: Nếu nhân sự thuộc TOP 10 thuộc quyền quản lý của đội trưởng đó thì mặc định chạy kèm.
-    # Khi CHỈ CHỌN NHÂN VIÊN (team_captain is None): KHÔNG chạy kèm bất kỳ TOP 10 nào.
-    auto_added_top10 = []
-    if team_captain:
-        for item in top10_list:
-            emp = item["nhan_vien"]
-            if item.get("is_captain_member"):
-                final_selected.add(emp)
-                auto_added_top10.append(emp)
 
     # Lấy danh sách hợp đồng từ đúng bảng
     try:
@@ -581,8 +557,6 @@ def api_filter():
             "success": True,
             "total": 0,
             "contracts": [],
-            "cll30_analytics": cll30_analytics,
-            "auto_added_top10": auto_added_top10,
             "skipped_24h_count": skipped_24h_count,
             "message": msg
         })
@@ -726,8 +700,6 @@ def api_filter():
     return jsonify({
         "success":  True,
         "total":    len(contracts),
-        "cll30_analytics": cll30_analytics,
-        "auto_added_top10": auto_added_top10,
         "skipped_24h_count": skipped_24h_count,
         "message":  start_msg,
     })

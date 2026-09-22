@@ -578,8 +578,6 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
                 swap_act = "Yêu cầu Swap WF6 Nâng Cao CLDV"
                 if swap_act not in result.get("can_xu_ly", ""):
                     result["can_xu_ly"] = f"{result['can_xu_ly']} | {swap_act}" if result.get("can_xu_ly") else swap_act
-                if swap_act not in result.get("canh_bao", ""):
-                    result["canh_bao"] = f"{swap_act} | {result['canh_bao']}" if result.get("canh_bao") else swap_act
 
         # 9. ĐỐI CHIẾU CHUYÊN SÂU (Nếu đạt điều kiện)
         try:
@@ -948,7 +946,7 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str, step_callback=None, is_
 
             return f"KH đã Ra Mạng {dur_str} (Lần Ra Mạng sau cùng: {latest_ra_dt.strftime('%d/%m/%Y %H:%M:%S')})"
         else:
-            # Nếu bảng không có giá trị: tính từ thời gian tạo và note rõ không có data Các lần kết nối
+            # Nếu bảng không có giá trị: tính từ thời gian tạo phiếu, note rõ không có data Các lần kết nối
             t_tao = _parse_dt(tg_hoan_tat_str)
             if t_tao:
                 delta = now - t_tao
@@ -965,7 +963,7 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str, step_callback=None, is_
                 else:
                     dur_str = f"{mins} phút"
 
-                return f"KH đã Ra Mạng {dur_str} tính từ thời gian tạo (Không có data Các lần kết nối)"
+                return f"Phiếu bảo trì đã tồn {dur_str} (Không có data Các lần kết nối)"
             else:
                 return "Không có data Các lần kết nối"
 

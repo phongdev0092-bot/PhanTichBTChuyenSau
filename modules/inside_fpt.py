@@ -493,66 +493,92 @@ def _compact_rot_mang_for_note(doi_chieu_rot: str, rot_title: str) -> str:
     clean_rot = re.sub(r'Không ghi nhận mất kết nối[^)]*', '0 lần rớt', clean_rot)
     clean_rot = re.sub(r'chỉ ra Mạng\s*1\s*Lần', '1 lần ra mạng', clean_rot, flags=re.IGNORECASE)
     clean_rot = re.sub(r'1 Lần', '1 lần', clean_rot)
+    clean_rot = re.sub(r'KH đã Ra Mạng\s+(.+?)\s+tính từ thời gian tạo', r'Phiếu bảo trì đã tồn \1', clean_rot, flags=re.IGNORECASE)
     return f"{rot_title}: {clean_rot}".strip()
 
 
 def _build_note_contents(result: dict) -> list[str]:
     """
     Tổng hợp nội dung ghi chú từ kết quả phân tích theo hướng tối ưu cô đọng:
-    - Rút gọn thông minh các mục Cần Xử Lý, Suy Hao, Client, Rớt KN để vừa vặn 1 Note duy nhất (<= 450 ký tự).
-    - Đảm bảo 100% đầy đủ thông tin mà không bao giờ bị cắt cụt hay phải tách note trùng lặp.
+    - Bỏ dòng [AUTO NOTE - MYBAE]
+    - Rút gọn thông minh các mục Cần Xử Lý, Client, Rớt KN (chỉ note khi chưa đảm bảo), Suy Hao (chỉ note khi chưa đạt).
+    - Đảm bảo độ dài vừa vặn 1 Note duy nhất (<= 450 ký tự).
     """
     import re
-    now_str = time.strftime('%d/%m/%Y %H:%M')
     canh_bao = (result.get("canh_bao") or "").strip()
     can_xu_ly = (result.get("can_xu_ly") or "").strip()
     tu_dong = (result.get("xu_ly_loi_tu_dong") or "").strip()
 
     doi_chieu_rot = (result.get("doi_chieu_rot_mang") or "").strip()
-    rot_title = "🔄 KN Sau HT" if "24h" in doi_chieu_rot.lower() else "🔄 KN Trong 48H"
+    rot_title = "🔄 KN SAU HT" if "24h" in doi_chieu_rot.lower() else "🔄 KN TRONG 48H"
     rot_str = _compact_rot_mang_for_note(doi_chieu_rot, rot_title)
 
     doi_chieu_tap = (result.get("doi_chieu_tap_diem") or "").strip()
-    if doi_chieu_tap and doi_chieu_tap != "—":
-        tap_str = f"🌐 Suy Hao: {_compact_tap_diem_for_note(doi_chieu_tap)}"
-    else:
-        tap_str = "🌐 Suy Hao: Chưa có dữ liệu"
-
-    phan_tich_client = (result.get("phan_tich_client") or "").strip()
-    client_str = f"📱 Tbi WF Kém: {_compact_client_for_note(phan_tich_client)}"
-
+    tap_str = f"🌐 SUY HAO: {_compact_tap_diem_for_note(doi_chieu_tap)}" if (doi_chieu_tap and doi_chieu_tap != "—") else ""
     suy_hao = (result.get("cong_suat_thu") or "").strip()
     rot_mang = (result.get("so_lan_rot") or "").strip()
     loai_modem = (result.get("loai_modem") or "").strip()
 
     info_parts = []
     if suy_hao and suy_hao != "—":
-        info_parts.append(f"📶 Rx: {suy_hao}dBm")
+        info_parts.append(f"Rx: {suy_hao}dBm")
     if rot_mang and rot_mang != "—":
         info_parts.append(f"📉 Rớt: {rot_mang}")
     if loai_modem and loai_modem != "—":
         info_parts.append(f"📦 {loai_modem}")
     info_str = " | ".join(info_parts)
 
-    single_lines = [f"[AUTO NOTE - MYBAE] {now_str}"]
+    # 1. KN: Ẩn nếu Đảm bảo (kết nối ổn định)
+    is_rot_dam_bao = (
+        not doi_chieu_rot
+        or doi_chieu_rot == "—"
+        or ("đảm bảo" in doi_chieu_rot.lower() and "chưa đảm bảo" not in doi_chieu_rot.lower())
+    )
+
+    # 2. Suy Hao: Chỉ hiển thị nếu Chưa đạt (không phải đảm bảo / đạt)
+    tap_low = doi_chieu_tap.lower()
+    is_suy_hao_chua_dat = (
+        bool(doi_chieu_tap)
+        and doi_chieu_tap != "—"
+        and not tap_low.startswith("đạt")
+        and any(kw in tap_low for kw in ["chưa đạt", "đứt cáp", "lỗi cáp", "không đạt"])
+    )
+
+    # 3. Client: Ẩn nếu Bình thường hoặc không có thiết bị kém
+    phan_tich_client = (result.get("phan_tich_client") or "").strip()
+    client_compact = _compact_client_for_note(phan_tich_client)
+    is_client_kem = (
+        bool(phan_tich_client)
+        and phan_tich_client != "—"
+        and bool(client_compact)
+        and client_compact.strip().lower() != "bình thường"
+        and "không ghi nhận" not in phan_tich_client.lower()
+    )
+    client_str = f"📱 TBI WF KÉM: {client_compact}" if is_client_kem else ""
+
+    items = []
     if canh_bao and canh_bao != "—":
-        single_lines.append(f"⚠️ Cảnh Báo: {canh_bao}")
+        items.append(f"⚠️ CẢNH BÁO: {canh_bao}")
     if can_xu_ly and can_xu_ly != "—":
         cx_text = can_xu_ly
         if cx_text.startswith("Kiểm tra các thành phần sau: "):
             cx_text = cx_text[len("Kiểm tra các thành phần sau: "):]
         cx_text = re.sub(r'Xem bảng thiết bị đang kết nối', 'Xem bảng tbi kết nối', cx_text)
         cx_text = re.sub(r'Tư vấn lắp AP', 'Tư vấn AP', cx_text)
-        single_lines.append(f"🔧 Cần Xử Lý: {cx_text}")
+        items.append(f"🔧 CẦN XỬ LÝ: {cx_text}")
     if tu_dong and tu_dong != "—":
-        single_lines.append(f"🤖 Tự Động: {tu_dong}")
+        items.append(f"🤖 TỰ ĐỘNG: {tu_dong}")
 
-    single_lines.append(rot_str)
-    single_lines.append(tap_str)
-    single_lines.append(client_str)
+    if not is_rot_dam_bao and rot_str:
+        items.append(rot_str)
+    if is_suy_hao_chua_dat and tap_str:
+        items.append(tap_str)
+    if is_client_kem and client_str:
+        items.append(client_str)
     if info_str:
-        single_lines.append(info_str)
+        items.append(f"📶 THÔNG SỐ: {info_str}")
 
+    single_lines = [f"{i + 1}. {it}" for i, it in enumerate(items)]
     single_note = "\n".join(single_lines)
     # Tối ưu: Đảm bảo độ dài luôn nằm trong ngưỡng an toàn <= 450 ký tự
     if len(single_note) <= 450:
@@ -560,26 +586,33 @@ def _build_note_contents(result: dict) -> list[str]:
 
     # Nếu trường hợp ngoại lệ vẫn > 450 ký tự:
     # Tách thành 2 phần rõ rệt, KHÔNG lặp lại Cảnh Báo hay Cần Xử Lý
-    part1_lines = [f"[AUTO NOTE - MYBAE (1/2)] {now_str}"]
+    part1_raw = []
     if canh_bao and canh_bao != "—":
-        part1_lines.append(f"⚠️ Cảnh Báo: {canh_bao}")
+        part1_raw.append(f"⚠️ CẢNH BÁO: {canh_bao}")
     if can_xu_ly and can_xu_ly != "—":
-        part1_lines.append(f"🔧 Cần Xử Lý: {cx_text}")
+        part1_raw.append(f"🔧 CẦN XỬ LÝ: {cx_text}")
     if tu_dong and tu_dong != "—":
-        part1_lines.append(f"🤖 Tự Động: {tu_dong}")
+        part1_raw.append(f"🤖 TỰ ĐỘNG: {tu_dong}")
     if info_str:
-        part1_lines.append(info_str)
-    note_1 = "\n".join(part1_lines)[:480]
+        part1_raw.append(f"📶 THÔNG SỐ: {info_str}")
 
-    part2_lines = [
-        f"[AUTO NOTE - MYBAE (2/2)] {now_str}",
-        rot_str,
-        tap_str,
-        client_str
-    ]
+    part2_raw = []
+    if not is_rot_dam_bao and rot_str:
+        part2_raw.append(rot_str)
+    if is_suy_hao_chua_dat and tap_str:
+        part2_raw.append(tap_str)
+    if is_client_kem and client_str:
+        part2_raw.append(client_str)
+
+    part1_lines = [f"{i + 1}. {it}" for i, it in enumerate(part1_raw)]
+    start_num2 = len(part1_lines) + 1
+    part2_lines = [f"{start_num2 + j}. {it}" for j, it in enumerate(part2_raw)]
+
+    note_1 = "\n".join(part1_lines)[:480]
     note_2 = "\n".join(part2_lines)[:480]
 
-    return [note_1, note_2]
+    parts = [n for n in [note_1, note_2] if n.strip()]
+    return parts if parts else [single_note]
 
 
 def _build_note_content(result: dict) -> str:
