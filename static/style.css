@@ -521,7 +521,7 @@ body {
 
 table {
   width: 100%;
-  min-width: 2800px;
+  min-width: 3500px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -562,7 +562,7 @@ thead {
 .header-group-row th.group-base  { width: 510px; min-width: 510px; max-width: 510px; position: sticky; top: 0; left: 0px; z-index: 50; background-color: #e2e8f0 !important; border-right: 2px solid #94a3b8 !important; box-shadow: 4px 0 8px -2px rgba(0,0,0,0.15); }
 .header-group-row th.group-diag  { width: 840px; min-width: 840px; }
 .header-group-row th.group-sys   { width: 260px; min-width: 260px; }
-.header-group-row th.group-modem { width: 460px; min-width: 460px; }
+.header-group-row th.group-modem { width: 760px; min-width: 760px; }
 .header-group-row th.group-check { width: 1080px; min-width: 1080px; }
 
 /* Row 2: Column Headers */
@@ -593,9 +593,10 @@ thead {
 .col-warn       { width: 280px; min-width: 280px; }
 .col-pwr        { width: 130px; min-width: 130px; }
 .col-drop       { width: 130px; min-width: 130px; }
-.col-modem-type { width: 140px; min-width: 140px; }
-.col-modem-fw   { width: 140px; min-width: 140px; }
-.col-modem-dns  { width: 180px; min-width: 180px; }
+.col-modem-type { width: 140px; min-width: 140px; max-width: 140px; }
+.col-mo-hinh    { width: 280px; min-width: 280px; max-width: 280px; }
+.col-modem-fw   { width: 140px; min-width: 140px; max-width: 140px; }
+.col-modem-dns  { width: 200px; min-width: 200px; max-width: 200px; }
 .col-check-rot  { width: 360px; min-width: 360px; }
 .col-check-tap  { width: 360px; min-width: 360px; }
 .col-check-client { width: 360px; min-width: 360px; }
@@ -874,4 +875,94 @@ tbody tr:hover { background: #f1f5f9; }
   .stats-grid { grid-template-columns: 1fr; }
   .nav-tabs-bar { width: 100%; overflow-x: auto; }
 }
+
+/* ═══ BẢNG THỐNG KÊ SAU PHỤC VỤ (ASSESSMENT TABLE) ═══ */
+.assessment-table {
+  width: 100% !important;
+  min-width: 1200px !important;
+  table-layout: auto !important;
+  border-collapse: collapse !important;
+  font-size: .84rem;
+}
+.assessment-table th {
+  padding: 10px 14px;
+  background: #f8fafc;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: .76rem;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--border-dark);
+  border-right: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+.assessment-table th:hover {
+  background: #f1f5f9;
+}
+.assessment-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.assessment-table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+/* RATING BADGES ĐÁNH GIÁ NHÂN SỰ */
+.badge-tot {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+.badge-dat {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+.badge-luu-y {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+.badge-canh-bao {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
 

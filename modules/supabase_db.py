@@ -71,21 +71,57 @@ def _make_request(method, endpoint, json_data=None, params=None, timeout=20):
         return None
 
 
-def fetch_all_records(table_name: str, select: str = "*", limit: int = 50000) -> list[dict]:
+def get_branch_variants(branch: str) -> list[str]:
+    """Tạo danh sách các biến thể chuỗi chi nhánh để truy vấn Supabase chuẩn xác (NFC, NFD, 01 <-> 1)."""
+    if not branch or not str(branch).strip():
+        return []
+    import unicodedata
+    import re
+    raw = str(branch).strip()
+    variants = set()
+    for b in [raw, unicodedata.normalize('NFC', raw), unicodedata.normalize('NFD', raw)]:
+        variants.add(b)
+        v_sub = re.sub(r'\b0(\d)\b', r'\1', b)
+        variants.add(v_sub)
+        v_add = re.sub(r'\b([1-9])\b', r'0\1', b)
+        variants.add(v_add)
+        variants.add(unicodedata.normalize('NFC', v_sub))
+        variants.add(unicodedata.normalize('NFD', v_sub))
+        variants.add(unicodedata.normalize('NFC', v_add))
+        variants.add(unicodedata.normalize('NFD', v_add))
+    return sorted(list(variants))
+
+
+def build_branch_query_param(branch: str) -> str:
+    """Tạo chuỗi filter PostgREST an toàn hỗ trợ mọi biến thể chi nhánh."""
+    variants = get_branch_variants(branch)
+    if not variants:
+        return ""
+    or_parts = []
+    for v in variants:
+        or_parts.append(f"data->>chi_nhanh.eq.{v}")
+        or_parts.append(f"data->>Chi nhánh.eq.{v}")
+    return "&or=(" + ",".join(or_parts) + ")"
+
+
+def fetch_all_records(table_name: str, select: str = "*", limit: int = 50000, branch: str = None) -> list[dict]:
     """
-    Lấy toàn bộ dữ liệu từ bảng Supabase.
+    Lấy toàn bộ dữ liệu từ bảng Supabase (có hỗ trợ lọc theo branch / chi nhánh).
     Sử dụng Range pagination (0-999, 1000-1999...) để vượt qua giới hạn 1000 bản ghi/lần của PostgREST.
     Có cache bộ nhớ 120s để tối ưu tốc độ.
     """
     global _cache_store, _cache_times
     now = time.time()
-    cache_key = f"records_{table_name}_{select}_{limit}"
+    b_key = str(branch).strip() if branch else "all"
+    cache_key = f"records_{table_name}_{select}_{limit}_{b_key}"
     if cache_key in _cache_store and (now - _cache_times.get(cache_key, 0)) < 120:
         return _cache_store[cache_key]
 
     headers = get_headers()
     base_url = config.SUPABASE_URL.rstrip('/')
     url = f"{base_url}/rest/v1/{table_name}?select={select}"
+    if branch and str(branch).strip():
+        url += build_branch_query_param(str(branch).strip())
 
     all_records = []
     page = 0
@@ -111,7 +147,7 @@ def fetch_all_records(table_name: str, select: str = "*", limit: int = 50000) ->
                 # Fallback alias giữa bao_tri và contracts
                 fallback = "contracts" if table_name == "bao_tri" else ("bao_tri" if table_name == "contracts" else None)
                 if fallback:
-                    return fetch_all_records(fallback, select=select, limit=limit)
+                    return fetch_all_records(fallback, select=select, limit=limit, branch=branch)
                 break
             else:
                 log.error(f"Lỗi fetch_all_records({table_name}) page {page}: HTTP {r.status_code}")
@@ -123,21 +159,23 @@ def fetch_all_records(table_name: str, select: str = "*", limit: int = 50000) ->
     if all_records:
         _cache_store[cache_key] = all_records
         _cache_times[cache_key] = now
-        log.info(f"fetch_all_records({table_name}): Đã nạp thành công {len(all_records)} bản ghi từ Supabase")
+        log.info(f"fetch_all_records({table_name}, branch={branch}): Đã nạp thành công {len(all_records)} bản ghi từ Supabase")
 
     return all_records
 
 
-def fetch_table_summary() -> dict:
-    """Trả về số lượng bản ghi của 2 bảng chính: bao_tri và ton_bao_tri."""
+def fetch_table_summary(branch: str = None) -> dict:
+    """Trả về số lượng bản ghi của 2 bảng chính: bao_tri và ton_bao_tri (có hỗ trợ lọc theo branch)."""
     tables = ["bao_tri", "ton_bao_tri"]
     summary = {}
     headers = get_headers()
     headers["Prefer"] = "count=exact"
     headers["Range"] = "0-0"
     
+    bp = build_branch_query_param(str(branch).strip()) if branch and str(branch).strip() else ""
+
     for tbl in tables:
-        url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/{tbl}?select=id"
+        url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/{tbl}?select=id{bp}"
         try:
             r = requests.get(url, headers=headers, timeout=10)
             if r.status_code in (200, 206):
@@ -150,7 +188,8 @@ def fetch_table_summary() -> dict:
             else:
                 # Trử fallback nếu chưa tạo tên bảng bao_tri
                 if tbl == "bao_tri":
-                    r_fb = requests.get(f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/contracts?select=id", headers=headers, timeout=10)
+                    fb_url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/contracts?select=id{bp}"
+                    r_fb = requests.get(fb_url, headers=headers, timeout=10)
                     if r_fb.status_code in (200, 206):
                         cr = r_fb.headers.get("Content-Range", "")
                         summary[tbl] = int(cr.split("/")[-1]) if "/" in cr and cr.split("/")[-1].isdigit() else len(r_fb.json())
@@ -160,6 +199,7 @@ def fetch_table_summary() -> dict:
             log.error(f"Lỗi đếm số lượng {tbl}: {e}")
             summary[tbl] = 0
             
+    summary["active_branch"] = branch or "all"
     return summary
 
 
@@ -310,16 +350,36 @@ def extract_row_fields(r: dict, table: str = "bao_tri") -> tuple[str, str, str, 
     return so_hd, nhan_vien, tg_hoan_tat, tg_tao
 
 
-def get_employees(force: bool = False, table: str = None) -> list[str]:
+def extract_branch(r: dict) -> str:
+    """Trích xuất tên chi nhánh từ bản ghi r hoặc r['data']."""
+    if not isinstance(r, dict):
+        return ""
+    row_data = r.get("data") if isinstance(r.get("data"), dict) else r
+    if not isinstance(row_data, dict):
+        row_data = {}
+    for cand in ["chi_nhanh", "Chi nhánh", "Chi Nhánh", "CN", "chi_nhanh_name", "branch"]:
+        if cand in row_data and row_data[cand]:
+            v = str(row_data[cand]).strip()
+            if v and v.upper() not in ("NAN", "NONE", ""):
+                return v
+    if "chi_nhanh" in r and r["chi_nhanh"]:
+        v = str(r["chi_nhanh"]).strip()
+        if v and v.upper() not in ("NAN", "NONE", ""):
+            return v
+    return ""
+
+
+def get_employees(force: bool = False, table: str = None, branch: str = None) -> list[str]:
     """
-    Lấy danh sách nhân viên.
+    Lấy danh sách nhân viên (có hỗ trợ lọc theo branch / chi nhánh).
     table=None          → gộp cả 2 bảng
     table='bao_tri'     → chỉ bảo trì
     table='ton_bao_tri' → chỉ tồn bảo trì
     """
     global _cache_store, _cache_times
     now = time.time()
-    cache_key = f"employees_{table or 'all'}"
+    b_key = branch.strip() if branch else "all"
+    cache_key = f"employees_{table or 'all'}_{b_key}"
     if not force and cache_key in _cache_store and (now - _cache_times.get(cache_key, 0)) < CACHE_TTL:
         return _cache_store[cache_key]
 
@@ -327,13 +387,13 @@ def get_employees(force: bool = False, table: str = None) -> list[str]:
     tables_to_query = [table] if table in ("bao_tri", "ton_bao_tri") else ["bao_tri", "ton_bao_tri"]
 
     for tbl in tables_to_query:
-        recs = fetch_all_records(tbl)
+        recs = fetch_all_records(tbl, branch=branch)
         for r in recs:
             _, nv, _, _ = extract_row_fields(r, table=tbl)
             if nv and nv.upper() not in ("NAN", "NONE", ""):
                 employees.add(nv)
 
-    if not table:
+    if not table and not branch:
         recs_emp = fetch_all_records("employees", select="inside_account,ho_ten")
         for r in recs_emp:
             nv = str(r.get("inside_account") or r.get("ho_ten") or "").strip()
@@ -343,14 +403,14 @@ def get_employees(force: bool = False, table: str = None) -> list[str]:
     result = sorted(list(employees))
     _cache_store[cache_key] = result
     _cache_times[cache_key] = now
-    log.info(f"get_employees(table={table}): {len(result)} nhân viên")
+    log.info(f"get_employees(table={table}, branch={branch}): {len(result)} nhân viên")
     return result
 
 
 def get_contracts(selected_employees: list, start_date=None, end_date=None,
-                  lookback_days: int = 2, table: str = "bao_tri") -> list[dict]:
+                  lookback_days: int = 2, table: str = "bao_tri", branch: str = None) -> list[dict]:
     """
-    Truy vấn danh sách hợp đồng từ bảng chỉ định (bao_tri hoặc ton_bao_tri).
+    Truy vấn danh sách hợp đồng từ bảng chỉ định (bao_tri hoặc ton_bao_tri), có lọc theo branch.
     Lọc chính xác theo tg_hoan_tat và ngày người dùng đã chọn.
     """
     if not selected_employees:
@@ -359,15 +419,16 @@ def get_contracts(selected_employees: list, start_date=None, end_date=None,
     if table not in ("bao_tri", "ton_bao_tri"):
         table = "bao_tri"
 
-    records = fetch_all_records(table)
+    records = fetch_all_records(table, branch=branch)
     if not records:
-        log.warning(f"Bảng {table} trên Supabase rỗng.")
+        log.warning(f"Bảng {table} (branch={branch}) trên Supabase rỗng.")
         return []
 
     unwrapped_list = []
     for r in records:
         so_hd, nhan_vien, tg_hoan_tat, tg_tao = extract_row_fields(r, table=table)
         row_data = r.get("data") if isinstance(r.get("data"), dict) else r
+        rec_branch = extract_branch(r)
 
         # Dùng cột ngày phù hợp với từng bảng để lọc:
         # bao_tri → tg_hoan_tat (TG Hoàn Tất)
@@ -380,6 +441,7 @@ def get_contracts(selected_employees: list, start_date=None, end_date=None,
             "tg_hoan_tat": str(tg_hoan_tat or "").strip(),
             "tg_tao": str(tg_tao or "").strip(),
             "date_for_filter": str(date_for_filter or "").strip(),
+            "chi_nhanh": rec_branch,
             "raw_row": row_data
         })
 
@@ -456,34 +518,59 @@ def get_contracts(selected_employees: list, start_date=None, end_date=None,
 
 
 
-def get_team_captains(force: bool = False) -> dict:
-    """Lấy danh sách Đội Trưởng từ các bảng."""
+def get_team_captains(force: bool = False, branch: str = None) -> dict:
+    """Lấy danh sách Đội Trưởng từ cấu hình local team_captains.json hoặc Supabase."""
     global _cache_store, _cache_times
     now = time.time()
-    if not force and "captains" in _cache_store and (now - _cache_times.get("captains", 0)) < CACHE_TTL:
-        return _cache_store["captains"]
+    b_key = branch.strip() if branch else "all"
+    cache_key = f"captains_{b_key}"
+    if not force and cache_key in _cache_store and (now - _cache_times.get(cache_key, 0)) < CACHE_TTL:
+        return _cache_store[cache_key]
 
-    records = fetch_all_records("employees") or fetch_all_records("bao_tri")
+    # 1. Ưu tiên lấy từ captain_manager (cấu hình bền vững trong team_captains.json)
+    try:
+        from modules import captain_manager
+        local_data = captain_manager.get_captains(branch=branch)
+        if local_data.get("sorted_captains"):
+            _cache_store[cache_key] = local_data
+            _cache_times[cache_key] = now
+            return local_data
+    except Exception as e_local:
+        log.warning(f"Lỗi đọc captain_manager: {e_local}")
+
+    # 2. Dự phòng lấy từ Supabase (nếu có bảng employees hoặc cột doi_truong)
+    records = fetch_all_records("employees", branch=branch) or fetch_all_records("bao_tri", branch=branch)
     captains_map = {}
     emp_to_captain = {}
 
     for row in records:
-        account = str(row.get("inside_account") or row.get("nhan_vien") or row.get("ho_ten") or "").strip().upper()
-        captain = str(row.get("doi_truong") or "").strip()
+        row_data = row.get("data") if isinstance(row.get("data"), dict) else row
+        account = str(row.get("inside_account") or row.get("nhan_vien") or row.get("ho_ten") or row_data.get("Nhân viên") or row_data.get("Nhân sự") or "").strip().upper()
+        captain = str(row.get("doi_truong") or row_data.get("doi_truong") or row_data.get("Đội Trưởng") or "").strip()
         if account and account not in ("NAN", "NONE", ""):
             if captain and captain not in ("nan", "None", ""):
                 if captain not in captains_map:
                     captains_map[captain] = []
-                captains_map[captain].append(account)
+                if account not in captains_map[captain]:
+                    captains_map[captain].append(account)
                 emp_to_captain[account] = captain
 
     res = {
         "captains_map": captains_map,
         "sorted_captains": sorted(captains_map.keys()),
-        "emp_to_captain": emp_to_captain
+        "emp_to_captain": emp_to_captain,
+        "branch": branch or "default"
     }
-    _cache_store["captains"] = res
-    _cache_times["captains"] = now
+
+    if captains_map:
+        try:
+            from modules import captain_manager
+            captain_manager.save_captains(captains_map, branch=branch)
+        except Exception:
+            pass
+
+    _cache_store[cache_key] = res
+    _cache_times[cache_key] = now
     return res
 
 
@@ -569,9 +656,203 @@ def get_cll30_analytics(start_date=None, end_date=None, top_n=10, selected_capta
     }
 
 
+def normalize_date_key(dt_val) -> str:
+    """Chuẩn hóa chuỗi ngày giờ để so sánh chính xác."""
+    if not dt_val:
+        return ""
+    val_str = str(dt_val).strip()
+    try:
+        dt = pd.to_datetime(val_str, errors='coerce', dayfirst=True)
+        if pd.notna(dt):
+            return dt.strftime("%d/%m/%Y %H:%M:%S")
+    except Exception:
+        pass
+    return val_str
+
+
+def extract_bao_tri_key(r: dict, col_names: list = None) -> tuple[str, str, str, str, str]:
+    """
+    Trích xuất composite key 5 trường chuẩn xác dùng để phát hiện trùng lặp cho bảng bao_tri:
+    1. Cột A: Số HĐ (index 0)
+    2. Cột E: TG Tạo (index 4)
+    3. Cột F: TG Hoàn Tất (index 5)
+    4. Cột D: Nhân viên (index 3)
+    5. Cột AR: Account Tạo Cl (index 43)
+    """
+    row_data = r.get("data") if isinstance(r.get("data"), dict) else r
+    if not isinstance(row_data, dict):
+        row_data = {}
+
+    row_vals = [row_data.get(c, "") for c in col_names] if col_names else list(row_data.values())
+
+    # 1. Cột A: Số HĐ (index 0)
+    so_hd = str(r.get("so_hd") or "").strip()
+    if not so_hd:
+        for cand in ["Số HĐ", "Số HD", "SỐ HĐ", "SỐ HD", "Mã HĐ", "MÃ HĐ", "Số Hợp Đồng", "SoHD", "so_hd", "Contract"]:
+            if cand in row_data and str(row_data[cand]).strip():
+                so_hd = str(row_data[cand]).strip()
+                break
+    if not so_hd and len(row_vals) > 0:
+        v0 = str(row_vals[0]).strip()
+        if v0 and v0.upper() not in ("NAN", "NONE", ""):
+            so_hd = v0
+
+    # 2. Cột D: Nhân viên (index 3)
+    nhan_vien = str(r.get("nhan_vien") or "").strip()
+    if not nhan_vien:
+        for cand in ["Nhân viên", "Nhân sự", "nhan_vien", "nhan_su", "NHÂN VIÊN", "Nhân Viên", "KTV"]:
+            if cand in row_data and str(row_data[cand]).strip():
+                nhan_vien = str(row_data[cand]).strip()
+                break
+    if not nhan_vien and len(row_vals) > 3:
+        v3 = str(row_vals[3]).strip()
+        if v3 and v3.upper() not in ("NAN", "NONE", ""):
+            nhan_vien = v3
+
+    # 3. Cột E: TG Tạo (index 4)
+    tg_tao = ""
+    for cand in ["TG Tạo", "TG Tao", "Thời gian tạo", "Thời Gian Tạo", "tg_tao", "TG TẠO", "Ngay Tao"]:
+        if cand in row_data and str(row_data[cand]).strip():
+            tg_tao = str(row_data[cand]).strip()
+            break
+    if not tg_tao and len(row_vals) > 4:
+        v4 = str(row_vals[4]).strip()
+        if v4 and v4.upper() not in ("NAN", "NONE", ""):
+            tg_tao = v4
+
+    # 4. Cột F: TG Hoàn Tất (index 5)
+    tg_hoan_tat = str(r.get("tg_hoan_tat") or "").strip()
+    if not tg_hoan_tat:
+        for cand in ["TG Hoàn Tất", "TG Hoan Tat", "Thời gian hoàn tất", "Thời Gian Hoàn Tất", "tg_hoan_tat", "TG HOÀN TẤT"]:
+            if cand in row_data and str(row_data[cand]).strip():
+                tg_hoan_tat = str(row_data[cand]).strip()
+                break
+    if not tg_hoan_tat and len(row_vals) > 5:
+        v5 = str(row_vals[5]).strip()
+        if v5 and v5.upper() not in ("NAN", "NONE", ""):
+            tg_hoan_tat = v5
+
+    # 5. Cột AR: Account Tạo Cl (index 43)
+    account_tao_cl = ""
+    for cand in ["Account tạo CL", "Account Tạo Cl", "Account Tạo CL", "Account tao cl", "Account tạo cl", "account_tao_cl", "AccountTaoCL", "Acc tạo CL", "Acc tao CL"]:
+        if cand in row_data and str(row_data[cand]).strip():
+            account_tao_cl = str(row_data[cand]).strip()
+            break
+    if not account_tao_cl and len(row_vals) > 43:
+        v43 = str(row_vals[43]).strip()
+        if v43 and v43.upper() not in ("NAN", "NONE", ""):
+            account_tao_cl = v43
+
+    so_hd_clean = so_hd.strip().upper()
+    nhan_vien_clean = nhan_vien.strip().upper()
+    tg_tao_norm = normalize_date_key(tg_tao)
+    tg_hoan_tat_norm = normalize_date_key(tg_hoan_tat)
+    account_tao_cl_clean = account_tao_cl.strip().upper()
+
+    return (so_hd_clean, tg_tao_norm, tg_hoan_tat_norm, nhan_vien_clean, account_tao_cl_clean)
+
+
+def fetch_existing_bao_tri_keys(so_hd_list: list, branch: str = None) -> dict:
+    """
+    Truy vấn các bản ghi đã có trong bảng bao_tri trên Supabase tương ứng với danh sách Số HĐ.
+    Trả về dict: { (so_hd, tg_tao, tg_hoan_tat, nhan_vien, account_tao_cl): id }
+    """
+    if not so_hd_list:
+        return {}
+
+    unique_hds = sorted(list(set(str(hd).strip().upper() for hd in so_hd_list if str(hd).strip())))
+    if not unique_hds:
+        return {}
+
+    existing_map = {}
+    headers = get_headers()
+    base_url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/bao_tri"
+    select_fields = "id,so_hd,nhan_vien,tg_hoan_tat,data->TG Tạo,data->Thời gian tạo,data->Account tạo CL,data->Account Tạo Cl"
+
+    chunk_size = 150
+    for i in range(0, len(unique_hds), chunk_size):
+        chunk = unique_hds[i:i + chunk_size]
+        hds_in = ",".join(chunk)
+        url = f"{base_url}?select={select_fields}&so_hd=in.({hds_in})"
+        try:
+            r = requests.get(url, headers=headers, timeout=25)
+            if r.status_code in (200, 206):
+                data = r.json()
+                for item in data:
+                    item_id = item.get("id")
+                    hd = str(item.get("so_hd") or "").strip().upper()
+                    nv = str(item.get("nhan_vien") or "").strip().upper()
+                    tg_hoan = normalize_date_key(item.get("tg_hoan_tat"))
+                    tg_tao = normalize_date_key(item.get("TG Tạo") or item.get("Thời gian tạo"))
+                    acc_cl = str(item.get("Account tạo CL") or item.get("Account Tạo Cl") or "").strip().upper()
+
+                    key = (hd, tg_tao, tg_hoan, nv, acc_cl)
+                    if key not in existing_map:
+                        existing_map[key] = item_id
+            else:
+                log.warning(f"fetch_existing_bao_tri_keys chunk error: HTTP {r.status_code}")
+        except Exception as e:
+            log.error(f"Lỗi khi truy vấn keys bao_tri hiện có: {e}")
+
+    return existing_map
+
+
+def deduplicate_existing_bao_tri(branch: str = None) -> tuple[bool, str, int]:
+    """
+    Quét bảng bao_tri, phát hiện các bản ghi trùng lặp (khớp cả 5 cột A, E, F, D, AR),
+    giữ lại 1 bản ghi và xóa các bản ghi thừa còn lại.
+    """
+    headers = get_headers()
+    headers["Prefer"] = "return=minimal"
+
+    records = fetch_all_records("bao_tri", branch=branch, select="id,so_hd,nhan_vien,tg_hoan_tat,data")
+    if not records:
+        return True, "Bảng bao_tri không có dữ liệu nào", 0
+
+    seen = {}
+    ids_to_delete = []
+
+    for r in records:
+        r_id = r.get("id")
+        if not r_id:
+            continue
+        key = extract_bao_tri_key(r)
+        if not key[0]:
+            continue
+
+        if key in seen:
+            ids_to_delete.append(r_id)
+        else:
+            seen[key] = r_id
+
+    if not ids_to_delete:
+        return True, "✅ Dữ liệu bảng Bảo Trì hoàn toàn sạch, không có bản ghi trùng lặp nào!", 0
+
+    deleted_count = 0
+    chunk_size = 100
+    base_url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/bao_tri"
+    for i in range(0, len(ids_to_delete), chunk_size):
+        chunk = ids_to_delete[i:i + chunk_size]
+        ids_in = ",".join(str(x) for x in chunk)
+        url = f"{base_url}?id=in.({ids_in})"
+        try:
+            resp = requests.delete(url, headers=headers, timeout=30)
+            if resp.status_code in (200, 204):
+                deleted_count += len(chunk)
+            else:
+                log.error(f"Lỗi xóa duplicate chunk: HTTP {resp.status_code}")
+        except Exception as e:
+            log.error(f"Lỗi xóa duplicate: {e}")
+
+    _cache_store.clear()
+    _cache_times.clear()
+    return True, f"✅ Đã dọn dẹp thành công {deleted_count} bản ghi trùng lặp trong bảng Bảo Trì!", deleted_count
+
+
 def import_records(table_name: str, records: list[dict]) -> tuple[bool, str, int]:
     """
     Import/Upsert danh sách bản ghi vào Supabase table (Hỗ trợ bao_tri và ton_bao_tri).
+    Đảm bảo tất cả objects trong cùng một batch có tập hợp key đồng nhất (tránh PGRST102).
     """
     if not records:
         return False, "Không có dữ liệu để nhập", 0
@@ -587,17 +868,33 @@ def import_records(table_name: str, records: list[dict]) -> tuple[bool, str, int
     url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/{table_name}"
 
     for i in range(0, len(records), batch_size):
-        batch = records[i:i + batch_size]
+        raw_batch = records[i:i + batch_size]
+        if not raw_batch:
+            continue
+
+        # Thu thập toàn bộ key xuất hiện trong batch
+        keys_set = set()
+        for r in raw_batch:
+            keys_set.update(r.keys())
+
+        # Chuẩn hóa để mọi đối tượng trong batch đều có đủ các key (tránh PGRST102)
+        batch = []
+        for r in raw_batch:
+            item = {}
+            for k in sorted(keys_set):
+                item[k] = r.get(k, None)
+            batch.append(item)
+
         try:
-            resp = requests.post(url, headers=headers, json=batch, timeout=30)
+            resp = requests.post(url, headers=headers, json=batch, timeout=40)
             if resp.status_code in (200, 201, 204):
                 total_inserted += len(batch)
             elif resp.status_code == 404:
                 log.error(f"Lỗi Supabase 404 Not Found khi import vào {table_name}")
-                return False, f"❌ Lỗi 404: Bảng '{table_name}' chưa được tạo trên Supabase của bạn. Vui lòng mở Supabase SQL Editor và chạy câu lệnh tạo bảng.", total_inserted
+                return False, f"❌ Lỗi 404: Bảng '{table_name}' chưa được tạo trên Supabase của bạn.", total_inserted
             elif resp.status_code == 401:
                 log.error(f"Lỗi Supabase 401 Unauthorized khi import vào {table_name}")
-                return False, "❌ Lỗi 401 Unauthorized: Khóa Supabase API Key không có quyền ghi vào bảng này. Vui lòng kiểm tra lại quyền Supabase.", total_inserted
+                return False, "❌ Lỗi 401 Unauthorized: Khóa Supabase API Key không có quyền ghi.", total_inserted
             else:
                 log.error(f"Lỗi import batch vào {table_name}: HTTP {resp.status_code} - {resp.text[:300]}")
                 return False, f"Lỗi Supabase HTTP {resp.status_code}: {resp.text[:150]}", total_inserted
@@ -608,24 +905,27 @@ def import_records(table_name: str, records: list[dict]) -> tuple[bool, str, int
 
     _cache_store.clear()
     _cache_times.clear()
-    return True, f"✅ Đã import thành công {total_inserted} bản ghi vào bảng '{table_name}'", total_inserted
+    return True, f"✅ Đã lưu thành công {total_inserted} bản ghi vào bảng '{table_name}'", total_inserted
 
 
-def fetch_table_data(table_name: str, page: int = 1, per_page: int = 50, search: str = None) -> dict:
-    """Lấy dữ liệu hiển thị phân trang cho bảng bao_tri hoặc ton_bao_tri (Giải nén 100% cột file gốc)."""
+def fetch_table_data(table_name: str, page: int = 1, per_page: int = 50, search: str = None, branch: str = None) -> dict:
+    """Lấy dữ liệu hiển thị phân trang cho bảng bao_tri hoặc ton_bao_tri (Giải nén 100% cột file gốc, hỗ trợ lọc theo branch)."""
     if table_name not in ALLOWED_TABLES:
         return {"records": [], "total": 0, "page": page, "per_page": per_page}
 
-    records = fetch_all_records(table_name, limit=10000)
+    records = fetch_all_records(table_name, limit=10000, branch=branch)
 
-    # Giải nén data JSONB để hiển thị chuẩn 100% các cột của file gốc
     unwrapped_records = []
     for r in records:
         if isinstance(r.get("data"), dict):
             row = dict(r["data"])
+            if "chi_nhanh" not in row and extract_branch(r):
+                row["chi_nhanh"] = extract_branch(r)
             unwrapped_records.append(row)
         else:
             row = {k: v for k, v in r.items() if k not in ("id", "created_at")}
+            if "chi_nhanh" not in row and extract_branch(r):
+                row["chi_nhanh"] = extract_branch(r)
             unwrapped_records.append(row)
 
     if search:
@@ -650,20 +950,28 @@ def fetch_table_data(table_name: str, page: int = 1, per_page: int = 50, search:
 
 
 
-def clear_table_data(table_name: str) -> tuple[bool, str]:
-    """Xóa toàn bộ bản ghi trong bảng bao_tri hoặc ton_bao_tri."""
+def clear_table_data(table_name: str, branch: str = None) -> tuple[bool, str]:
+    """Xóa bản ghi trong bảng bao_tri hoặc ton_bao_tri (có thể theo chi_nhanh)."""
     if table_name not in ALLOWED_TABLES:
         return False, "Tên bảng không hợp lệ"
 
-    url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/{table_name}?id=gt.0"
+    if branch and str(branch).strip():
+        bp = build_branch_query_param(str(branch).strip())
+        url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/{table_name}?id=gt.0{bp}"
+    else:
+        url = f"{config.SUPABASE_URL.rstrip('/')}/rest/v1/{table_name}?id=gt.0"
+
     headers = get_headers()
+    headers["Prefer"] = "return=minimal"
     try:
-        resp = requests.delete(url, headers=headers, timeout=15)
+        resp = requests.delete(url, headers=headers, timeout=60)
         if resp.status_code in (200, 204):
             _cache_store.clear()
             _cache_times.clear()
-            return True, f"✅ Đã xóa toàn bộ dữ liệu bảng '{table_name}'"
+            target_str = f"của chi nhánh '{branch}'" if branch else "toàn bộ"
+            return True, f"✅ Đã xóa dữ liệu {target_str} trong bảng '{table_name}'"
         else:
             return False, f"Lỗi HTTP {resp.status_code}: {resp.text[:150]}"
     except Exception as e:
         return False, f"Ngoại lệ: {str(e)}"
+

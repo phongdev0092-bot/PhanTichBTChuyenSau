@@ -9,6 +9,7 @@ DOM dump cho thấy:
 import time
 import logging
 import os
+import threading
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -132,11 +133,155 @@ def _find_visible(d, xpaths: list):
     return None
 
 
+def _count_tab_devices(d, tab_name: str, item_keyword: str) -> int:
+    """
+    Kiểm tra tab tab_name (Access Point, Camera, Box).
+    Nếu tab tồn tại -> click vào -> bấm dropdown Autocomplete để đếm số lượng options.
+    """
+    try:
+        # 1. Kiểm tra xem tab có xuất hiện trên danh sách tab không
+        tabs = d.find_elements(By.XPATH, '//button[@role="tab"] | //*[@role="tab"]')
+        has_tab = False
+        for t in tabs:
+            if tab_name.lower() in t.text.lower():
+                has_tab = True
+                break
+        
+        if not has_tab:
+            return 0
+
+        # Click chuyển sang tab đó
+        if not _click_mui_tab(d, tab_name):
+            return 0
+        time.sleep(1.2)
+
+        count = 0
+        # 2. Tìm nút mở dropdown Autocomplete (popupIndicator) hoặc input Autocomplete
+        popup_btns = d.find_elements(By.XPATH,
+            '//button[contains(@class,"MuiAutocomplete-popupIndicator")]'
+            ' | //div[contains(@class,"MuiAutocomplete-root")]//button[@aria-label="Open" or @title="Open"]'
+        )
+        if popup_btns:
+            for btn in popup_btns:
+                if btn.is_displayed():
+                    _js_click(d, btn)
+                    time.sleep(0.7)
+                    break
+        else:
+            inputs = d.find_elements(By.XPATH, '//input[contains(@class,"MuiAutocomplete-input")]')
+            for inp in inputs:
+                if inp.is_displayed():
+                    _js_click(d, inp)
+                    time.sleep(0.7)
+                    break
+
+        # 3. Đếm số lượng options hiện ra trong popup listbox
+        options = d.find_elements(By.XPATH,
+            '//li[contains(@class,"MuiAutocomplete-option")]'
+            ' | //ul[contains(@class,"MuiAutocomplete-listbox")]/li'
+        )
+        matched_opts = []
+        for o in options:
+            t = (o.text or "").strip()
+            if t and "không có" not in t.lower() and "no option" not in t.lower():
+                matched_opts.append(t)
+
+        if matched_opts:
+            count = len(matched_opts)
+
+        # 4. Đóng dropdown lại bằng phím ESC
+        try:
+            d.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+        except Exception:
+            pass
+        time.sleep(0.3)
+
+        # 5. Fallback nếu dropdown không mở được nhưng ô input đang hiển thị thiết bị
+        if count == 0:
+            inputs = d.find_elements(By.XPATH, '//input[contains(@class,"MuiAutocomplete-input")]')
+            for inp in inputs:
+                val = (inp.get_attribute("value") or "").strip()
+                if item_keyword.lower() in val.lower():
+                    count = 1
+                    break
+
+        return count
+    except Exception as e:
+        log.debug(f"Lỗi đếm thiết bị tab {tab_name}: {e}")
+        return 0
+
+
+def _extract_network_model(d, modem_name: str) -> str:
+    """
+    Xác định mô hình mạng:
+    Chốt mô hình mạng = Modem + Số Lượng AP + Số Lượng Camera + Số Lượng Box
+    Ví dụ: AX3000HV2 + 2 AP + 6 Camera hoặc AX3000CV2 + 1 Camera + 1 Box
+    """
+    try:
+        import re
+        ap_count = _count_tab_devices(d, "Thông số Access Point", "Access Point")
+        cam_count = _count_tab_devices(d, "Thông số Camera", "Camera")
+        box_count = _count_tab_devices(d, "Thông số Box", "Box")
+
+        # Fallback AP count từ sơ đồ "Mô hình mạng" ở trên cùng nếu tab không đếm được
+        if ap_count == 0:
+            try:
+                top_topo = d.find_elements(By.XPATH, '//*[contains(text(),"Mô hình mạng")]/ancestor::div[contains(@class,"MuiPaper-root") or contains(@class,"MuiCard-root") or contains(@class,"box") or contains(@class,"MuiBox-root")]')
+                if top_topo:
+                    topo_text = top_topo[0].text
+                    m_ap = re.search(r'(\d+)\s*\n\s*Access Point|Access Point\s*\n\s*(\d+)', topo_text)
+                    if m_ap:
+                        val = m_ap.group(1) or m_ap.group(2)
+                        ap_count = int(val)
+            except Exception:
+                pass
+
+        # Lấy tên modem cơ sở
+        modem_clean = (modem_name or "").strip()
+        if not modem_clean or modem_clean == "—":
+            try:
+                top_topo = d.find_elements(By.XPATH, '//*[contains(text(),"Mô hình mạng")]/ancestor::div[contains(@class,"MuiPaper-root") or contains(@class,"MuiCard-root") or contains(@class,"box") or contains(@class,"MuiBox-root")]')
+                if top_topo:
+                    lines = [ln.strip() for ln in top_topo[0].text.split("\n") if ln.strip()]
+                    for ln in lines:
+                        if re.match(r'^(AX|AC|G|N|M|H|V)\d+', ln, re.IGNORECASE):
+                            modem_clean = ln
+                            break
+            except Exception:
+                pass
+
+        parts = []
+        if modem_clean and modem_clean != "—":
+            parts.append(modem_clean)
+        else:
+            parts.append("Modem")
+
+        if ap_count > 0:
+            parts.append(f"{ap_count} AP")
+        if cam_count > 0:
+            parts.append(f"{cam_count} Camera")
+        if box_count > 0:
+            parts.append(f"{box_count} Box")
+
+        return " + ".join(parts)
+    except Exception as e:
+        log.warning(f"Lỗi extract_network_model: {e}")
+        return modem_name or "—"
+
+
+
 # ─────────────────────────────────────────────────────────────
 #  FLOW STEPS
 # ─────────────────────────────────────────────────────────────
 
 def _go_check_contract(d):
+    # Kiểm tra xem có bị chuyển hướng về login (hết hạn session) không
+    if "/login" in d.current_url:
+        log.warning("Phát hiện URL ở trang /login, thử khôi phục session cache...")
+        from modules.auth import _try_load_session
+        if not _try_load_session(d):
+            raise Exception("Phiên đăng nhập Management MyPT đã hết hạn. Vui lòng bấm Đăng nhập lại trên giao diện.")
+
     if "/check-contract" not in d.current_url:
         el = _find_visible(d, [
             '//span[normalize-space(text())="Kiểm tra hợp đồng"]',
@@ -144,10 +289,17 @@ def _go_check_contract(d):
         ])
         if el:
             _js_click(d, el)
-            time.sleep(3)
+            time.sleep(2)
         else:
             d.get(f"{MANAGEMENT_URL}/check-contract")
-            time.sleep(3)
+            time.sleep(2)
+    else:
+        # Nếu đã ở /check-contract nhưng không thấy ô nhập hợp đồng (có thể kẹt ở màn hình chi tiết HĐ trước)
+        inp = _find_visible(d, ['#contract', 'input[type="text"]', 'input[type="search"]'])
+        if not inp:
+            log.info("Không thấy ô nhập HĐ trên trang hiện tại, làm mới lại /check-contract...")
+            d.get(f"{MANAGEMENT_URL}/check-contract")
+            time.sleep(2)
     log.info(f"  URL: {d.current_url}")
 
 
@@ -394,8 +546,20 @@ def _exit_contract(d):
 #  MAIN
 # ─────────────────────────────────────────────────────────────
 
-def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=None, data_source: str = "bao_tri") -> dict:
-    d = get_driver(headless=True)
+_driver_lock = threading.Lock()
+
+def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=None, data_source: str = "bao_tri", analysis_mode: str = "full") -> dict:
+    with _driver_lock:
+        d = get_driver(headless=True)
+        try:
+            from modules.auth import is_logged_in, _try_load_session
+            # Chỉ kiểm tra và nạp cache nếu chưa có trạng thái đăng nhập
+            if not is_logged_in():
+                _try_load_session(d)
+        except Exception as e:
+            log.warning(f"Kiểm tra session trước khi phân tích HĐ: {e}")
+
+
 
 
     result = {
@@ -407,6 +571,7 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
         "cong_suat_thu":     "",
         "so_lan_rot":        "",
         "loai_modem":        "",
+        "mo_hinh_mang":      "",
         "phien_ban_pm":      "",
         "dns_wan":           "",
         "doi_chieu_rot_mang": "",
@@ -525,8 +690,9 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
         log.info(f"  cong_suat_thu='{result['cong_suat_thu']}'  so_lan_rot='{result['so_lan_rot']}'")
 
         # Đánh giá công suất thu (suy hao) theo chuẩn kỹ thuật:
-        # Chuẩn đạt: -10.0 dBm đến -23.5 dBm. Vượt là không đạt.
-        # 0.0 dBm: Mất kết nối đứt cáp >> Cảnh báo đứt cáp/lỗi cáp.
+        # Chuẩn đạt: -10.0 dBm đến -23.5 dBm.
+        # Rx từ 0.0 dBm đến -10.0 dBm: Mất kết nối / Đứt cáp >> Cảnh báo đứt cáp/lỗi cáp.
+        # Rx < -23.5 dBm: Suy hao cao ngoài chuẩn.
         pwr_raw = str(result.get("cong_suat_thu") or "").strip()
         if pwr_raw:
             import re
@@ -534,22 +700,21 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
             if m_p:
                 try:
                     pwr_f = float(m_p.group(0))
-                    if abs(pwr_f) < 0.001 or pwr_f == 0.0:
-                        warn_loss = "Cảnh báo đứt cáp/lỗi cáp (Công suất thu 0.0 dBm)"
+                    val_p = -abs(pwr_f) if pwr_f != 0.0 else 0.0
+                    if abs(pwr_f) < 0.001 or pwr_f == 0.0 or val_p > -10.0:
+                        warn_loss = f"Cảnh báo đứt cáp/lỗi cáp (Công suất thu {val_p:.2f}dBm trong khoảng 0.0 đến -10.0dBm)"
                         hxl_loss = "Hàn nối / xử lý đứt cáp, kiểm tra toàn bộ tuyến cáp quang"
                         if "đứt cáp" not in result["canh_bao"].lower():
                             result["canh_bao"] = f"{warn_loss} | {result['canh_bao']}" if result["canh_bao"] else warn_loss
                         if "đứt cáp" not in result["can_xu_ly"].lower():
                             result["can_xu_ly"] = f"{hxl_loss} | {result['can_xu_ly']}" if result["can_xu_ly"] else hxl_loss
-                    else:
-                        val_p = -abs(pwr_f)
-                        if val_p < -23.5 or val_p > -10.0:
-                            warn_p = f"Suy hao không đạt chuẩn (Công suất thu {val_p:.2f}dBm ngoài chuẩn -10 đến -23.5dBm)"
-                            if "suy hao" not in result["canh_bao"].lower():
-                                result["canh_bao"] = f"{warn_p} | {result['canh_bao']}" if result["canh_bao"] else warn_p
-                            hxl_p = "Kiểm tra các thành phần: 1. Đầu FC modem 2. Cổng quang Modem/SFU 3. Cáp quang 4. Tập điểm"
-                            if "Đầu FC" not in result["can_xu_ly"]:
-                                result["can_xu_ly"] = f"{hxl_p} | {result['can_xu_ly']}" if result["can_xu_ly"] else hxl_p
+                    elif val_p < -23.5:
+                        warn_p = f"Suy hao không đạt chuẩn (Công suất thu {val_p:.2f}dBm vượt ngưỡng -23.5dBm)"
+                        if "suy hao" not in result["canh_bao"].lower():
+                            result["canh_bao"] = f"{warn_p} | {result['canh_bao']}" if result["canh_bao"] else warn_p
+                        hxl_p = "Kiểm tra các thành phần: 1. Đầu FC modem 2. Cổng quang Modem/SFU 3. Cáp quang 4. Tập điểm"
+                        if "Đầu FC" not in result["can_xu_ly"]:
+                            result["can_xu_ly"] = f"{hxl_p} | {result['can_xu_ly']}" if result["can_xu_ly"] else hxl_p
                 except Exception as ex_pwr:
                     log.debug(f"Lỗi phân tích ngưỡng công suất thu: {ex_pwr}")
 
@@ -563,6 +728,15 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
         result["phien_ban_pm"] = _find_value_after_label(lines_modem, "Phiên bản phần mềm")
         result["dns_wan"]      = _find_value_after_label(lines_modem, "DNS WAN")
         log.info(f"  loai_modem='{result['loai_modem']}'  dns_wan='{result['dns_wan']}'")
+
+        # 8.5 Trích xuất Mô hình mạng (Modem + Số lượng AP + Số lượng Camera + Số lượng Box)
+        try:
+            result["mo_hinh_mang"] = _extract_network_model(d, result.get("loai_modem", ""))
+            log.info(f"  mo_hinh_mang='{result['mo_hinh_mang']}'")
+        except Exception as ex_net:
+            log.warning(f"Lỗi trích xuất mô hình mạng: {ex_net}")
+            result["mo_hinh_mang"] = result.get("loai_modem", "") or "—"
+
 
         is_ton = (data_source == "ton_bao_tri")
 
@@ -596,19 +770,28 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
                 if m_p:
                     try:
                         pwr_f = float(m_p.group(0))
-                        if abs(pwr_f) < 0.001 or pwr_f == 0.0:
+                        val_p = -abs(pwr_f) if abs(pwr_f) >= 0.001 else 0.0
+                        if abs(pwr_f) < 0.001 or pwr_f == 0.0 or val_p > -10.0 or pwr_f <= -1000.0:
                             pwr_is_zero = True
                     except Exception:
                         pass
 
             if rot_val >= 1 or (is_ton and pwr_is_zero):
-                log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Rớt Kết Nối (Rớt = {rot_val}, pwr_is_zero={pwr_is_zero}, is_ton={is_ton})...")
-                if step_callback:
-                    step_callback(f"🔄 Đối chiếu Rớt Kết Nối (Ra Mạng & OLT)...", 4)
                 tg_hoan_tat_val = result.get("tg_hoan_tat", "")
-                result["doi_chieu_rot_mang"] = _cross_check_disconnections(
-                    d, tg_hoan_tat_val, step_callback=step_callback, is_ton=is_ton, pwr_is_zero=pwr_is_zero
-                )
+                if analysis_mode == "compact":
+                    log.info(f"[{contract_number}] ⚡ [Rút gọn] Đối chiếu Rớt Kết Nối (bỏ qua OLT)...")
+                    if step_callback:
+                        step_callback(f"⚡ [Rút gọn] Đọc Các Lần Kết Nối (Bỏ qua OLT)...", 4)
+                    result["doi_chieu_rot_mang"] = _cross_check_disconnections_compact(
+                        d, tg_hoan_tat_val, step_callback=step_callback, is_ton=is_ton, pwr_is_zero=pwr_is_zero, rot_val=rot_val
+                    )
+                else:
+                    log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Rớt Kết Nối (Ra Mạng & OLT)...")
+                    if step_callback:
+                        step_callback(f"🔄 Đối chiếu Rớt Kết Nối (Ra Mạng & OLT)...", 4)
+                    result["doi_chieu_rot_mang"] = _cross_check_disconnections(
+                        d, tg_hoan_tat_val, step_callback=step_callback, is_ton=is_ton, pwr_is_zero=pwr_is_zero
+                    )
                 log.info(f"  doi_chieu_rot_mang: {result['doi_chieu_rot_mang']}")
             else:
                 if is_ton:
@@ -619,23 +802,30 @@ def analyze_contract(contract_number: str, tg_hoan_tat: str = "", step_callback=
             log.warning(f"Lỗi khi đối chiếu rớt kết nối: {ex_rot}")
             result["doi_chieu_rot_mang"] = "Lỗi khi đọc đối chiếu rớt KN"
 
-        # Đối chiếu sub-tab 'Hợp đồng cùng tập điểm' (Luôn thực hiện để hiển thị thông tin tập điểm đầy đủ)
-        try:
-            log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Tập Điểm...")
+        # Đối chiếu Tập Điểm (Hợp đồng cùng tập điểm hoặc Đánh giá trực tiếp)
+        if analysis_mode == "compact":
+            log.info(f"[{contract_number}] ⚡ [Rút gọn] Bỏ qua quét HĐ cùng tập điểm. Đánh giá suy hao trực tiếp theo ngưỡng [-10, -23.5]dBm...")
             if step_callback:
-                step_callback(f"🌐 Đối chiếu Hợp Đồng cùng Tập Điểm (Chờ server FPT trả dữ liệu)...", 5)
-            result["doi_chieu_tap_diem"] = _cross_check_tap_diem(
-                d, step_callback=step_callback, current_pwr_str=result.get("cong_suat_thu")
-            )
-            log.info(f"  doi_chieu_tap_diem: {result['doi_chieu_tap_diem']}")
-        except Exception as ex_tap:
-            log.warning(f"Lỗi khi đối chiếu tập điểm: {ex_tap}")
-            result["doi_chieu_tap_diem"] = "Lỗi khi đọc đối chiếu tập điểm"
+                step_callback(f"⚡ [Rút gọn] Đánh giá suy hao chuẩn [-10, -23.5]dBm...", 5)
+            result["doi_chieu_tap_diem"] = _evaluate_power_direct(result.get("cong_suat_thu"))
+            log.info(f"  doi_chieu_tap_diem [Rút gọn]: {result['doi_chieu_tap_diem']}")
+        else:
+            try:
+                log.info(f"[{contract_number}] 🔍 Thực hiện đối chiếu Tập Điểm...")
+                if step_callback:
+                    step_callback(f"🌐 Đối chiếu Hợp Đồng cùng Tập Điểm (Chờ server FPT trả dữ liệu)...", 5)
+                result["doi_chieu_tap_diem"] = _cross_check_tap_diem(
+                    d, step_callback=step_callback, current_pwr_str=result.get("cong_suat_thu")
+                )
+                log.info(f"  doi_chieu_tap_diem: {result['doi_chieu_tap_diem']}")
+            except Exception as ex_tap:
+                log.warning(f"Lỗi khi đối chiếu tập điểm: {ex_tap}")
+                result["doi_chieu_tap_diem"] = "Lỗi khi đọc đối chiếu tập điểm"
 
-        # 10. Phân tích Client (Nếu Cảnh báo có 'Sóng Wifi yếu' hoặc 'Thu phát kém')
+        # 10. Phân tích Client (Nếu chẩn đoán có 'Sóng Wifi yếu' hoặc 'Thu phát kém')
         try:
-            canh_bao_val = result.get("canh_bao", "")
-            result["phan_tich_client"] = _check_client_weak_wifi(d, canh_bao_val, step_callback=step_callback)
+            diag_combined = f"{result.get('canh_bao', '')} | {result.get('can_xu_ly', '')} | {result.get('xu_ly_loi_tu_dong', '')}"
+            result["phan_tich_client"] = _check_client_weak_wifi(d, diag_combined, step_callback=step_callback)
             log.info(f"  phan_tich_client: {result['phan_tich_client']}")
         except Exception as ex_client:
             log.warning(f"Lỗi khi phân tích client: {ex_client}")
@@ -1043,6 +1233,122 @@ def _cross_check_disconnections(d, tg_hoan_tat_str: str, step_callback=None, is_
         return f"Đảm bảo ({window_desc} kết nối ổn định)"
 
 
+def _cross_check_disconnections_compact(d, tg_hoan_tat_str: str, step_callback=None, is_ton: bool = False, pwr_is_zero: bool = False, rot_val: int = 0) -> str:
+    """
+    Chế độ rút gọn: Bỏ qua kiểm tra sub-tab 'Nguyên nhân rớt kết nối OLT' (tiết kiệm 25s).
+    Chỉ mở sub-tab 'Các lần kết nối' để đếm số lần ra mạng trong cửa sổ thời gian.
+    """
+    _click_mui_tab(d, "Các lần kết nối")
+    time.sleep(1.2)
+
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    if is_ton:
+        t_start = now - timedelta(hours=48)
+        t_end = now
+        window_desc = "Trong 48h qua"
+    else:
+        t0 = _parse_dt(tg_hoan_tat_str)
+        if t0:
+            t_start = t0
+            t_end = t0 + timedelta(hours=24)
+            window_desc = "Trong 24H sau HT"
+        else:
+            t_start = now - timedelta(hours=24)
+            t_end = now
+            window_desc = "Trong 24h qua"
+
+    _click_sub_tab(d, "Các lần kết nối")
+    hdr_conn = _find_header_indices(d)
+    ra_idx = hdr_conn["ra_mang"]
+    vao_idx = hdr_conn["vao_mang"]
+
+    rows_conn = _wait_for_table_data(d, max_timeout=10, initial_sleep=1.0, step_callback=step_callback, step_label=f"🔄 Đọc Các Lần Kết Nối [Rút gọn]")
+
+    if is_ton and pwr_is_zero:
+        latest_ra_dt = None
+        if rows_conn:
+            first_row = rows_conn[0]
+            ra_val = first_row[ra_idx] if (ra_idx != -1 and ra_idx < len(first_row)) else (first_row[4] if len(first_row) >= 5 else "")
+            if ra_val and ra_val not in ("--", "-", ""):
+                latest_ra_dt = _parse_dt(ra_val)
+
+        if latest_ra_dt:
+            delta = now - latest_ra_dt
+            total_seconds = max(0, int(delta.total_seconds()))
+            hours = total_seconds // 3600
+            mins = (total_seconds % 3600) // 60
+            days = hours // 24
+            rem_hours = hours % 24
+            dur_str = f"{days} ngày {rem_hours} giờ {mins} phút" if days > 0 else (f"{hours} giờ {mins} phút" if hours > 0 else f"{mins} phút")
+            return f"KH đã Ra Mạng {dur_str} (Lần Ra Mạng sau cùng: {latest_ra_dt.strftime('%d/%m/%Y %H:%M:%S')})"
+        else:
+            t_tao = _parse_dt(tg_hoan_tat_str)
+            if t_tao:
+                delta = now - t_tao
+                total_seconds = max(0, int(delta.total_seconds()))
+                hours = total_seconds // 3600
+                mins = (total_seconds % 3600) // 60
+                days = hours // 24
+                rem_hours = hours % 24
+                dur_str = f"{days} ngày {rem_hours} giờ {mins} phút" if days > 0 else (f"{hours} giờ {mins} phút" if hours > 0 else f"{mins} phút")
+                return f"Phiếu bảo trì đã tồn {dur_str} (Không có data Các lần kết nối)"
+            return "Không có data Các lần kết nối"
+
+    ra_mang_events = set()
+    for row_cells in rows_conn:
+        ra_mang_val = row_cells[ra_idx] if (ra_idx != -1 and ra_idx < len(row_cells)) else (row_cells[4] if len(row_cells) >= 5 else "")
+        if not ra_mang_val or ra_mang_val in ("--", "-", "") or "Vào mạng" in ra_mang_val or "vào mạng" in ra_mang_val:
+            continue
+        if vao_idx != -1 and vao_idx < len(row_cells) and row_cells[vao_idx] == ra_mang_val:
+            continue
+        ev_dt = _parse_dt(ra_mang_val)
+        if ev_dt and (t_start <= ev_dt <= t_end):
+            ra_mang_events.add(str(ev_dt))
+
+    ra_mang_count = len(ra_mang_events)
+    # Bỏ qua hoàn toàn OLT
+    if ra_mang_count > 2:
+        return f"Chưa đảm bảo ({window_desc} phát hiện {ra_mang_count} lần Ra Mạng)"
+    elif ra_mang_count == 2:
+        return f"Chưa đảm bảo ({window_desc} phát hiện 2 lần Ra Mạng)"
+    elif ra_mang_count == 1:
+        return f"Đảm bảo ({window_desc} chỉ ra Mạng 1 Lần)"
+    else:
+        return f"Đảm bảo ({window_desc} kết nối ổn định)"
+
+
+def _evaluate_power_direct(current_pwr_str: str = None) -> str:
+    """
+    Chế độ rút gọn: Xét công suất thu (suy hao) trực tiếp theo chuẩn kỹ thuật:
+    - Trong khoảng [-10.0dBm, -23.5dBm]: Đạt
+    - Ngoài khoảng này (hoặc 0.0dBm đứt cáp): Chưa đạt
+    """
+    import re
+    pwr_raw = str(current_pwr_str or "").strip()
+    if not pwr_raw:
+        return "Chưa đạt: Không có dữ liệu công suất thu"
+
+    m_p = re.search(r'[-+]?\d+\.?\d*', pwr_raw)
+    if not m_p:
+        return "Chưa đạt: Công suất thu không hợp lệ"
+
+    try:
+        val = float(m_p.group(0))
+        if abs(val) < 0.001 or val == 0.0 or val <= -1000.0:
+            return "Chưa đạt: Mất kết nối / Đứt cáp (Rx: 0.0dBm)"
+
+        val_p = -abs(val)
+        if -23.5 <= val_p <= -10.0:
+            return f"Đạt: Chuẩn công suất thu (Rx: {val_p:.2f}dBm trong ngưỡng -10 đến -23.5dBm)"
+        elif val_p > -10.0:
+            return f"Chưa đạt: Mất kết nối / Đứt cáp (Rx: {val_p:.2f}dBm trong khoảng 0.0 đến -10.0dBm)"
+        else:
+            return f"Chưa đạt: Suy hao cao (Rx: {val_p:.2f}dBm vượt ngưỡng -23.5dBm)"
+    except Exception as e:
+        return f"Chưa đạt: Lỗi tính toán suy hao ({e})"
+
+
 def _cross_check_tap_diem(d, step_callback=None, current_pwr_str: str = None) -> str:
     """
     Đối chiếu 2: Sub-tab 'Hợp đồng cùng tập điểm'.
@@ -1153,15 +1459,16 @@ def _cross_check_tap_diem(d, step_callback=None, current_pwr_str: str = None) ->
             if m_num:
                 try:
                     val = float(m_num.group(0))
-                    # 0.0 dBm hoặc -21474836.47 là Mất kết nối / Đứt cáp
-                    if abs(val) < 0.001 or val <= -1000.0:
+                    val_pwr = -abs(val) if (abs(val) >= 0.001 and val > -1000.0) else 0.0
+                    # 0.0 dBm hoặc từ 0.0 đến -10.0 dBm (hoặc <= -1000) là Mất kết nối / Đứt cáp
+                    if abs(val) < 0.001 or val <= -1000.0 or val_pwr > -10.0:
                         dut_cap_count += 1
                         if hd_code and not any(hd_code in x for x in dut_cap_hds):
-                            dut_cap_hds.append(f"{hd_code}: 0.0dBm")
+                            pwr_disp = "0.0dBm" if (abs(val) < 0.001 or val <= -1000.0) else f"{val_pwr:.1f}dBm"
+                            dut_cap_hds.append(f"{hd_code}: {pwr_disp}")
                     else:
-                        val_pwr = -abs(val)
                         # Chuẩn suy hao đạt: -10dBm đến -23.5dBm. Vượt là không đạt.
-                        if val_pwr < -23.5 or val_pwr > -10.0:
+                        if val_pwr < -23.5:
                             khong_dat_count += 1
                             if hd_code and not any(hd_code in x for x in khong_dat_hds):
                                 khong_dat_hds.append(f"{hd_code}: {val_pwr:.2f}dBm")
@@ -1177,7 +1484,7 @@ def _cross_check_tap_diem(d, step_callback=None, current_pwr_str: str = None) ->
     offline_pct = (offline_count / total_tap) * 100 if total_tap > 0 else 0
     offline_str = f" ({', '.join(offline_hds[:3])})" if offline_hds else ""
     khong_dat_str = f" ({', '.join(khong_dat_hds[:3])})" if khong_dat_hds else ""
-    dut_cap_str = f"; {dut_cap_count}/{total_tap} HĐ đứt cáp/0.0dBm ({', '.join(dut_cap_hds[:2])})" if dut_cap_hds else ""
+    dut_cap_str = f"; {dut_cap_count}/{total_tap} HĐ mất kết nối/đứt cáp ({', '.join(dut_cap_hds[:2])})" if dut_cap_hds else ""
     unknown_str = f"; {unknown_count}/{total_tap} HĐ Unknown ({', '.join(unknown_hds[:3])})" if unknown_hds else ""
 
     # 4. Tính công suất trung bình tập điểm và so sánh với HĐ hiện tại
@@ -1198,8 +1505,8 @@ def _cross_check_tap_diem(d, step_callback=None, current_pwr_str: str = None) ->
     if valid_online_pwrs:
         avg_tap_pwr = sum(valid_online_pwrs) / len(valid_online_pwrs)
         if cur_pwr is not None:
-            if abs(cur_pwr) < 0.001 or cur_pwr <= -1000.0:
-                eval_pwr_prefix = "Cảnh báo đứt cáp/lỗi cáp (0.0dBm) | "
+            if abs(cur_pwr) < 0.001 or cur_pwr <= -1000.0 or cur_pwr > -10.0:
+                eval_pwr_prefix = f"Cảnh báo đứt cáp/mất kết nối ({cur_pwr:.1f}dBm) | "
             elif cur_pwr >= avg_tap_pwr and -23.5 <= cur_pwr <= -10.0:
                 eval_pwr_prefix = f"Đạt (HĐ {cur_pwr:.1f}dBm / TB Tdiem {avg_tap_pwr:.1f}dBm) | "
             else:
@@ -1207,8 +1514,8 @@ def _cross_check_tap_diem(d, step_callback=None, current_pwr_str: str = None) ->
         else:
             eval_pwr_prefix = f"TB Tdiem: {avg_tap_pwr:.1f}dBm ({len(valid_online_pwrs)} HĐ) | "
     elif cur_pwr is not None:
-        if abs(cur_pwr) < 0.001 or cur_pwr <= -1000.0:
-            eval_pwr_prefix = "Cảnh báo đứt cáp/lỗi cáp (0.0dBm) | "
+        if abs(cur_pwr) < 0.001 or cur_pwr <= -1000.0 or cur_pwr > -10.0:
+            eval_pwr_prefix = f"Cảnh báo đứt cáp/mất kết nối ({cur_pwr:.1f}dBm) | "
         elif -23.5 <= cur_pwr <= -10.0:
             eval_pwr_prefix = f"Đạt chuẩn (HĐ {cur_pwr:.1f}dBm) | "
         else:
@@ -1232,11 +1539,12 @@ def _cross_check_tap_diem(d, step_callback=None, current_pwr_str: str = None) ->
 def _check_client_weak_wifi(d, canh_bao_text: str, step_callback=None) -> str:
     """
     Phân tích Client:
-    Nếu Cảnh báo có 'Sóng Wifi yếu' hoặc 'Thu phát kém':
+    Nếu chẩn đoán có 'Sóng Wifi yếu' hoặc 'Thu phát kém':
       - Mở tab 'Lịch sử thiết bị kết nối kém' trong management.mypt.vn
-      - Xem ngày gần nhất danh sách các thiết bị kết nối kém gồm:
-        + Tổng số lượng (hoặc số dòng)
-        + MAC và cường độ RSSI tương ứng
+      - Sử dụng Dynamic Smart Polling chờ bảng dữ liệu xuất hiện và hoàn tất tải
+      - Định vị chuẩn xác bảng có cột RSSI (tránh đọc nhầm bảng Thông số wifi hay các tab khác)
+      - Lấy ngày gần nhất (bảng đầu tiên)
+      - Trích xuất danh sách thiết bị gồm MAC và RSSI chuẩn xác, loại trừ trùng lặp và loại trừ các số giả mạo từ ngày tháng.
     """
     import re
 
@@ -1245,21 +1553,24 @@ def _check_client_weak_wifi(d, canh_bao_text: str, step_callback=None) -> str:
 
     cb_lower = str(canh_bao_text).lower()
     is_wifi_weak = any(kw in cb_lower for kw in [
-        "sóng wifi yếu", "thu phát kém", "sóng wifi", "thu phat kem", "kết nối kém"
+        "sóng wifi yếu", "thu phát kém", "sóng wifi", "thu phat kem", "kết nối kém",
+        "thiết bị kém", "di dời modem", "tư vấn lắp ap", "chất lượng wi-fi", "chat luong wi-fi"
     ])
 
     if not is_wifi_weak:
         return "—"
 
-    log.info("🔍 Phát hiện cảnh báo Sóng Wifi yếu / Thu phát kém. Kiểm tra tab 'Lịch sử thiết bị kết nối kém'...")
+    log.info("🔍 Phát hiện cảnh báo Sóng Wifi yếu / Thu phát kém. Đang kiểm tra tab 'Lịch sử thiết bị kết nối kém'...")
     if step_callback:
-        step_callback("📱 Đang kiểm tra Lịch sử thiết bị kết nối kém...", 5)
+        step_callback("📱 Đang mở & tải dữ liệu Lịch sử thiết bị kết nối kém...", 5)
 
+    # 1. Chuyển sang tab "Lịch sử thiết bị kết nối kém"
     tab_clicked = _click_mui_tab(d, "Lịch sử thiết bị kết nối kém")
     if not tab_clicked:
         for xpath in [
+            '//*[(@role="tab" or contains(@class,"MuiTab-root") or contains(@class,"Tab")) and contains(normalize-space(.),"kết nối kém")]',
+            '//button[contains(normalize-space(.),"thiết bị kết nối kém") or contains(normalize-space(.),"Lịch sử thiết bị")]',
             '//*[contains(text(),"Lịch sử thiết bị kết nối kém") or contains(.,"Lịch sử thiết bị kết nối kém")]',
-            '//button[contains(.,"thiết bị kết nối kém")]',
         ]:
             try:
                 for el in d.find_elements(By.XPATH, xpath):
@@ -1275,106 +1586,201 @@ def _check_client_weak_wifi(d, canh_bao_text: str, step_callback=None) -> str:
     if not tab_clicked:
         return "Không mở được tab Lịch sử thiết bị kết nối kém"
 
-    time.sleep(2.5)
+    # 2. Dynamic Smart Polling chờ bảng RSSI xuất hiện và có dữ liệu (tối đa 15s)
+    start_t = time.time()
+    max_wait = 15
+    target_table = None
+    target_date = ""
 
-    try:
-        # 1. Tìm ngày gần nhất (header ngày dạng 'Ngày DD/MM/YYYY')
-        date_str = ""
-        date_match_els = d.find_elements(By.XPATH,
-            '//*[contains(text(),"Ngày ") and (contains(text(),"/202") or contains(text(),"/203"))]'
-        )
-        for el in date_match_els:
-            if el.is_displayed():
-                t = el.text.strip()
-                m = re.search(r'Ngày\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}/\d{1,2})', t)
-                if m:
-                    date_str = m.group(1)
-                    break
-
-        # Nếu không thấy dạng text trực tiếp, quét trong body lines
-        if not date_str:
-            lines = _get_body_lines(d)
-            for ln in lines:
-                m = re.search(r'Ngày\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}/\d{1,2})', ln)
-                if m:
-                    date_str = m.group(1)
-                    break
-
-        # 2. Tìm bảng đầu tiên trong tab (ứng với ngày gần nhất)
-        tables = d.find_elements(By.XPATH,
-            '//div[contains(@class,"MuiTabPanel") and not(@hidden)]//table'
-            ' | //div[@role="tabpanel" and not(@hidden)]//table'
-            ' | //table'
-        )
-
-        rows = []
-        target_table = None
-        for tbl in tables:
-            if tbl.is_displayed():
-                r_list = tbl.find_elements(By.XPATH, './/tbody/tr')
-                if r_list:
-                    target_table = tbl
-                    rows = r_list
-                    break
-
-        if not rows:
-            return "Không ghi nhận thiết bị kém"
-
-        # 3. Kiểm tra phân trang để lấy tổng số lượng (ví dụ: '1-5 of 11' -> 11)
-        total_count = len(rows)
+    while time.time() - start_t < max_wait:
+        # Quét tất cả các bảng hiển thị có chứa từ khóa 'rssi' (đặc trưng 100% của bảng Lịch sử TB kết nối kém)
         try:
-            if target_table:
-                pag_els = target_table.find_elements(By.XPATH, './following::*[contains(text(),"of ") or contains(.,"of ")][1]')
-                for p in pag_els:
-                    m_of = re.search(r'of\s+(\d+)', p.text)
-                    if m_of:
-                        total_count = int(m_of.group(1))
+            visible_tables = d.find_elements(By.XPATH, '//table')
+            for tbl in visible_tables:
+                if not tbl.is_displayed():
+                    continue
+                tbl_txt = (tbl.text or tbl.get_attribute("textContent") or "").lower()
+                # Phải có 'rssi' và một trong các từ khóa cột của bảng thiết bị kém
+                if "rssi" in tbl_txt and any(k in tbl_txt for k in ("mac", "thiết bị", "ip")):
+                    r_list = tbl.find_elements(By.XPATH, './/tbody/tr')
+                    if r_list:
+                        target_table = tbl
                         break
         except Exception:
             pass
 
-        # 4. Trích xuất danh sách MAC và RSSI từ các dòng
+        if target_table:
+            break
+
+        # Kiểm tra xem có thông báo "Không có dữ liệu" hay không
+        try:
+            body_txt = (d.find_element(By.TAG_NAME, "body").text or "").lower()
+            if "không có dữ liệu" in body_txt or "no data" in body_txt:
+                time.sleep(1.5)
+                break
+        except Exception:
+            pass
+
+        time.sleep(1.0)
+
+    if not target_table:
+        log.info("  Không tìm thấy bảng RSSI thiết bị kém hoặc không có dữ liệu sau thời gian chờ.")
+        return "Không ghi nhận thiết bị kém"
+
+    try:
+        # 3. Xác định ngày gần nhất gắn liền với bảng này
+        # Header ngày thường nằm ngay phía trên bảng (VD: "Ngày 27/09/2026")
+        try:
+            precedings = target_table.find_elements(By.XPATH, './preceding::*[contains(normalize-space(.),"Ngày")][position() <= 6]')
+            for p in reversed(precedings):
+                p_text = (p.text or p.get_attribute("textContent") or "").strip()
+                m_date = re.search(r'Ngày\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}/\d{1,2})', p_text)
+                if m_date:
+                    target_date = m_date.group(1)
+                    break
+        except Exception:
+            pass
+
+        if not target_date:
+            # Quét text của container chứa bảng
+            try:
+                container = target_table.find_element(By.XPATH, './ancestor::div[contains(@class,"MuiPaper-root") or contains(@class,"card") or @role="tabpanel"][1]')
+                c_text = container.text or ""
+                m_date = re.search(r'Ngày\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}/\d{1,2})', c_text)
+                if m_date:
+                    target_date = m_date.group(1)
+            except Exception:
+                pass
+
+        # 4. Xác định vị trí cột theo Header của bảng
+        th_elements = target_table.find_elements(By.XPATH, './/thead//th | .//tr[1]/th | .//th')
+        name_col_idx = 0
+        ip_col_idx = 1
+        mac_col_idx = 2
+        rssi_col_idx = 3
+
+        for c_idx, th in enumerate(th_elements):
+            th_clean = (th.text or th.get_attribute("textContent") or "").strip().lower()
+            if "mac" in th_clean:
+                mac_col_idx = c_idx
+            elif "rssi" in th_clean:
+                rssi_col_idx = c_idx
+            elif "tên" in th_clean:
+                name_col_idx = c_idx
+            elif "ip" in th_clean:
+                ip_col_idx = c_idx
+
+        # 5. Đọc các dòng (tbody/tr)
+        rows = target_table.find_elements(By.XPATH, './/tbody/tr')
+        if not rows:
+            return "Không ghi nhận thiết bị kém"
+
+        # Đọc pagination "1-4 of 4" nếu có để lấy đúng tổng số lượng thiết bị
+        total_count = len(rows)
+        try:
+            pag_els = target_table.find_elements(By.XPATH, './following::*[contains(normalize-space(.),"of ")][1]')
+            for p in pag_els:
+                m_of = re.search(r'of\s+(\d+)', p.text)
+                if m_of:
+                    total_count = max(total_count, int(m_of.group(1)))
+                    break
+        except Exception:
+            pass
+
         mac_rssi_items = []
+        seen_keys = set()
+
         for r in rows:
             try:
-                r_text = (r.text or r.get_attribute("textContent") or "").strip()
                 cells = r.find_elements(By.XPATH, './td | ./div[@role="cell"]')
-                cell_texts = [c.text.strip() for c in cells if c.text]
+                cell_vals = [(c.text or c.get_attribute("textContent") or "").strip() for c in cells]
+                if len(cell_vals) < 2:
+                    continue
 
-                # Tìm MAC address (dạng 12 hex chars hoặc có : hay -)
+                # 5.1 Lấy MAC chuẩn xác (ưu tiên ô MAC, nếu không có lấy từ ô Tên thiết bị hoặc dòng)
                 mac = ""
-                m_mac = re.search(r'\b([0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}[:\-][0-9a-fA-F]{2}|[0-9a-fA-F]{12})\b', r_text)
-                if m_mac:
-                    mac = m_mac.group(1).lower()
-                elif len(cell_texts) >= 3:
-                    mac = cell_texts[2].strip().lower()
+                # Kiểm tra ô cột MAC trước
+                if len(cell_vals) > mac_col_idx and cell_vals[mac_col_idx]:
+                    cand_mac = cell_vals[mac_col_idx].strip()
+                    m_mac = re.search(r'\b([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}|[0-9a-fA-F]{12})\b', cand_mac)
+                    if m_mac:
+                        mac = m_mac.group(1).lower()
 
-                # Tìm RSSI (số âm, ví dụ -86, -88, -99)
+                # Nếu chưa thấy, kiểm tra ô Tên thiết bị (nhiều thiết bị tên là chính địa chỉ MAC có dấu hai chấm)
+                if not mac and len(cell_vals) > name_col_idx and cell_vals[name_col_idx]:
+                    cand_name = cell_vals[name_col_idx].strip()
+                    m_mac = re.search(r'\b([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}|[0-9a-fA-F]{12})\b', cand_name)
+                    if m_mac:
+                        mac = m_mac.group(1).lower()
+
+                # Nếu vẫn chưa thấy, quét các ô khác trừ ô RSSI và IP
+                if not mac:
+                    for i_c, cv in enumerate(cell_vals):
+                        if i_c not in (rssi_col_idx, ip_col_idx):
+                            m_mac = re.search(r'\b([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}|[0-9a-fA-F]{12})\b', cv)
+                            if m_mac:
+                                mac = m_mac.group(1).lower()
+                                break
+
+                # Fallback định danh nếu không có chuỗi dạng MAC: lấy Tên thiết bị
+                dev_id = mac if mac else (cell_vals[name_col_idx] if len(cell_vals) > name_col_idx else "")
+                if not dev_id:
+                    continue
+
+                # 5.2 Lấy RSSI chuẩn xác (Lọc nghiêm ngặt loại trừ ngày tháng như -09- hay /09/)
                 rssi = ""
-                m_rssi = re.search(r'(-\d{2,3}(?:\.\d+)?)\s*(?:dbm)?', r_text, re.IGNORECASE)
-                if m_rssi:
-                    rssi = m_rssi.group(1)
-                elif len(cell_texts) >= 4:
-                    rssi = cell_texts[3].strip()
+                # Ưu tiên 1: Đọc trực tiếp từ ô RSSI AVG(dBm)
+                if len(cell_vals) > rssi_col_idx and cell_vals[rssi_col_idx]:
+                    raw_rssi = cell_vals[rssi_col_idx].strip()
+                    m_r = re.search(r'(-\d{2,3}(?:\.\d+)?)\s*(?:dBm|dbm)?(?!\d|[-/])', raw_rssi)
+                    if m_r:
+                        try:
+                            val_f = float(m_r.group(1))
+                            if -105.0 <= val_f <= -30.0:
+                                rssi = f"{int(round(val_f))}"
+                        except Exception:
+                            pass
 
-                if mac:
-                    if rssi:
-                        mac_rssi_items.append(f"{mac} ({rssi}dBm)")
-                    else:
-                        mac_rssi_items.append(mac)
+                # Ưu tiên 2: Ô cuối cùng của dòng nếu ô RSSI không ra kết quả hợp lệ
+                if not rssi and len(cell_vals) >= 4:
+                    raw_last = cell_vals[-1].strip()
+                    m_r = re.search(r'(-\d{2,3}(?:\.\d+)?)\s*(?:dBm|dbm)?(?!\d|[-/])', raw_last)
+                    if m_r:
+                        try:
+                            val_f = float(m_r.group(1))
+                            if -105.0 <= val_f <= -30.0:
+                                rssi = f"{int(round(val_f))}"
+                        except Exception:
+                            pass
+
+                # 5.3 Chống trùng lặp (Deduplication): Loại bỏ bản ghi lặp
+                key = dev_id.lower()
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+
+                if rssi:
+                    mac_rssi_items.append(f"{dev_id} ({rssi}dBm)")
+                else:
+                    mac_rssi_items.append(dev_id)
+
             except Exception:
                 pass
 
         if not mac_rssi_items:
             return "Không ghi nhận thiết bị kém"
 
-        date_prefix = f"Ngày {date_str}: " if date_str else ""
-        count_str = f"{total_count} thiết bị kém"
+        # Cập nhật lại total_count chuẩn xác theo số thiết bị thực tế
+        final_count = max(total_count, len(mac_rssi_items))
+        date_prefix = f"Ngày {target_date}: " if target_date else ""
+        count_str = f"{final_count} thiết bị kém"
         detail_str = ", ".join(mac_rssi_items[:8])
-        if total_count > len(mac_rssi_items[:8]):
-            detail_str += f", ... (+{total_count - len(mac_rssi_items[:8])} TB)"
+        if final_count > len(mac_rssi_items[:8]):
+            detail_str += f", ... (+{final_count - len(mac_rssi_items[:8])} TB)"
 
-        return f"{date_prefix}{count_str} [{detail_str}]"
+        res_str = f"{date_prefix}{count_str} [{detail_str}]"
+        log.info(f"  Kết quả phân tích client: {res_str}")
+        return res_str
 
     except Exception as e:
         log.warning(f"Lỗi khi quét lịch sử thiết bị kết nối kém: {e}")

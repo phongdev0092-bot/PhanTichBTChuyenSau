@@ -1,0 +1,32 @@
+{
+  "branches": {
+    "Sài Gòn 1": {
+      "Đội Trưởng Thử Nghiệm": [
+        "PNC01.ANHNH9",
+        "PNC01.ANHV",
+        "PNC01.ANNP1"
+      ],
+      "Nguyễn Hồng Phong": [
+        "PNC01.HIEPPT1",
+        "PNC01.TANHLV1",
+        "PNC01.BIENTHH",
+        "PNC01.DUCNLH",
+        "PNC01.QUICV",
+        "PNC01.HUNGNM",
+        "PNC01.TRIEUCT",
+        "PNC01.PHUND3",
+        "PNC01.CUAKV",
+        "PNC01.DONGNH4",
+        "PNC01.NHOVN",
+        "PNC01.DINHCN"
+      ]
+    }
+  },
+  "default": {
+    "Đội Trưởng Thử Nghiệm": [
+      "PNC01.ANHNH9",
+      "PNC01.ANHV",
+      "PNC01.ANNP1"
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "b6ee4f3c",
+    "time": "09:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "",
+    "last_status": ""
+  },
+  {
+    "id": "44185588",
+    "time": "11:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "2026-10-05 11:04",
+    "last_status": "OK: Hoàn tất: import → phân tích 2 HĐ → note 1 HĐ"
+  },
+  {
+    "id": "adcf12f4",
+    "time": "13:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "",
+    "last_status": ""
+  },
+  {
+    "id": "d12dad51",
+    "time": "15:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "",
+    "last_status": ""
+  },
+  {
+    "id": "ebacab20",
+    "time": "17:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "",
+    "last_status": ""
+  },
+  {
+    "id": "7f4d9540",
+    "time": "10:25",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "2026-10-05 10:38",
+    "last_status": "OK: Hoàn tất: import → phân tích 11 HĐ → note 10 HĐ"
+  }
+]

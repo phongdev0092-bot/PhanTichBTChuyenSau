@@ -11,3 +11,4 @@ Pillow>=10.0.0
 pyzbar>=0.1.9
 
 
+zstandard>=0.22.0

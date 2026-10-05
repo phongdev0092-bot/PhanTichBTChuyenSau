@@ -16,18 +16,18 @@ from modules.supabase_db import (
 
 log = logging.getLogger('sheet_reader')
 
-def get_employees(force=False, table=None):
-    log.info(f"Truy vấn danh sách nhân viên từ Supabase Database (table={table or 'all'})...")
-    return sb_get_employees(force=force, table=table)
+def get_employees(force=False, table=None, branch=None):
+    log.info(f"Truy vấn danh sách nhân viên từ Supabase Database (table={table or 'all'}, branch={branch})...")
+    return sb_get_employees(force=force, table=table, branch=branch)
 
-def get_contracts(selected_employees, start_date=None, end_date=None, lookback_days=2, table='bao_tri'):
-    log.info(f"Truy vấn danh sách hợp đồng cho {len(selected_employees)} nhân viên từ bảng [{table}] trên Supabase...")
+def get_contracts(selected_employees, start_date=None, end_date=None, lookback_days=2, table='bao_tri', branch=None):
+    log.info(f"Truy vấn danh sách hợp đồng cho {len(selected_employees)} nhân viên từ bảng [{table}] (branch={branch}) trên Supabase...")
     return sb_get_contracts(selected_employees, start_date=start_date, end_date=end_date,
-                            lookback_days=lookback_days, table=table)
+                            lookback_days=lookback_days, table=table, branch=branch)
 
-def get_team_captains(force=False):
-    log.info("Truy vấn danh sách Đội Trưởng từ Supabase Database...")
-    return sb_get_team_captains(force=force)
+def get_team_captains(force=False, branch=None):
+    log.info(f"Truy vấn danh sách Đội Trưởng từ Supabase Database (branch={branch})...")
+    return sb_get_team_captains(force=force, branch=branch)
 
 def get_cll30_analytics(start_date=None, end_date=None, top_n=10, selected_captain=None):
     log.info("Tính toán phân tích chỉ số CLL30N từ Supabase Database...")

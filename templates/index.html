@@ -32,6 +32,9 @@
       <div id="tunnelBadge" class="badge badge-idle hidden" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0284c7;cursor:pointer;" onclick="copyTunnelUrl()" title="Bấm để sao chép đường link truy cập từ xa">
         <i class="fa-solid fa-globe"></i> <span id="tunnelText">Link Online...</span>
       </div>
+      <div id="headerBranchBadge" class="badge" style="background:#f0fdf4;border:1px solid #86efac;color:#15803d;cursor:pointer;font-weight:700;" onclick="switchTab('import-tab')" title="Bấm để xem và quản lý Chi Nhánh">
+        <i class="fa-solid fa-building"></i> <span id="headerBranchText">Chi Nhánh</span>
+      </div>
       <div id="loginBadge" class="badge badge-idle">
         <span class="dot"></span><span id="loginText">Chưa đăng nhập</span>
       </div>
@@ -53,7 +56,7 @@
         <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Chạy
       </button>
       <button class="nav-tab" id="tabBtn-analytics" onclick="switchTab('analytics-tab')">
-        <i class="fa-solid fa-chart-pie"></i> Thống Kê Cảnh Báo
+        <i class="fa-solid fa-chart-pie"></i> Thống Kê Sau Phục Vụ
       </button>
       <button class="nav-tab" id="tabBtn-import" onclick="switchTab('import-tab')">
         <i class="fa-solid fa-database"></i> Import / Data (Supabase)
@@ -62,6 +65,14 @@
         <i class="fa-solid fa-robot"></i> Auto Note Tồn BT
         <span id="autonoteRunningDot" class="dot" style="display:none;background:#22c55e;margin-left:4px;"></span>
       </button>
+      <button class="nav-tab" id="tabBtn-flow" onclick="switchTab('flow-tab')">
+        <i class="fa-solid fa-diagram-project"></i> Toàn trình tự động
+        <span id="flowRunningDot" class="dot" style="display:none;background:#22c55e;margin-left:4px;"></span>
+      </button>
+      <button class="nav-tab" id="tabBtn-behavior" onclick="switchTab('behavior-tab')">
+        <i class="fa-solid fa-crosshairs"></i> 360 Quality
+      </button>
+
     </div>
 
 
@@ -136,14 +147,36 @@
             </div>
           </div>
 
+          <!-- BRANCH FILTER SECTION -->
+          <div class="branch-filter-section" style="margin-top:14px; margin-bottom: 14px; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); padding: 12px 16px; border-radius: 8px; border: 1.5px solid #a7f3d0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label for="filterBranchSelect" style="font-size: 0.88rem; font-weight: 700; color: #065f46; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-building" style="color: #059669;"></i> Bộ Lọc Chi Nhánh:
+              </label>
+              <span id="tab1BranchBadge" class="chip chip-success" style="font-size:0.75rem; padding: 2px 10px; font-weight: 700;">Đang chọn</span>
+            </div>
+            <select id="filterBranchSelect" class="date-input" style="width: 100%; font-weight: 600; height: 38px; border-radius: 6px; background:#fff; border: 1.5px solid #10b981;" onchange="onFilterBranchChange(this.value)">
+              <option value="">-- Tất cả Chi Nhánh --</option>
+            </select>
+          </div>
+
           <!-- CAPTAIN FILTER SECTION -->
           <div class="captain-filter-section" style="margin-top:14px; margin-bottom: 14px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border);">
-            <label for="captainSelect" style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-              <i class="fa-solid fa-user-tie" style="color: var(--primary);"></i> Bộ Lọc Đội Trưởng:
-            </label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label for="captainSelect" style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin: 0;">
+                <i class="fa-solid fa-user-tie" style="color: var(--primary);"></i> Bộ Lọc Đội Trưởng:
+              </label>
+              <button type="button" class="btn btn-secondary" onclick="openCaptainMappingModal()" style="font-size:0.75rem; padding: 3px 10px; height: 26px; border-radius: 6px; display: inline-flex; align-items:center; gap: 5px; background: #fff; border: 1px solid #cbd5e1; color: var(--primary); font-weight: 700; cursor: pointer; transition: all 0.2s;" title="Cấu hình danh sách Đội Trưởng và gán Nhân Viên">
+                <i class="fa-solid fa-users-gear"></i> MAP Đội Trưởng
+              </button>
+            </div>
             <select id="captainSelect" class="date-input" style="width: 100%; font-weight: 500; height: 38px; border-radius: 6px; background:#fff;" onchange="onCaptainChange(this.value)">
               <option value="">-- Tất cả Đội Trưởng (Hoặc chọn tùy chỉnh nhân viên) --</option>
             </select>
+            <div id="capHintBar" style="margin-top: 6px; font-size: 0.76rem; color: #64748b; display: flex; align-items: center; justify-content: space-between;">
+              <span id="capCountText">Chưa có MAP Đội Trưởng</span>
+              <a href="javascript:void(0)" onclick="openCaptainMappingModal()" style="color: var(--primary); text-decoration: underline; font-weight: 600;">Cấu hình / Nạp Excel ngay</a>
+            </div>
           </div>
 
 
@@ -280,7 +313,7 @@
                 <th colspan="4" class="group-th group-base">THÔNG TIN CƠ BẢN</th>
                 <th colspan="3" class="group-th group-diag"><i class="fa-solid fa-stethoscope"></i> KẾT QUẢ CHẨN ĐOÁN</th>
                 <th colspan="2" class="group-th group-sys"><i class="fa-solid fa-server"></i> THÔNG SỐ HỆ THỐNG</th>
-                <th colspan="3" class="group-th group-modem"><i class="fa-solid fa-wifi"></i> THÔNG SỐ MODEM</th>
+                <th colspan="4" class="group-th group-modem"><i class="fa-solid fa-wifi"></i> THÔNG SỐ MODEM & MÔ HÌNH MẠNG</th>
                 <th colspan="3" class="group-th group-check"><i class="fa-solid fa-magnifying-glass-chart"></i> ĐỐI CHIẾU CHUYÊN SÂU</th>
               </tr>
               <tr class="header-col-row">
@@ -294,8 +327,9 @@
                 <th class="col-pwr"><i class="fa-solid fa-signal th-icon icon-teal"></i> Công suất thu</th>
                 <th class="col-drop"><i class="fa-solid fa-plug-circle-xmark th-icon icon-teal"></i> Số lần rớt KN</th>
                 <th class="col-modem-type"><i class="fa-solid fa-microchip th-icon icon-purple"></i> Loại modem</th>
+                <th class="col-mo-hinh" onclick="sortResultTable('mo_hinh_mang')" style="cursor:pointer;" title="Bấm để sắp xếp theo Mô hình mạng"><i class="fa-solid fa-network-wired th-icon icon-teal"></i> Mô hình mạng <i class="fa-solid fa-sort" id="sort-icon-mo_hinh_mang" style="font-size:0.72rem;opacity:0.4;"></i></th>
                 <th class="col-modem-fw"><i class="fa-solid fa-code-branch th-icon icon-purple"></i> Phiên bản PM</th>
-                <th class="col-modem-dns"><i class="fa-solid fa-network-wired th-icon icon-purple"></i> DNS WAN</th>
+                <th class="col-modem-dns"><i class="fa-solid fa-globe th-icon icon-purple"></i> DNS WAN</th>
                 <th class="col-check-rot"><i class="fa-solid fa-plug-circle-exclamation th-icon icon-yellow"></i> Đối chiếu Rớt KN</th>
                 <th class="col-check-tap"><i class="fa-solid fa-network-wired th-icon icon-purple"></i> Đối chiếu Tập điểm</th>
                 <th class="col-check-client"><i class="fa-solid fa-mobile-screen-button th-icon icon-blue"></i> Phân Tích Client</th>
@@ -376,89 +410,148 @@
       </div>
     </div>
 
-    <!-- TAB 3: THONG KE CANH BAO -->
+    <!-- TAB 3: THONG KE XU LY SAU PHUC VU -->
     <div id="analytics-tab" class="tab-panel">
       <div class="analytics-section">
 
-        <!-- KPI OVERVIEW -->
-        <div class="analytics-cards-grid">
-          <div class="analytics-card">
-            <div class="analytics-card-icon" style="background:#e0f2fe;color:var(--blue)">
-              <i class="fa-solid fa-layer-group"></i>
-            </div>
-            <div>
-              <div id="anaTotalRuns" class="analytics-card-val">0</div>
-              <div class="analytics-card-lbl">Tổng phiên phân tích</div>
+        <!-- TITLE & ACTIONS -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:6px;">
+          <div>
+            <h2 style="font-size:1.35rem;font-weight:800;color:var(--text-primary);margin:0;display:flex;align-items:center;gap:10px;">
+              <i class="fa-solid fa-chart-line" style="color:var(--primary);"></i>
+              Thống Kê Xử Lý Sau Phục Vụ
+            </h2>
+            <div style="font-size:0.83rem;color:var(--text-secondary);margin-top:4px;">
+              Đánh giá chất lượng phục vụ của nhân viên qua 4 tiêu chuẩn kỹ thuật: <strong>Sóng Wifi yếu</strong>, <strong>Suy hao &lt; -23.5dBm</strong>, <strong>Rớt kết nối liên tục</strong>, và <strong>Thiết bị lâu ngày chưa tắt mở</strong>.
             </div>
           </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button class="btn btn-secondary" onclick="loadAnalytics()" style="padding:7px 14px;font-size:0.82rem;">
+              <i class="fa-solid fa-rotate"></i> Làm mới dữ liệu
+            </button>
+            <button class="btn btn-primary" onclick="exportAssessmentExcel()" style="padding:7px 14px;font-size:0.82rem;background:#10b981;border-color:#10b981;">
+              <i class="fa-solid fa-file-excel"></i> Xuất Báo Cáo Excel
+            </button>
+          </div>
+        </div>
 
+        <!-- 4 KPI OVERVIEW CARDS -->
+        <div class="analytics-cards-grid">
           <div class="analytics-card">
-            <div class="analytics-card-icon" style="background:#fff7ed;color:var(--accent)">
-              <i class="fa-solid fa-file-contract"></i>
+            <div class="analytics-card-icon" style="background:#e0f2fe;color:#0284c7">
+              <i class="fa-solid fa-file-signature"></i>
             </div>
             <div>
               <div id="anaTotalContracts" class="analytics-card-val">0</div>
-              <div class="analytics-card-lbl">Tổng lượt HĐ đã kiểm tra</div>
+              <div class="analytics-card-lbl">Tổng HĐ Quét Sau Phục Vụ</div>
             </div>
           </div>
 
           <div class="analytics-card">
-            <div class="analytics-card-icon" style="background:#fef2f2;color:var(--error)">
+            <div class="analytics-card-icon" style="background:#f5f3ff;color:#7c3aed">
+              <i class="fa-solid fa-user-group"></i>
+            </div>
+            <div>
+              <div id="anaTotalEmployees" class="analytics-card-val">0</div>
+              <div class="analytics-card-lbl">Nhân Sự Được Đánh Giá</div>
+            </div>
+          </div>
+
+          <div class="analytics-card">
+            <div class="analytics-card-icon" style="background:#fef2f2;color:#dc2626">
               <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
             <div>
-              <div id="anaHighRiskCount" class="analytics-card-val">0</div>
-              <div class="analytics-card-lbl">Lượt Cần xử lý / Cảnh báo</div>
+              <div id="anaTotalViolations" class="analytics-card-val">0</div>
+              <div class="analytics-card-lbl">Lượt Cảnh Báo Vi Phạm (4 Tiêu Chí)</div>
             </div>
           </div>
 
           <div class="analytics-card">
-            <div class="analytics-card-icon" style="background:#f5f3ff;color:var(--purple)">
-              <i class="fa-solid fa-user-gear"></i>
+            <div class="analytics-card-icon" style="background:#ecfdf5;color:#059669">
+              <i class="fa-solid fa-circle-check"></i>
             </div>
             <div>
-              <div id="anaTopEmp" class="analytics-card-val" style="font-size:1.1rem;word-break:break-all;">—</div>
-              <div class="analytics-card-lbl">Nhân viên bị cảnh báo nhiều nhất</div>
+              <div id="anaOverallPassRate" class="analytics-card-val">100%</div>
+              <div class="analytics-card-lbl">Tỷ Lệ HĐ Đạt Chuẩn Bình Quân</div>
             </div>
           </div>
         </div>
 
-        <!-- ERROR GROUP DISTRIBUTION -->
-        <div class="card">
-          <div class="card-header">
-            <i class="fa-solid fa-chart-bar"></i>
-            <h2>Phân Nhóm Lỗi &amp; Cảnh Báo Hệ Thống</h2>
+        <!-- 4 TIÊU CHÍ THỐNG KÊ CHI TIẾT -->
+        <div class="card" style="margin-top:0;">
+          <div class="card-header" style="padding:12px 18px;">
+            <i class="fa-solid fa-layer-group" style="color:var(--primary)"></i>
+            <h3 style="font-size:0.95rem;font-weight:700;margin:0;">Thống Kê 4 Tiêu Chí Sau Phục Vụ</h3>
+            <span class="chip" style="font-size:0.75rem;padding:2px 8px;">Tỷ lệ xuất hiện trên tổng HĐ</span>
           </div>
-          <div class="card-body">
-            <div id="errorGroupGrid" class="error-group-grid">
+          <div class="card-body" style="padding:14px 18px;">
+            <div class="error-group-grid" id="criteriaCardsGrid">
               <!-- Rendered via JS -->
             </div>
           </div>
         </div>
 
-        <!-- REPEAT EMPLOYEES LEADERBOARD -->
-        <div class="card">
-          <div class="card-header">
-            <i class="fa-solid fa-users-viewfinder"></i>
-            <h2>Bảng Thống Kê Nhân Viên Lặp Lại Lỗi Qua Các Lần Phân Tích</h2>
+        <!-- BẢNG THỐNG KÊ & ĐÁNH GIÁ NHÂN SỰ -->
+        <div class="card" style="margin-top:0;">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 18px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <i class="fa-solid fa-user-check" style="color:var(--primary)"></i>
+              <h3 style="font-size:1rem;font-weight:800;margin:0;">Bảng Đánh Giá Nhân Sự Sau Phục Vụ</h3>
+              <span id="anaFilterCountBadge" class="chip chip-success" style="font-size:0.75rem;">0 nhân viên</span>
+            </div>
+
+            <!-- BỘ LỌC CHI NHÁNH & TÌM KIẾM NHÂN VIÊN -->
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <label for="anaBranchFilterSelect" style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);white-space:nowrap;">
+                  <i class="fa-solid fa-building"></i> Chi Nhánh:
+                </label>
+                <select id="anaBranchFilterSelect" class="date-input" style="height:32px;font-size:0.8rem;padding:2px 8px;min-width:160px;" onchange="onAnaBranchFilterChange(this.value)">
+                  <option value="">-- Tất cả Chi Nhánh --</option>
+                </select>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:6px;">
+                <label for="anaRatingFilterSelect" style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);white-space:nowrap;">
+                  <i class="fa-solid fa-filter"></i> Xếp loại:
+                </label>
+                <select id="anaRatingFilterSelect" class="date-input" style="height:32px;font-size:0.8rem;padding:2px 8px;" onchange="filterAssessmentTable()">
+                  <option value="">Tất cả mức độ</option>
+                  <option value="canh_bao">🚨 Cảnh báo cao</option>
+                  <option value="luu_y">⚠️ Cần lưu ý</option>
+                  <option value="dat">👍 Đạt yêu cầu</option>
+                  <option value="tot">✅ Xuất sắc</option>
+                </select>
+              </div>
+
+              <div style="position:relative;">
+                <input type="text" id="anaSearchNvInput" placeholder="🔍 Tìm tên nhân viên..." class="date-input" style="height:32px;font-size:0.8rem;padding-left:26px;width:170px;" oninput="filterAssessmentTable()">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:8px;top:9px;font-size:0.75rem;color:var(--text-muted);"></i>
+              </div>
+            </div>
           </div>
-          <div class="card-body">
-            <div class="table-scroll">
-              <table class="leaderboard-table">
+
+          <div class="card-body" style="padding:0;">
+            <div class="table-scroll" style="max-height:650px;overflow-y:auto;">
+              <table class="assessment-table" id="assessmentTable">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Tên Nhân Viên</th>
-                    <th>Tổng HĐ Đã Quét</th>
-                    <th>Cần Xử Lý</th>
-                    <th>Cảnh Báo</th>
-                    <th>Suy Hao (&lt; -25dBm)</th>
-                    <th>Rớt Mạng</th>
-                    <th>Đánh Giá Mức Độ</th>
+                    <th style="width:40px;text-align:center;">#</th>
+                    <th style="width:120px;cursor:pointer;" onclick="sortAssessmentTable('branch')">Chi Nhánh <i class="fa-solid fa-sort"></i></th>
+                    <th style="width:150px;cursor:pointer;" onclick="sortAssessmentTable('nhan_vien')">Nhân Viên <i class="fa-solid fa-sort"></i></th>
+                    <th style="width:95px;text-align:center;cursor:pointer;" onclick="sortAssessmentTable('total_contracts')">Tổng HĐ Quét <i class="fa-solid fa-sort"></i></th>
+                    <th style="width:120px;text-align:center;cursor:pointer;color:#7c3aed;" onclick="sortAssessmentTable('c1_wifi')">Sóng Wifi Yếu <i class="fa-solid fa-sort"></i></th>
+                    <th style="width:125px;text-align:center;cursor:pointer;color:#dc2626;" onclick="sortAssessmentTable('c2_suy_hao')">Suy Hao &lt; -23.5dBm <i class="fa-solid fa-sort"></i></th>
+                    <th style="width:120px;text-align:center;cursor:pointer;color:#d97706;" onclick="sortAssessmentTable('c3_rot')">Rớt Kết Nối <i class="fa-solid fa-sort"></i></th>
+                    <th style="width:120px;text-align:center;cursor:pointer;color:#0284c7;" onclick="sortAssessmentTable('c4_uptime')">Chưa Tắt Mở <i class="fa-solid fa-sort"></i></th>
+                    <th style="width:105px;text-align:center;cursor:pointer;" onclick="sortAssessmentTable('total_violations')">Tổng Cảnh Báo <i class="fa-solid fa-sort"></i></th>
+                    <th style="width:110px;text-align:center;cursor:pointer;" onclick="sortAssessmentTable('violation_rate')">Tỷ Lệ Vi Phạm <i class="fa-solid fa-sort"></i></th>
+                    <th style="min-width:320px;">Tổng Kết Đánh Giá Nhân Sự</th>
                   </tr>
                 </thead>
-                <tbody id="leaderboardBody">
-                  <tr><td colspan="8" class="td-muted" style="text-align:center;">Đang tải dữ liệu...</td></tr>
+                <tbody id="assessmentBody">
+                  <tr><td colspan="11" class="td-muted" style="text-align:center;padding:24px;">Đang tải dữ liệu thống kê sau phục vụ...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -474,10 +567,24 @@
 
       <!-- CARD 1: SUPABASE OVERVIEW -->
       <div class="card" style="margin-bottom: 20px;">
-        <div class="card-header">
-          <i class="fa-solid fa-server" style="color: var(--primary);"></i>
-          <h2>Tổng Quan Kết Nối Supabase Database</h2>
-          <span class="chip chip-success" id="sbStatusBadge">https://zqkithrewcorqyckfdrr.supabase.co</span>
+        <div class="card-header" style="justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-server" style="color: var(--primary);"></i>
+            <h2>Tổng Quan Kết Nối Supabase Database</h2>
+            <span class="chip chip-success" id="sbStatusBadge">https://zqkithrewcorqyckfdrr.supabase.co</span>
+          </div>
+          <!-- BỘ LỌC CHI NHÁNH XEM SỐ LIỆU TỔNG QUAN -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="sbSummaryBranchSelect" style="font-size: 0.84rem; font-weight: 700; color: var(--text-secondary); white-space: nowrap;">
+              <i class="fa-solid fa-building"></i> Xem Chi Nhánh:
+            </label>
+            <select id="sbSummaryBranchSelect" class="date-input" style="height: 34px; font-weight: 700; font-size: 0.82rem; border-radius: 6px; border: 1.5px solid #3b82f6; background: #fff; min-width: 170px;" onchange="onSbSummaryBranchChange(this.value)">
+              <!-- Options rendered via JS -->
+            </select>
+            <button class="btn btn-secondary" onclick="loadSupabaseSummary()" style="padding: 6px 12px; font-size: 0.8rem;" title="Làm mới số liệu">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+          </div>
         </div>
         <div class="card-body">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
@@ -486,6 +593,7 @@
               <div>
                 <div style="font-size: 0.88rem; color: #1e40af; font-weight: 800; text-transform: uppercase;">BẢNG BẢO TRÌ (bao_tri)</div>
                 <div id="summary-bao_tri" style="font-size: 2rem; font-weight: 800; color: #1e3a8a; margin-top: 4px;">0</div>
+                <div id="summary-bao_tri-branch" style="font-size: 0.78rem; color: #2563eb; font-weight: 700; margin-top: 4px;">Chi nhánh: Đang tải...</div>
               </div>
               <i class="fa-solid fa-wrench" style="font-size: 2.8rem; color: #3b82f6; opacity: 0.85;"></i>
             </div>
@@ -494,8 +602,18 @@
               <div>
                 <div style="font-size: 0.88rem; color: #9a3412; font-weight: 800; text-transform: uppercase;">BẢNG TỒN BẢO TRÌ (ton_bao_tri)</div>
                 <div id="summary-ton_bao_tri" style="font-size: 2rem; font-weight: 800; color: #7c2d12; margin-top: 4px;">0</div>
+                <div id="summary-ton_bao_tri-branch" style="font-size: 0.78rem; color: #ea580c; font-weight: 700; margin-top: 4px;">Chi nhánh: Đang tải...</div>
               </div>
               <i class="fa-solid fa-clock-rotate-left" style="font-size: 2.8rem; color: #f97316; opacity: 0.85;"></i>
+            </div>
+
+            <div style="background: #f5f3ff; border: 1px solid #ddd6fe; padding: 18px 24px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s;" onclick="openCaptainMappingModal()" title="Bấm để cấu hình MAP Đội Trưởng">
+              <div>
+                <div style="font-size: 0.88rem; color: #5b21b6; font-weight: 800; text-transform: uppercase;">MAP ĐỘI TRƯỞNG &amp; NHÂN VIÊN</div>
+                <div id="summary-captains" style="font-size: 2rem; font-weight: 800; color: #4c1d95; margin-top: 4px;">0</div>
+                <div id="summary-captains-desc" style="font-size: 0.78rem; color: #7c3aed; font-weight: 700; margin-top: 4px;">Bấm để cấu hình / nạp Excel</div>
+              </div>
+              <i class="fa-solid fa-users-gear" style="font-size: 2.8rem; color: #8b5cf6; opacity: 0.85;"></i>
             </div>
 
           </div>
@@ -503,55 +621,159 @@
       </div>
 
 
-      <!-- CARD 2: IMPORT DATA -->
+      <!-- CARD 2: IMPORT DATA THEO CHI NHÁNH -->
       <div class="card" style="margin-bottom: 20px;">
-        <div class="card-header">
-          <i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary);"></i>
-          <h2>Import Dữ Liệu vào Supabase (CSV / Excel / JSON)</h2>
+        <div class="card-header" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary);"></i>
+            <h2>Import Dữ Liệu vào Supabase (Bảo Vệ Độc Lập Theo Chi Nhánh)</h2>
+          </div>
+          <span class="chip chip-info" id="activeBranchBadge" style="font-weight: 700; font-size: 0.85rem;">
+            <i class="fa-solid fa-building"></i> Chi nhánh: Đang tải...
+          </span>
         </div>
         <div class="card-body">
-          <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;">
-            <div style="flex: 1; min-width: 250px;">
-              <label style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 6px;">Chọn Bảng Mục Tiêu:</label>
-              <select id="importTargetTable" class="date-input" style="width: 100%; height: 40px; font-weight: 700;">
-                <option value="bao_tri">Bảng Bảo Trì (bao_tri)</option>
-                <option value="ton_bao_tri">Bảng Tồn Bảo Trì (ton_bao_tri)</option>
-              </select>
+
+          <!-- BƯỚC 1: XÁC NHẬN CHI NHÁNH -->
+          <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 2px solid #a7f3d0; border-radius: 12px; padding: 16px; margin-bottom: 18px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+              <div style="font-size: 0.95rem; font-weight: 800; color: #065f46; display: flex; align-items: center; gap: 8px;">
+                <span style="background: #059669; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.78rem;">1</span>
+                BƯỚC 1: Chọn Hoặc Đặt Tên Chi Nhánh (Bảo Toàn Dữ Liệu)
+              </div>
+              <button class="btn btn-sm" onclick="openNewBranchModal()" style="background: #059669; color: #fff; border: none; font-weight: 700; padding: 6px 14px; border-radius: 8px; cursor: pointer;">
+                <i class="fa-solid fa-plus-circle"></i> + Đặt Tên Chi Nhánh Mới
+              </button>
             </div>
-            
-            <div style="flex: 2; min-width: 300px;">
-              <label style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 6px;">Chọn File (.csv, .xlsx, .xls, .json):</label>
-              <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls, .json" class="date-input" style="width: 100%; height: 40px; padding: 6px 12px;" onchange="onImportFileSelected(event)"/>
+
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+              <div style="flex: 1; min-width: 260px;">
+                <label style="font-size: 0.82rem; font-weight: 700; color: #047857; margin-bottom: 4px; display: block;">Chi Nhánh Của Bạn:</label>
+                <select id="importBranchSelect" class="date-input" style="width: 100%; height: 42px; font-weight: 700; font-size: 0.95rem; border: 2px solid #10b981; background: #fff;" onchange="onImportBranchChange(this.value)">
+                  <option value="">-- Đang nạp danh sách Chi Nhánh... --</option>
+                </select>
+              </div>
+              <div style="flex: 2; min-width: 280px; font-size: 0.82rem; color: #065f46; line-height: 1.45; background: #ffffffa0; padding: 10px 14px; border-radius: 8px; border: 1px dashed #6ee7b7;">
+                <i class="fa-solid fa-shield-halved" style="color: #059669; margin-right: 4px;"></i>
+                <strong>Cơ chế cách ly an toàn:</strong> Khi bạn import vào chi nhánh này, dữ liệu sẽ được đóng dấu riêng. Thao tác làm mới hoặc cập nhật <strong>chỉ tác động chi nhánh này, hoàn toàn không ảnh hưởng các chi nhánh khác</strong>.
+              </div>
             </div>
           </div>
 
-          <!-- DROPZONE -->
-          <div id="dropzoneArea" style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s ease;" onclick="document.getElementById('importFileInput').click()">
-            <i class="fa-solid fa-file-excel" style="font-size: 2.4rem; color: #64748b; margin-bottom: 8px;"></i>
-            <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);" id="dropzoneText">Kéo &amp; thả file vào đây hoặc bấm để chọn file từ máy tính</div>
-            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Hệ thống sẽ tự động đọc dữ liệu và chuẩn hóa các cột để đẩy vào Supabase</div>
+          <!-- BƯỚC 2: CHỌN PHẦN CẦN IMPORT (2 PHẦN) -->
+          <div style="margin-bottom: 18px;">
+            <div style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+              <span style="background: var(--primary); color: #fff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.78rem;">2</span>
+              BƯỚC 2: Chọn Phần Cần Import (Vẫn 2 Phần Chuẩn)
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+              
+              <!-- PHẦN 1: BẢNG BẢO TRÌ -->
+              <label id="lblPartBaoTri" style="border: 2px solid #3b82f6; background: #eff6ff; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; display: flex; gap: 12px; align-items: flex-start;">
+                <input type="radio" name="importPartChoice" id="partChoiceBaoTri" value="bao_tri" checked onchange="onImportPartChange('bao_tri')" style="margin-top: 4px; accent-color: #3b82f6; width: 18px; height: 18px;"/>
+                <div>
+                  <div style="font-weight: 800; font-size: 0.98rem; color: #1e40af; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-shield-halved"></i> Phần 1: Bảng Bảo Trì (bao_tri)
+                  </div>
+                  <div style="font-size: 0.8rem; color: #1e40af; margin-top: 4px; line-height: 1.45;">
+                    • <strong>Giữ nguyên data hiện có</strong> (Tuyệt đối không xóa lịch sử).<br/>
+                    • <strong>Tự động lọc trùng 5 cột:</strong> A (Số HĐ), E (TG Tạo), F (TG Hoàn Tất), D (Nhân viên), AR (Account Tạo CL).<br/>
+                    • Chỉ thêm mới và cập nhật bản ghi hợp lệ.
+                  </div>
+                </div>
+              </label>
+
+              <!-- PHẦN 2: BẢNG TỒN BẢO TRÌ -->
+              <label id="lblPartTonBaoTri" style="border: 2px solid #e2e8f0; background: #fff; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; display: flex; gap: 12px; align-items: flex-start;">
+                <input type="radio" name="importPartChoice" id="partChoiceTonBaoTri" value="ton_bao_tri" onchange="onImportPartChange('ton_bao_tri')" style="margin-top: 4px; accent-color: #f97316; width: 18px; height: 18px;"/>
+                <div>
+                  <div style="font-weight: 800; font-size: 0.98rem; color: #9a3412; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Phần 2: Bảng Tồn Bảo Trì (ton_bao_tri)
+                  </div>
+                  <div style="font-size: 0.8rem; color: #ea580c; margin-top: 4px; line-height: 1.45;">
+                    • <strong>Tự động xóa dữ liệu cũ</strong> của chi nhánh này khi import.<br/>
+                    • Nạp danh sách ca tồn mới nhất (Dữ liệu chi nhánh khác không bị ảnh hưởng).
+                  </div>
+                </div>
+              </label>
+
+            </div>
+            <!-- Ẩn select gốc nhưng đồng bộ giá trị để tương thích 100% -->
+            <select id="importTargetTable" style="display: none;">
+              <option value="bao_tri">bao_tri</option>
+              <option value="ton_bao_tri">ton_bao_tri</option>
+            </select>
           </div>
 
-          <!-- PREVIEW & SUBMIT -->
-          <div id="importPreviewArea" style="display: none; margin-top: 16px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap:wrap; gap:8px;">
-              <span id="previewCountBadge" class="chip chip-info" style="font-weight: 700;">Đã sẵn sàng bản ghi</span>
-              <div style="display:flex;gap:8px;">
-                <button class="btn btn-danger btn-sm" id="btnClearBeforeImport" onclick="clearTableBeforeImport()" style="display:none;">
-                  <i class="fa-solid fa-trash"></i> Xóa Hết Data Cũ Trước
+          <!-- IMPORT TỰ ĐỘNG TỒN BẢO TRÌ TỪ INSIDE -->
+          <div id="autoImportPanel" style="display:none; background: linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%); border: 2px solid #fdba74; border-radius: 12px; padding: 16px; margin-bottom: 18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+              <div>
+                <div style="font-size:0.95rem; font-weight:800; color:#9a3412;">
+                  <i class="fa-solid fa-robot"></i> Import Tự Động Tồn Bảo Trì từ FPT Inside
+                </div>
+                <div style="font-size:0.8rem; color:#c2410c; margin-top:4px; line-height:1.5;">
+                  Đăng nhập Inside → Inside New V5 → Hỗ trợ kỹ thuật → Thông tin chung → tab Bảo Trì → Từ ngày <strong>đầu tháng trước</strong> đến <strong>cuối tháng này</strong> → TỒN POP → Xem báo cáo → bấm số lượng → Xuất Excel → tự import vào Supabase.
+                </div>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary" id="btnAutoImportStart" onclick="startAutoImport()" style="background:#ea580c; border-color:#ea580c;">
+                  <i class="fa-solid fa-play"></i> Chạy Import Tự Động
                 </button>
-                <button class="btn btn-primary" id="btnSubmitImport" onclick="submitImportData()">
-                  <i class="fa-solid fa-cloud-arrow-up"></i> Tải Dữ Liệu Lên Supabase
+                <button class="btn btn-danger" id="btnAutoImportCancel" onclick="cancelAutoImport()" style="display:none;">
+                  <i class="fa-solid fa-stop"></i> Dừng
                 </button>
               </div>
             </div>
-            <div class="table-scroll" style="max-height: 250px; border: 1px solid var(--border); border-radius: 8px;">
-              <table class="leaderboard-table" style="font-size: 0.8rem;">
-                <thead id="previewTableHead"></thead>
-                <tbody id="previewTableBody"></tbody>
-              </table>
+            <div id="autoImportProgressWrap" style="display:none; margin-top:12px;">
+              <div style="height:10px; background:#fed7aa; border-radius:6px; overflow:hidden;">
+                <div id="autoImportBar" style="height:100%; width:0%; background:#ea580c; transition:width .4s;"></div>
+              </div>
+              <div id="autoImportStatusText" style="font-size:0.8rem; font-weight:700; color:#9a3412; margin-top:6px;"></div>
+              <pre id="autoImportLog" style="max-height:180px; overflow:auto; background:#fff; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px; font-size:0.75rem; margin-top:8px; white-space:pre-wrap;"></pre>
             </div>
           </div>
+
+          <!-- BƯỚC 3: CHỌN FILE VÀ TẢI LÊN -->
+          <div>
+            <div style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+              <span style="background: var(--primary); color: #fff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.78rem;">3</span>
+              BƯỚC 3: Chọn File Dữ Liệu (.xlsx, .xls, .csv, .json)
+            </div>
+
+            <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls, .json" style="display:none;" onchange="onImportFileSelected(event)"/>
+
+            <!-- DROPZONE -->
+            <div id="dropzoneArea" style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 26px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s ease;" onclick="document.getElementById('importFileInput').click()">
+              <i class="fa-solid fa-file-excel" style="font-size: 2.6rem; color: #64748b; margin-bottom: 8px;"></i>
+              <div style="font-weight: 700; font-size: 0.98rem; color: var(--text-primary);" id="dropzoneText">Kéo &amp; thả file vào đây hoặc bấm để chọn file từ máy tính</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Hệ thống sẽ gắn Chi Nhánh vào từng dòng dữ liệu và tải an toàn lên Supabase</div>
+            </div>
+
+            <!-- PREVIEW & SUBMIT -->
+            <div id="importPreviewArea" style="display: none; margin-top: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap:wrap; gap:8px;">
+                <span id="previewCountBadge" class="chip chip-info" style="font-weight: 700;">Đã sẵn sàng bản ghi</span>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-danger btn-sm" id="btnClearBeforeImport" onclick="clearTableBeforeImport()" style="display:none;">
+                    <i class="fa-solid fa-trash"></i> Xóa Data Cũ Tồn Bảo Trì
+                  </button>
+                  <button class="btn btn-primary" id="btnSubmitImport" onclick="submitImportData()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Tải Lên Supabase
+                  </button>
+                </div>
+              </div>
+              <div class="table-scroll" style="max-height: 250px; border: 1px solid var(--border); border-radius: 8px;">
+                <table class="leaderboard-table" style="font-size: 0.8rem;">
+                  <thead id="previewTableHead"></thead>
+                  <tbody id="previewTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
         </div>
       </div>
 
@@ -563,6 +785,11 @@
             <h2>Bảng Trực Truyền Dữ Liệu Supabase</h2>
           </div>
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <!-- Lọc Chi Nhánh trong Bảng -->
+            <select id="browserBranchSelect" class="date-input" style="height: 36px; font-weight: 700; border: 1.5px solid #10b981;" onchange="onBrowserBranchChange(this.value)">
+              <option value="">-- Tất cả Chi Nhánh --</option>
+            </select>
+
             <select id="browserTableSelect" class="date-input" style="height: 36px; font-weight: 700;" onchange="loadSupabaseTableData(1)">
               <option value="bao_tri">bao_tri (Bảo Trì)</option>
               <option value="ton_bao_tri">ton_bao_tri (Tồn Bảo Trì)</option>
@@ -571,6 +798,9 @@
             <input type="text" id="browserSearchInput" placeholder="Tìm trong bảng..." class="date-input" style="height: 36px; width: 180px;" oninput="loadSupabaseTableData(1)"/>
             <button class="btn btn-ghost btn-sm" onclick="loadSupabaseTableData(sbBrowserCurrentPage)">
               <i class="fa-solid fa-rotate"></i> Làm mới
+            </button>
+            <button class="btn btn-warning btn-sm" id="btnDeduplicateBaoTri" onclick="doDeduplicateBaoTri()" title="Quét và xóa sạch các bản ghi trùng lặp 5 cột trong bảng Bảo Trì">
+              <i class="fa-solid fa-broom"></i> Lọc Sạch Trùng Lặp
             </button>
             <button class="btn btn-danger btn-sm" onclick="confirmClearSupabaseTable()">
               <i class="fa-solid fa-trash"></i> Xóa Bảng
@@ -599,6 +829,33 @@
           </div>
         </div>
       </div>
+
+    </div>
+
+    <!-- TAB: TOÀN TRÌNH TỰ ĐỘNG -->
+    <div id="flow-tab" class="tab-panel">
+      <div id="flowLive" style="background:#fff; border:2px solid #fdba74; border-radius:12px; padding:16px; margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <div style="font-size:0.95rem; font-weight:800; color:#9a3412;"><i class="fa-solid fa-diagram-project"></i> Flow đang chạy</div>
+          <div id="flowHeader" style="font-size:0.8rem; color:#78716c;">Chưa có lịch nào chạy</div>
+        </div>
+        <div id="flowSteps" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;"></div>
+        <div id="flowResult" style="margin-top:10px; font-size:0.82rem; font-weight:700;"></div>
+        <pre id="flowLog" style="max-height:200px; overflow:auto; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px; font-size:0.75rem; margin-top:8px; white-space:pre-wrap;"></pre>
+      </div>
+          <!-- LỊCH HẸN TOÀN TRÌNH -->
+          <div id="schedulePanel" style="background:#fff7ed; border:2px solid #fdba74; border-radius:12px; padding:16px; margin-bottom:18px;">
+            <div style="font-size:0.9rem; font-weight:800; color:#9a3412;">
+              <i class="fa-solid fa-calendar-check"></i> Lịch hẹn tự động toàn trình (Import → Phân tích theo Đội Trưởng → Auto Note)
+            </div>
+            <div style="font-size:0.76rem; color:#c2410c; margin:4px 0 10px;">Có thể thêm nhiều lịch. Mỗi lịch bắt buộc chọn Đội Trưởng. &gt;10 HĐ sẽ tự chạy chế độ Rút gọn, không hỏi lại. Cần giữ ứng dụng đang mở.</div>
+            <div id="scheduleList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+              <button class="btn" onclick="addScheduleRow()"><i class="fa-solid fa-plus"></i> Thêm lịch</button>
+              <button class="btn btn-primary" onclick="saveSchedules()" style="background:#ea580c; border-color:#ea580c;"><i class="fa-solid fa-floppy-disk"></i> Lưu lịch</button>
+            </div>
+            <pre id="scheduleLog" style="display:none !important; max-height:160px; overflow:auto; background:#fff; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px; font-size:0.75rem; margin-top:8px; white-space:pre-wrap;"></pre>
+          </div>
 
     </div>
 
@@ -730,6 +987,172 @@
 
     </div><!-- end #autonote-tab -->
 
+
+    <!-- TAB 6: PHÂN TÍCH HÀNH VI BẢO TRÌ -->
+    <div id="behavior-tab" class="tab-panel">
+
+      <!-- CARD: BỘ LỌC -->
+      <div class="card" style="border:2px solid #a78bfa;">
+        <div class="card-header" style="background:linear-gradient(135deg,#ede9fe 0%,#f5f3ff 100%);">
+          <i class="fa-solid fa-crosshairs" style="color:#7c3aed;"></i>
+          <h2 style="color:#5b21b6;">360 Quality</h2>
+          <span class="chip" style="background:#7c3aed;color:#fff;">Đánh giá chất lượng Trước & Sau BT</span>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+            <div style="flex:1;min-width:140px;">
+              <label style="font-size:0.78rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;display:block;">
+                <i class="fa-regular fa-calendar"></i> Từ ngày
+              </label>
+              <input type="date" id="bhvDateFrom" class="date-input" style="width:100%;" />
+            </div>
+            <div style="flex:1;min-width:140px;">
+              <label style="font-size:0.78rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;display:block;">
+                <i class="fa-regular fa-calendar"></i> Đến ngày
+              </label>
+              <input type="date" id="bhvDateTo" class="date-input" style="width:100%;" />
+            </div>
+            <div style="flex:1.5;min-width:180px;">
+              <label style="font-size:0.78rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;display:block;">
+                <i class="fa-solid fa-user-tie"></i> Nhân viên
+              </label>
+              <input type="text" id="bhvEmployee" class="date-input" placeholder="VD: PNC01.PHONGNH" style="width:100%;text-transform:uppercase;" />
+            </div>
+            <div style="flex:1.5;min-width:180px;">
+              <label style="font-size:0.78rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;display:block;">
+                <i class="fa-solid fa-file-contract"></i> Số HĐ
+              </label>
+              <input type="text" id="bhvSoHD" class="date-input" placeholder="VD: SGABC1234" style="width:100%;text-transform:uppercase;" />
+            </div>
+            <div style="flex:1;min-width:160px;">
+              <label style="font-size:0.78rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;display:block;">
+                <i class="fa-solid fa-filter"></i> Kết quả
+              </label>
+              <select id="bhvFilterResult" class="date-input" style="width:100%;padding:8px 10px;">
+                <option value="">-- Tất cả --</option>
+                <option value="rat_tot">🌟 Rất tốt (4/4)</option>
+                <option value="dat">✅ Đạt (3/4)</option>
+                <option value="canh_bao">⚠️ Cảnh báo (2/4)</option>
+                <option value="chua_dat">❌ Chưa đạt (1/4)</option>
+                <option value="khan_cap">🚨 Cảnh báo khẩn (0/4)</option>
+                <option value="chua_doi_chieu">🔍 Chưa có KQ sau BT</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="loadBehaviorAnalysis(1)" style="height:40px;white-space:nowrap;">
+              <i class="fa-solid fa-search"></i> Phân tích
+            </button>
+          </div>
+          <!-- Preset nhanh -->
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="preset-btn" onclick="setBhvPreset('7days')">7 ngày gần nhất</button>
+            <button class="preset-btn" onclick="setBhvPreset('30days')">30 ngày</button>
+            <button class="preset-btn" onclick="setBhvPreset('all')">Tất cả</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS CARDS -->
+      <div id="bhvStatsRow" style="display:none;margin-top:16px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;">
+        <div class="stat-card" style="border-left:4px solid #7c3aed;border-top:none;" onclick="filterBhvByResult('')">
+          <div class="stat-content">
+            <div class="stat-num" id="bhvStatTotal" style="color:#7c3aed;font-size:1.6rem;">0</div>
+            <div class="stat-label">Tổng HD</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid #16a34a;border-top:none;cursor:pointer;" onclick="filterBhvByResult('rat_tot')">
+          <div class="stat-content">
+            <div class="stat-num" id="bhvStatRatTot" style="color:#16a34a;font-size:1.6rem;">0</div>
+            <div class="stat-label">🌟 Rất tốt</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid #3b82f6;border-top:none;cursor:pointer;" onclick="filterBhvByResult('dat')">
+          <div class="stat-content">
+            <div class="stat-num" id="bhvStatDat" style="color:#3b82f6;font-size:1.6rem;">0</div>
+            <div class="stat-label">✅ Đạt</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid #f59e0b;border-top:none;cursor:pointer;" onclick="filterBhvByResult('canh_bao')">
+          <div class="stat-content">
+            <div class="stat-num" id="bhvStatCanhBao" style="color:#f59e0b;font-size:1.6rem;">0</div>
+            <div class="stat-label">⚠️ Cảnh báo</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid #ea580c;border-top:none;cursor:pointer;" onclick="filterBhvByResult('chua_dat')">
+          <div class="stat-content">
+            <div class="stat-num" id="bhvStatChuaDat" style="color:#ea580c;font-size:1.6rem;">0</div>
+            <div class="stat-label">❌ Chưa đạt</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid #dc2626;border-top:none;cursor:pointer;" onclick="filterBhvByResult('khan_cap')">
+          <div class="stat-content">
+            <div class="stat-num" id="bhvStatKhanCap" style="color:#dc2626;font-size:1.6rem;">0</div>
+            <div class="stat-label">🚨 Khẩn cấp</div>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid #8b5cf6;border-top:none;cursor:pointer;" onclick="filterBhvByResult('chua_doi_chieu')">
+          <div class="stat-content">
+            <div class="stat-num" id="bhvStatChua" style="color:#8b5cf6;font-size:1.6rem;">0</div>
+            <div class="stat-label">🔍 Chưa có sau BT</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KẾT QUẢ BẢNG -->
+      <div id="bhvResultCard" class="card" style="margin-top:16px;display:none;">
+        <div class="card-header">
+          <i class="fa-solid fa-crosshairs" style="color:#7c3aed;"></i>
+          <h2>Kết Quả 360 Quality</h2>
+          <span class="chip" id="bhvResultCount">0 kết quả</span>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div style="overflow-x:auto;">
+            <table class="result-table" id="bhvTable" style="width:100%;font-size:0.82rem;">
+              <thead>
+                <tr>
+                  <th style="width:40px;">#</th>
+                  <th style="min-width:100px;">Số HĐ</th>
+                  <th style="min-width:120px;">Nhân viên</th>
+                  <th style="min-width:100px;">Suy Hao<br><small style="font-weight:400;color:var(--text-muted);">Công suất thu</small></th>
+                  <th style="min-width:100px;">TB Wifi Kém<br><small style="font-weight:400;color:var(--text-muted);">Client phát hiện</small></th>
+                  <th style="min-width:100px;">Kết Nối<br><small style="font-weight:400;color:var(--text-muted);">Rớt mạng</small></th>
+                  <th style="min-width:100px;">Mô Hình Mạng</th>
+                  <th style="min-width:90px;">Kết Quả</th>
+                  <th style="width:60px;">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody id="bhvTableBody">
+                <tr><td colspan="9" class="td-muted" style="text-align:center;padding:30px;">Bấm "Phân tích" để tải kết quả</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- PAGINATION -->
+          <div id="bhvPagination" style="display:none;padding:12px 16px;border-top:1px solid var(--border);align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="font-size:0.8rem;color:var(--text-muted);" id="bhvPageInfo">Trang 1 / 1</div>
+            <div style="display:flex;gap:6px;" id="bhvPageButtons"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end #behavior-tab -->
+
+
+    <!-- MODAL: 360 QUALITY DETAIL -->
+    <div id="bhvDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:rgba(255,255,255,0.95);justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto;">
+      <div style="background:#ffffff;border-radius:16px;width:100%;max-width:900px;margin:0 auto;box-shadow:0 8px 40px rgba(0,0,0,0.15);border:1px solid #e2e8f0;">
+        <div style="padding:20px 24px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#ede9fe,#f5f3ff);border-radius:16px 16px 0 0;">
+          <div>
+            <h3 style="margin:0;font-size:1.1rem;color:#5b21b6;"><i class="fa-solid fa-crosshairs"></i> 360 Quality — Chi tiết đối chiếu</h3>
+            <div id="bhvModalSubtitle" style="font-size:0.82rem;color:#64748b;margin-top:4px;"></div>
+          </div>
+          <button onclick="closeBhvModal()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;font-size:1.1rem;cursor:pointer;color:#64748b;padding:6px 10px;transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div id="bhvModalBody" style="padding:24px;"></div>
+      </div>
+    </div>
+
+
   </main>
 
 </div>
@@ -765,6 +1188,228 @@
         <i class="fa-solid fa-robot"></i> Có, Auto Note ngay!
       </button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: Đặt Tên Chi Nhánh Mới -->
+<div id="newBranchModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:28px 32px;max-width:500px;width:92%;box-shadow:0 25px 50px rgba(0,0,0,0.35);animation:slideUp 0.3s ease;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem;flex-shrink:0;">
+          <i class="fa-solid fa-building-user"></i>
+        </div>
+        <div>
+          <div style="font-size:1.15rem;font-weight:800;color:#1e293b;">Đặt Tên Chi Nhánh Mới</div>
+          <div style="font-size:0.8rem;color:#64748b;">Tạo Chi Nhánh riêng biệt để bảo vệ dữ liệu</div>
+        </div>
+      </div>
+      <button onclick="closeNewBranchModal()" style="border:none;background:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;padding:4px;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div style="margin-bottom:18px;">
+      <label style="font-size:0.88rem;font-weight:700;color:#334155;display:block;margin-bottom:8px;">
+        Tên Chi Nhánh / Đơn Vị: <span style="color:#ef4444;">*</span>
+      </label>
+      <input type="text" id="newBranchNameInput" class="date-input" placeholder="VD: Chi Nhánh HCM, CN Bình Thạnh, CN Cần Thơ..." style="width:100%;height:44px;font-size:0.95rem;font-weight:600;border:2px solid #10b981;" onkeydown="if(event.key==='Enter') saveNewBranch()"/>
+      <div style="font-size:0.78rem;color:#065f46;margin-top:8px;background:#f0fdf4;padding:8px 12px;border-radius:6px;border:1px solid #bbf7d0;">
+        <i class="fa-solid fa-circle-check" style="color:#059669;"></i> Sau khi đặt tên, dữ liệu bạn import sẽ được lưu trữ riêng. Các chi nhánh khác import hay xóa sẽ <strong>hoàn toàn không ảnh hưởng</strong> đến dữ liệu của bạn.
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-ghost" onclick="closeNewBranchModal()">Hủy</button>
+      <button class="btn btn-primary" id="btnSaveNewBranch" onclick="saveNewBranch()" style="background:#059669;border-color:#059669;">
+        <i class="fa-solid fa-check"></i> Lưu &amp; Chọn Chi Nhánh
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Cấu Hình MAP Đội Trưởng & Nhân Viên -->
+<div id="captainMappingModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:20px;padding:24px 28px;max-width:960px;width:98%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 50px rgba(0,0,0,0.35);animation:slideUp 0.3s ease;">
+    
+    <!-- Modal Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#9333ea);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem;flex-shrink:0;">
+          <i class="fa-solid fa-users-gear"></i>
+        </div>
+        <div>
+          <div style="font-size:1.18rem;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:8px;">
+            Cấu Hình MAP Đội Trưởng &amp; Nhân Viên
+            <span id="capModalBranchBadge" class="chip chip-info" style="font-size:0.75rem;padding:2px 10px;font-weight:700;">Chi Nhánh: Đang tải...</span>
+          </div>
+          <div style="font-size:0.8rem;color:#64748b;">Gán Nhân Viên Kỹ Thuật theo từng Đội Trưởng để lọc nhanh khi Phân Tích Bảo Trì &amp; Tồn Bảo Trì</div>
+        </div>
+      </div>
+      <button onclick="closeCaptainMappingModal()" style="border:none;background:none;font-size:1.3rem;color:#94a3b8;cursor:pointer;padding:4px;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- Modal Navigation Tabs -->
+    <div style="display:flex;gap:8px;border-bottom:1.5px solid #e2e8f0;margin-bottom:16px;padding-bottom:2px;">
+      <button type="button" id="capTabBtn-file" class="btn" style="border:none;background:none;border-bottom:2.5px solid var(--primary);color:var(--primary);font-weight:700;padding:8px 16px;border-radius:0;font-size:0.88rem;cursor:pointer;" onclick="switchCapModalTab('file')">
+        <i class="fa-solid fa-file-excel"></i> 1. Nạp Từ File Excel / CSV
+      </button>
+      <button type="button" id="capTabBtn-manual" class="btn" style="border:none;background:none;border-bottom:2.5px solid transparent;color:#64748b;font-weight:600;padding:8px 16px;border-radius:0;font-size:0.88rem;cursor:pointer;" onclick="switchCapModalTab('manual')">
+        <i class="fa-solid fa-pen-to-square"></i> 2. Quản Lý &amp; Gán Thủ Công
+      </button>
+      <button type="button" id="capTabBtn-list" class="btn" style="border:none;background:none;border-bottom:2.5px solid transparent;color:#64748b;font-weight:600;padding:8px 16px;border-radius:0;font-size:0.88rem;cursor:pointer;" onclick="switchCapModalTab('list')">
+        <i class="fa-solid fa-list-check"></i> 3. Danh Sách &amp; Xuất File
+      </button>
+    </div>
+
+    <!-- Modal Body with Scrollable Area -->
+    <div style="flex:1;overflow-y:auto;padding-right:4px;" id="capModalBodyContainer">
+
+      <!-- TAB 1: NẠP FILE EXCEL / CSV -->
+      <div id="capTabContent-file">
+        <div style="background:#f8fafc;border:2px dashed #cbd5e1;border-radius:12px;padding:24px;text-align:center;margin-bottom:16px;" id="capDropzone">
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size:2.8rem;color:#7c3aed;margin-bottom:10px;"></i>
+          <div style="font-size:1rem;font-weight:700;color:#1e293b;margin-bottom:6px;">Kéo &amp; thả file Excel / CSV hoặc bấm để chọn file</div>
+          <div style="font-size:0.82rem;color:#64748b;margin-bottom:16px;">Hệ thống tự động nhận diện cột <strong>Đội Trưởng</strong> và <strong>Nhân Viên / Account</strong></div>
+          <input type="file" id="capFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="onCapFileSelected(this)"/>
+          <button type="button" class="btn btn-primary" onclick="document.getElementById('capFileInput').click()" style="background:#7c3aed;border-color:#7c3aed;padding:8px 20px;font-size:0.88rem;">
+            <i class="fa-solid fa-folder-open"></i> Chọn File Từ Máy Tính
+          </button>
+          <div id="capSelectedFileName" style="margin-top:10px;font-size:0.85rem;font-weight:700;color:#15803d;display:none;"></div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#f0fdf4;border:1px solid #bbf7d0;padding:12px 16px;border-radius:8px;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <i class="fa-solid fa-circle-info" style="color:#16a34a;font-size:1.2rem;"></i>
+            <div style="font-size:0.82rem;color:#166534;">
+              <strong>Định dạng file yêu cầu:</strong> Gồm 2 cột đơn giản (Cột 1: <code>Đội Trưởng</code>, Cột 2: <code>Nhân Viên</code> hoặc Inside Account như <code>PNC01.ANHNH9</code>).
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-secondary" onclick="downloadCaptainTemplate()" style="font-size:0.8rem;padding:6px 14px;white-space:nowrap;">
+              <i class="fa-solid fa-download"></i> Tải File Mẫu (.xlsx)
+            </button>
+            <button type="button" class="btn btn-primary" id="btnUploadCapFile" onclick="uploadCaptainFile()" style="background:#7c3aed;border-color:#7c3aed;font-size:0.8rem;padding:6px 16px;font-weight:700;display:none;">
+              <i class="fa-solid fa-upload"></i> Nạp Ngay Vào Hệ Thống
+            </button>
+          </div>
+        </div>
+
+        <div id="capImportPreviewBox" style="display:none;margin-top:14px;">
+          <div style="font-weight:700;color:#334155;margin-bottom:8px;font-size:0.88rem;">Xem trước dữ liệu trích xuất từ file:</div>
+          <div style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;" id="capImportPreviewTableWrap"></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: QUẢN LÝ & GÁN THỦ CÔNG -->
+      <div id="capTabContent-manual" style="display:none;">
+        <div style="display:flex;gap:12px;margin-bottom:14px;align-items:center;">
+          <input type="text" id="newCapInput" class="date-input" placeholder="Nhập tên Đội Trưởng mới (VD: Đội Trưởng A)..." style="flex:1;height:38px;font-weight:600;" onkeydown="if(event.key==='Enter') addNewCaptainDraft()"/>
+          <button type="button" class="btn btn-primary" onclick="addNewCaptainDraft()" style="background:#7c3aed;border-color:#7c3aed;height:38px;padding:0 18px;font-weight:700;white-space:nowrap;">
+            <i class="fa-solid fa-plus"></i> Thêm Đội
+          </button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:14px;height:380px;">
+          <!-- Cột Trái: Danh sách Đội Trưởng -->
+          <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;display:flex;flex-direction:column;background:#f8fafc;">
+            <div style="font-weight:800;font-size:0.85rem;color:#334155;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+              <span>DANH SÁCH ĐỘI TRƯỞNG</span>
+              <span id="capManualCountBadge" class="chip" style="font-size:0.7rem;padding:2px 8px;">0 Đội</span>
+            </div>
+            <div id="capManualLeftList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;">
+              <!-- Render via JS -->
+            </div>
+          </div>
+
+          <!-- Cột Phải: Nhân viên của Đội Trưởng đang chọn -->
+          <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;display:flex;flex-direction:column;background:#fff;">
+            <div id="capManualRightHeader" style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:10px;">
+              <div>
+                <span style="font-weight:800;font-size:0.95rem;color:#1e293b;" id="activeCapTitle">Chưa chọn Đội Trưởng</span>
+                <span id="activeCapMemberCount" style="font-size:0.75rem;color:#64748b;margin-left:8px;"></span>
+              </div>
+              <button type="button" class="btn btn-ghost" id="btnDeleteActiveCap" style="color:#ef4444;font-size:0.78rem;padding:4px 8px;display:none;" onclick="deleteActiveCaptainDraft()">
+                <i class="fa-solid fa-trash-can"></i> Xóa Đội Này
+              </button>
+            </div>
+
+            <!-- Danh sách thành viên hiện tại -->
+            <div style="font-size:0.8rem;font-weight:700;color:#475569;margin-bottom:6px;">Nhân viên hiện có trong đội (Bấm [×] để gỡ):</div>
+            <div id="activeCapMembersWrap" style="max-height:110px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#f1f5f9;border-radius:8px;margin-bottom:12px;">
+              <span style="font-size:0.8rem;color:#94a3b8;">Chọn một Đội Trưởng ở bên trái</span>
+            </div>
+
+            <!-- Gán thêm nhân viên -->
+            <div style="border-top:1px dashed #cbd5e1;padding-top:10px;flex:1;display:flex;flex-direction:column;overflow:hidden;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-size:0.8rem;font-weight:700;color:#0f172a;">+ Thêm Nhân Viên Vào Đội Này:</span>
+                <div style="display:flex;gap:6px;">
+                  <button type="button" class="btn btn-sm btn-ghost" onclick="toggleSelectAllUnassigned(true)" style="font-size:0.72rem;padding:2px 8px;">Chọn tất cả</button>
+                  <button type="button" class="btn btn-sm btn-ghost" onclick="toggleSelectAllUnassigned(false)" style="font-size:0.72rem;padding:2px 8px;">Bỏ chọn</button>
+                </div>
+              </div>
+              <input type="text" id="searchUnassignedEmpInput" class="date-input" placeholder="Tìm tài khoản nhân viên (PNC...)..." style="height:32px;font-size:0.82rem;margin-bottom:6px;" oninput="filterUnassignedEmps()"/>
+              <div id="unassignedEmpsWrap" style="flex:1;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px;display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:6px;">
+                <!-- Render via JS -->
+              </div>
+              <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+                <button type="button" class="btn btn-primary" onclick="assignCheckedEmpsToActiveCap()" style="background:#059669;border-color:#059669;font-size:0.82rem;padding:6px 14px;">
+                  <i class="fa-solid fa-user-plus"></i> Gán Nhân Viên Đã Chọn Vào Đội
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: BẢNG MAP TỔNG HỢP & XUẤT FILE -->
+      <div id="capTabContent-list" style="display:none;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px;">
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;">
+            <div style="font-size:0.78rem;font-weight:700;color:#1e40af;">TỔNG ĐỘI TRƯỞNG</div>
+            <div id="statTotalCaps" style="font-size:1.6rem;font-weight:800;color:#1e3a8a;margin-top:2px;">0</div>
+          </div>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;">
+            <div style="font-size:0.78rem;font-weight:700;color:#166534;">NHÂN VIÊN ĐÃ GÁN</div>
+            <div id="statTotalMappedEmps" style="font-size:1.6rem;font-weight:800;color:#14532d;margin-top:2px;">0</div>
+          </div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 16px;">
+            <div style="font-size:0.78rem;font-weight:700;color:#9a3412;">CHƯA PHÂN ĐỘI</div>
+            <div id="statTotalUnassignedEmps" style="font-size:1.6rem;font-weight:800;color:#7c2d12;margin-top:2px;">0</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:0.85rem;font-weight:700;color:#334155;">Toàn bộ bảng phân bổ Đội Trưởng hiện hành:</span>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-secondary" onclick="exportCaptainExcel()" style="font-size:0.8rem;padding:6px 14px;">
+              <i class="fa-solid fa-file-excel" style="color:#16a34a;"></i> Xuất File Excel
+            </button>
+            <button type="button" class="btn btn-ghost" onclick="clearAllCaptainsDraft()" style="color:#ef4444;font-size:0.8rem;padding:6px 12px;">
+              <i class="fa-solid fa-trash-can"></i> Xóa Tất Cả
+            </button>
+          </div>
+        </div>
+
+        <div style="max-height:280px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;" id="capFullSummaryTableWrap">
+          <!-- Render via JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Modal Footer -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px;">
+      <div style="font-size:0.78rem;color:#64748b;">
+        <i class="fa-solid fa-shield-halved" style="color:#10b981;"></i> Dữ liệu tự động lưu theo Chi Nhánh và có hiệu lực ngay lập tức.
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-ghost" onclick="closeCaptainMappingModal()">Đóng</button>
+        <button type="button" class="btn btn-primary" id="btnSaveCapModal" onclick="saveCaptainMapping()" style="background:#7c3aed;border-color:#7c3aed;padding:8px 22px;font-weight:700;">
+          <i class="fa-solid fa-check"></i> Lưu &amp; Áp Dụng Ngay
+        </button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -820,12 +1465,36 @@
       <div style="font-size:0.88rem;font-weight:800;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #f1f5f9;padding-bottom:8px;">
         <i class="fa-solid fa-envelope" style="color:#0284c7;"></i> 1. Đăng nhập Management MyPT (https://management.mypt.vn/)
       </div>
+
+      <!-- LỰA CHỌN PHƯƠNG THỨC OTP -->
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:0.82rem;font-weight:700;color:#166534;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-shield-halved"></i> Cách Nhận Mã OTP MyPT:
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#15803d;cursor:pointer;">
+            <input type="radio" name="otpMethod" id="otpMethodAuto" value="auto" checked onchange="toggleOtpMethod()" style="accent-color:#16a34a;width:16px;height:16px;"/>
+            <span>Tự động đọc OTP qua Email IMAP</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#15803d;cursor:pointer;">
+            <input type="radio" name="otpMethod" id="otpMethodManual" value="manual" onchange="toggleOtpMethod()" style="accent-color:#16a34a;width:16px;height:16px;"/>
+            <span>Nhập mã OTP thủ công (Tự gõ 6 số)</span>
+          </label>
+        </div>
+        <div id="otpAutoHint" style="font-size:0.75rem;color:#15803d;margin-top:6px;line-height:1.4;">
+          💡 Hệ thống tự động kết nối hòm thư <code>mail.fpt.net</code> để đọc mã 6 số. Yêu cầu nhập mật khẩu email bên dưới.
+        </div>
+        <div id="otpManualHint" style="font-size:0.75rem;color:#0369a1;margin-top:6px;display:none;line-height:1.4;">
+          💡 Tiện lợi nếu không mở cổng IMAP. Hệ thống gửi OTP, sau đó bạn chỉ cần gõ 6 số nhận được trên điện thoại/email vào ô trên màn hình.
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
         <div>
-          <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Email FPT:</label>
-          <input type="email" id="cfgEmail" placeholder="Ví dụ: name@fpt.net" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
+          <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Email FPT / MyPT:</label>
+          <input type="email" id="cfgEmail" placeholder="Ví dụ: phuongnam.giangvt@fpt.net" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
         </div>
-        <div>
+        <div id="wrapCfgEmailPassword">
           <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Mật khẩu Email (đọc OTP IMAP):</label>
           <input type="password" id="cfgEmailPassword" placeholder="Mật khẩu mail.fpt.net" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
         </div>
@@ -837,7 +1506,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div>
           <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">User Inside:</label>
-          <input type="text" id="cfgInsideAccount" placeholder="Ví dụ: phuongnam.phongnh5" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
+          <input type="text" id="cfgInsideAccount" placeholder="Ví dụ: phuongnam.giangvt" class="date-input" style="width:100%;height:36px;font-size:0.83rem;"/>
         </div>
         <div>
           <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Mật khẩu Inside:</label>
@@ -872,14 +1541,106 @@
     </div>
 
     <!-- BUTTONS -->
-    <div style="display:flex;gap:12px;justify-content:flex-end;">
-      <button class="btn btn-ghost" onclick="closeLoginConfigModal()">Đóng</button>
-      <button class="btn btn-primary" onclick="saveAndDoLogin()" style="min-width:160px;">
-        <i class="fa-solid fa-key"></i> Xác Nhận &amp; Đăng Nhập
+    <div style="display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+      <button type="button" class="btn" onclick="doResetLoginDriver()" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;padding:8px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;" title="Đóng toàn bộ Chrome đang mở và giải phóng bộ nhớ">
+        <i class="fa-solid fa-rotate-left"></i> Reset Trình Duyệt
+      </button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost" onclick="closeLoginConfigModal()">Đóng</button>
+        <button class="btn btn-primary" onclick="saveAndDoLogin()" style="min-width:160px;">
+          <i class="fa-solid fa-key"></i> Xác Nhận &amp; Đăng Nhập
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NHẬP MÃ OTP THỦ CÔNG -->
+<div id="manualOtpModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:28px 32px;max-width:440px;width:90%;box-shadow:0 25px 50px rgba(0,0,0,0.35);text-align:center;animation:slideUp 0.25s ease;">
+    <div style="width:54px;height:54px;border-radius:50%;background:#eff6ff;color:#2563eb;font-size:1.6rem;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+      <i class="fa-solid fa-shield-halved"></i>
+    </div>
+    <h3 style="margin:0 0 6px;color:#1e293b;font-weight:800;font-size:1.2rem;">Nhập Mã OTP MyPT</h3>
+    <p id="manualOtpDesc" style="font-size:0.83rem;color:#64748b;margin-bottom:16px;line-height:1.45;">
+      Hệ thống đã gửi mã xác nhận đến Email / Ứng dụng MyPT của bạn.<br/>Vui lòng nhập mã 6 số để hoàn tất đăng nhập:
+    </p>
+    <div style="margin-bottom:16px;">
+      <input type="text" id="manualOtpInput" maxlength="6" placeholder="• • • • • •" style="width:200px;height:48px;font-size:1.5rem;letter-spacing:6px;text-align:center;font-weight:800;border:2px solid #3b82f6;border-radius:10px;outline:none;background:#f8fafc;" onkeydown="if(event.key==='Enter') submitManualOtp()"/>
+    </div>
+    <div id="manualOtpStatus" style="font-size:0.8rem;color:#0284c7;margin-bottom:14px;min-height:18px;"></div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="btn btn-ghost" onclick="cancelManualOtp()">Hủy bỏ</button>
+      <button class="btn btn-primary" id="btnSubmitOtp" onclick="submitManualOtp()" style="min-width:140px;">
+        <i class="fa-solid fa-check"></i> Xác Nhận OTP
       </button>
     </div>
   </div>
 </div>
+
+<!-- MODAL CHỌN CHẾ ĐỘ PHÂN TÍCH (KHI TỪ 10 HĐ TRỞ LÊN) -->
+<div id="analysisModeModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:28px 32px;max-width:560px;width:92%;box-shadow:0 25px 50px rgba(0,0,0,0.35);animation:slideUp 0.25s ease;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem;flex-shrink:0;">
+        <i class="fa-solid fa-gauge-high"></i>
+      </div>
+      <div>
+        <h3 style="margin:0;color:#1e293b;font-weight:800;font-size:1.15rem;">Chọn Chế Độ Phân Tích Chuyên Sâu</h3>
+        <div style="font-size:0.8rem;color:#64748b;">Hệ thống phát hiện có <strong id="modalContractCount" style="color:#d97706;font-size:0.95rem;">0</strong> Hợp Đồng cần phân tích</div>
+      </div>
+    </div>
+
+    <div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#92400e;margin-bottom:16px;line-height:1.45;">
+      <i class="fa-solid fa-circle-info" style="color:#f59e0b;margin-right:4px;"></i>
+      Vì danh sách có từ <strong>10 HĐ trở lên</strong>, bạn có thể chọn <strong>Phân tích rút gọn</strong> để tiết kiệm thời gian đáng kể:
+    </div>
+
+    <!-- 2 LỰA CHỌN -->
+    <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:20px;">
+      <!-- LỰA CHỌN 1: RÚT GỌN (SIÊU NHANH) -->
+      <div onclick="executeFilterWithMode('compact')" style="border:2px solid #3b82f6;background:#eff6ff;border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s;display:flex;align-items:flex-start;gap:12px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        <div style="width:36px;height:36px;border-radius:8px;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:0.95rem;color:#1e40af;display:flex;align-items:center;gap:6px;">
+            ⚡ Phân Tích Rút Gọn (Siêu Nhanh - Khuyến Nghị)
+            <span style="background:#22c55e;color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:10px;font-weight:700;">Nhanh x5-8 lần</span>
+          </div>
+          <div style="font-size:0.78rem;color:#3b82f6;margin-top:4px;line-height:1.45;">
+            • <strong>Bỏ qua chờ OLT:</strong> Không quét sub-tab Nguyên nhân rớt OLT (tiết kiệm ~25s/HĐ).<br/>
+            • <strong>Bỏ qua quét Tập điểm:</strong> Đánh giá suy hao trực tiếp theo ngưỡng chuẩn <code>[-10dBm đến -23.5dBm]</code> đạt/không đạt ngay lập tức (tiết kiệm ~35s/HĐ).<br/>
+            • <em>Thời gian ước tính: chỉ ~15s/HĐ.</em>
+          </div>
+        </div>
+      </div>
+
+      <!-- LỰA CHỌN 2: ĐẦY ĐỦ -->
+      <div onclick="executeFilterWithMode('full')" style="border:2px solid #cbd5e1;background:#fff;border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s;display:flex;align-items:flex-start;gap:12px;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#cbd5e1'">
+        <div style="width:36px;height:36px;border-radius:8px;background:#64748b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
+          <i class="fa-solid fa-magnifying-glass-chart"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:0.95rem;color:#334155;">
+            🔍 Phân Tích Đầy Đủ (Toàn Diện)
+          </div>
+          <div style="font-size:0.78rem;color:#64748b;margin-top:4px;line-height:1.45;">
+            • Quét chi tiết tất cả các bước (Chờ NN rớt OLT + Quét danh sách & tính suy hao trung bình tập điểm).<br/>
+            • <em>Thời gian ước tính: ~75-80s/HĐ.</em>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-ghost" onclick="closeAnalysisModeModal()">Hủy bỏ</button>
+    </div>
+  </div>
+</div>
+
+
 
 <style>
 @keyframes slideUp {
@@ -915,12 +1676,14 @@ let autoNotePrevLogLen = 0;
 // Data source (bao_tri | ton_bao_tri)
 let currentDataSource = 'bao_tri';
 let autoNoteEnabledForRun = false;  // set khi user chọn "Có" trong modal
+let currentSelectedBranch = localStorage.getItem("mybae_selected_branch") || "";
 
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   createParticles();
-  loadEmployees();
-  loadTeamCaptains();
+  await loadBranches();
+  loadEmployees(currentDataSource, currentSelectedBranch);
+  loadTeamCaptains(currentSelectedBranch);
   pollLoginStatus();
   checkTunnelUrl();
   setInterval(checkTunnelUrl, 4000);
@@ -967,10 +1730,19 @@ function switchTab(tabId) {
   }
   if (tabId === 'import-tab') {
     document.getElementById("tabBtn-import").classList.add("active");
+    loadBranches();
     loadSupabaseSummary();
+  }
+  if (tabId === 'flow-tab') {
+    document.getElementById("tabBtn-flow").classList.add("active");
+    loadSchedules();
+    pollFlow();
   }
   if (tabId === 'autonote-tab') {
     document.getElementById("tabBtn-autonote").classList.add("active");
+  }
+  if (tabId === 'behavior-tab') {
+    document.getElementById("tabBtn-behavior").classList.add("active");
   }
   if (tabId === 'analysis-tab') {
     document.getElementById("tabBtn-analysis").classList.add("active");
@@ -979,6 +1751,7 @@ function switchTab(tabId) {
     document.getElementById("tabBtn-history").classList.add("active");
     loadHistory();
   }
+
   document.getElementById(tabId).classList.add("active");
 }
 
@@ -1028,10 +1801,13 @@ function onDateInputChange() {
 
 function createParticles() { }
 
-async function loadEmployees(source) {
-  source = source || 'bao_tri';
+async function loadEmployees(source, branch) {
+  source = source || currentDataSource || 'bao_tri';
+  if (branch === undefined) branch = currentSelectedBranch || '';
   try {
-    const r = await fetch(`/api/employees?source=${source}`);
+    let url = `/api/employees?source=${source}`;
+    if (branch) url += `&branch=${encodeURIComponent(branch)}`;
+    const r = await fetch(url);
     const d = await r.json();
     if (d.success) { allEmployees = d.employees; renderEmployees(allEmployees); }
     else document.getElementById("employeeList").innerHTML = `<div class="error-state"><i class="fa-solid fa-circle-exclamation"></i> ${d.error}</div>`;
@@ -1147,6 +1923,23 @@ async function uploadQrImageModal(input) {
   input.value = "";
 }
 
+function toggleOtpMethod() {
+  const isManual = document.getElementById("otpMethodManual")?.checked;
+  const wrapPwd = document.getElementById("wrapCfgEmailPassword");
+  const autoHint = document.getElementById("otpAutoHint");
+  const manualHint = document.getElementById("otpManualHint");
+
+  if (isManual) {
+    if (wrapPwd) wrapPwd.style.display = "none";
+    if (autoHint) autoHint.style.display = "none";
+    if (manualHint) manualHint.style.display = "block";
+  } else {
+    if (wrapPwd) wrapPwd.style.display = "block";
+    if (autoHint) autoHint.style.display = "block";
+    if (manualHint) manualHint.style.display = "none";
+  }
+}
+
 function toggleLoginMode() {
   const isCustom = document.getElementById("modeCustom")?.checked;
   const banner = document.getElementById("defaultNoticeBanner");
@@ -1159,6 +1952,7 @@ function toggleLoginMode() {
     if (customSection) customSection.style.display = "block";
     if (lblDef) lblDef.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #cbd5e1;background:#fff;cursor:pointer;transition:all 0.2s;";
     if (lblCus) lblCus.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #3b82f6;background:#eff6ff;cursor:pointer;transition:all 0.2s;";
+    toggleOtpMethod();
   } else {
     if (banner) banner.style.display = "flex";
     if (customSection) customSection.style.display = "none";
@@ -1171,12 +1965,30 @@ function doLogin() {
   openLoginConfigModal();
 }
 
+async function doResetLoginDriver() {
+  showToast("Đang dọn dẹp trình duyệt và reset phiên...", "info");
+  try {
+    const r = await fetch("/api/login/reset", { method: "POST" });
+    const d = await r.json();
+    showToast(d.message || "Đã giải phóng trình duyệt", "success");
+    setBadge("idle", "Chưa đăng nhập");
+    const btn = document.getElementById("btnLogin");
+    if (btn) btn.disabled = false;
+    closeLoginConfigModal();
+    cancelManualOtp();
+  } catch(e) {
+    showToast("Lỗi kết nối khi reset trình duyệt", "error");
+  }
+}
+
 async function saveAndDoLogin() {
   const isCustom = document.getElementById("modeCustom")?.checked;
   const mode = isCustom ? "custom" : "default";
+  const otpMethod = document.querySelector('input[name="otpMethod"]:checked')?.value || "auto";
 
   const payload = {
     mode: mode,
+    otp_method: otpMethod,
     force_relogin: true
   };
 
@@ -1186,8 +1998,12 @@ async function saveAndDoLogin() {
     const insideAcc = document.getElementById("cfgInsideAccount")?.value.trim();
     const insidePass = document.getElementById("cfgInsidePassword")?.value.trim();
 
-    if (!email || !emailPass) {
-      showToast("Vui lòng điền đầy đủ Email và Mật Khẩu Email MyPT!", "error");
+    if (!email) {
+      showToast("Vui lòng điền Email FPT / MyPT!", "error");
+      return;
+    }
+    if (otpMethod === "auto" && !emailPass) {
+      showToast("Chế độ Tự động đọc OTP yêu cầu điền Mật khẩu Email!", "error");
       return;
     }
     if (!insideAcc || !insidePass) {
@@ -1204,7 +2020,7 @@ async function saveAndDoLogin() {
   }
 
   closeLoginConfigModal();
-  setBadge("pending", "Đang đăng nhập...");
+  setBadge("pending", "Đang kết nối đăng nhập...");
   document.getElementById("btnLogin").disabled = true;
 
   try {
@@ -1217,7 +2033,7 @@ async function saveAndDoLogin() {
     if (d.success) {
       showToast(mode === "custom" ? "Bắt đầu đăng nhập với tài khoản tùy chọn..." : "Bắt đầu đăng nhập hệ thống (Mặc định)...", "info");
     } else {
-      showToast("Lỗi đăng nhập: " + d.error, "error");
+      showToast("Lỗi đăng nhập: " + (d.message || d.error), "error");
       setBadge("error", "Đăng nhập thất bại");
       document.getElementById("btnLogin").disabled = false;
     }
@@ -1228,35 +2044,127 @@ async function saveAndDoLogin() {
   }
 }
 
+function cancelManualOtp() {
+  const modal = document.getElementById("manualOtpModal");
+  if (modal) modal.style.display = "none";
+  const inp = document.getElementById("manualOtpInput");
+  if (inp) inp.value = "";
+  const st = document.getElementById("manualOtpStatus");
+  if (st) st.textContent = "";
+}
+
+async function submitManualOtp() {
+  const inp = document.getElementById("manualOtpInput");
+  const otp = inp ? inp.value.trim() : "";
+  if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+    showToast("Vui lòng nhập đúng 6 chữ số OTP!", "warning");
+    if (inp) inp.focus();
+    return;
+  }
+
+  const st = document.getElementById("manualOtpStatus");
+  const btn = document.getElementById("btnSubmitOtp");
+  if (st) st.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xác thực mã OTP...';
+  if (btn) btn.disabled = true;
+
+  try {
+    const r = await fetch("/api/login/submit_otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ otp: otp })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast("✅ Đăng nhập hệ thống MYBAE thành công!", "success");
+      cancelManualOtp();
+      setBadge("ok", "Đã đăng nhập");
+    } else {
+      if (st) st.innerHTML = `<span style="color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(d.error || 'Mã OTP không đúng')}</span>`;
+      showToast(d.error || "Mã OTP không hợp lệ", "error");
+    }
+  } catch(e) {
+    if (st) st.innerHTML = '<span style="color:#ef4444;">Lỗi kết nối khi gửi OTP</span>';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+let _prevLoginStatus = "";
 function pollLoginStatus() {
   setInterval(async () => {
     try {
       const r = await fetch("/api/login_status");
       const d = await r.json();
       const modeLabel = d.mode === "custom" ? "Tùy chọn" : "Mặc định";
-      if (d.status==="ok") { setBadge("ok",`Đã đăng nhập (${modeLabel})`); }
-      else if (d.status==="error") { setBadge("error","Đăng nhập thất bại"); document.getElementById("btnLogin").disabled=false; }
-      else if (d.status==="pending") { setBadge("pending","Đang đăng nhập..."); }
+      const statusBadge = document.getElementById("loginBadge");
+      
+      if (statusBadge && d.message) {
+        statusBadge.title = d.message;
+      }
+
+      if (d.status === "ok") {
+        setBadge("ok", `Đã đăng nhập (${modeLabel})`);
+        document.getElementById("btnLogin").disabled = false;
+        cancelManualOtp();
+      } else if (d.status === "waiting_otp") {
+        setBadge("pending", "Chờ mã OTP...");
+        const modal = document.getElementById("manualOtpModal");
+        if (modal && modal.style.display !== "flex") {
+          modal.style.display = "flex";
+          const inp = document.getElementById("manualOtpInput");
+          if (inp) inp.focus();
+        }
+      } else if (d.status === "pending") {
+        const shortMsg = d.message ? (d.message.length > 28 ? d.message.slice(0, 28) + "..." : d.message) : "Đang đăng nhập...";
+        setBadge("pending", shortMsg);
+        document.getElementById("btnLogin").disabled = true;
+      } else if (d.status === "error") {
+        setBadge("error", "Đăng nhập thất bại");
+        document.getElementById("btnLogin").disabled = false;
+        if (_prevLoginStatus !== "error" && d.message) {
+          showToast(d.message, "error");
+        }
+      } else if (d.status === "idle") {
+        setBadge("idle", "Chưa đăng nhập");
+        document.getElementById("btnLogin").disabled = false;
+      }
+      _prevLoginStatus = d.status;
     } catch(e) {}
-  }, 3000);
+  }, 2500);
 }
 
-function setBadge(type,text) {
-  document.getElementById("loginBadge").className = `badge badge-${type}`;
-  document.getElementById("loginText").textContent = text;
+function setBadge(type, text) {
+  const b = document.getElementById("loginBadge");
+  if (b) b.className = `badge badge-${type}`;
+  const t = document.getElementById("loginText");
+  if (t) t.textContent = text;
 }
 
-async function loadTeamCaptains() {
+async function loadTeamCaptains(branch) {
+  if (branch === undefined) branch = currentSelectedBranch || '';
   try {
-    const r = await fetch("/api/team_captains");
+    let url = "/api/team_captains";
+    if (branch) url += `?branch=${encodeURIComponent(branch)}`;
+    const r = await fetch(url);
     const d = await r.json();
     if (d.success) {
       teamCaptainsMap = d.captains_map || {};
       const sel = document.getElementById("captainSelect");
+      const capHint = document.getElementById("capCountText");
       if (sel) {
-        sel.innerHTML = `<option value="">-- Tất cả Đội Trưởng (Hoặc chọn tùy chỉnh nhân viên) --</option>` +
-          (d.captains || []).map(c => `<option value="${esc(c)}">${esc(c)} (${(teamCaptainsMap[c]||[]).length} NV)</option>`).join("");
+        if (d.captains && d.captains.length > 0) {
+          sel.innerHTML = `<option value="">-- Tất cả Đội Trưởng (Hoặc chọn tùy chỉnh nhân viên) --</option>` +
+            d.captains.map(c => `<option value="${esc(c)}">${esc(c)} (${(teamCaptainsMap[c]||[]).length} NV)</option>`).join("");
+          if (capHint) capHint.textContent = `${d.captains.length} Đội Trưởng (${d.total_mapped_employees || 0} NV đã gán)`;
+        } else {
+          sel.innerHTML = `<option value="">⚠️ Chưa có MAP Đội Trưởng - Bấm "MAP Đội Trưởng" để tạo</option>`;
+          if (capHint) capHint.textContent = "Chưa có MAP Đội Trưởng cho chi nhánh này";
+        }
       }
+      const sbCapSummary = document.getElementById("summary-captains");
+      if (sbCapSummary) sbCapSummary.textContent = d.captains ? d.captains.length : 0;
+      const sbCapDesc = document.getElementById("summary-captains-desc");
+      if (sbCapDesc) sbCapDesc.textContent = `${d.total_mapped_employees || 0} NV đã gán vào đội`;
     }
   } catch(e) {
     console.error("Lỗi tải danh sách Đội Trưởng:", e);
@@ -1264,14 +2172,450 @@ async function loadTeamCaptains() {
 }
 
 function onCaptainChange(captainName) {
-  if (!captainName) { return; }
+  if (!captainName) {
+    filterEmployees();
+    return;
+  }
   const members = teamCaptainsMap[captainName] || [];
+  if (!members.length) {
+    showToast(`Đội Trưởng ${captainName} chưa có nhân viên nào trong MAP!`, "warning");
+    return;
+  }
+  const memberSet = new Set(members.map(m => String(m).trim().toUpperCase()));
   selectedEmployees.clear();
+  let matchCount = 0;
+  allEmployees.forEach(emp => {
+    if (memberSet.has(emp.trim().toUpperCase())) {
+      selectedEmployees.add(emp);
+      matchCount++;
+    }
+  });
+  // Luôn nạp toàn bộ members của đội để backend lọc chính xác hợp đồng kể cả khi nhân viên chưa có trong list hiển thị hiện tại
   members.forEach(m => selectedEmployees.add(m));
+
   updateSelectedCount();
   filterEmployees();
   document.getElementById("btnFilter").disabled = selectedEmployees.size === 0;
-  showToast(`Đã chọn toàn bộ ${members.length} Nhân Viên thuộc Đội Trưởng ${captainName}`, "info");
+
+  const srcName = currentDataSource === 'ton_bao_tri' ? 'Tồn Bảo Trì' : 'Bảo Trì';
+  showToast(`Đã chọn Đội Trưởng ${captainName}: ${members.length} NV (có ${matchCount} NV có dữ liệu trong ${srcName})`, "info");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ── MODAL QUẢN LÝ MAP ĐỘI TRƯỞNG & NHÂN VIÊN ─────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+let capModalData = {
+  captains_map: {},
+  sorted_captains: [],
+  available_employees: [],
+  unassigned_employees: []
+};
+let capDraftMap = {};
+let activeCapName = null;
+let currentCapModalTab = 'file';
+
+async function openCaptainMappingModal() {
+  const modal = document.getElementById("captainMappingModal");
+  if (!modal) return;
+  modal.style.display = "flex";
+
+  const branchBadge = document.getElementById("capModalBranchBadge");
+  if (branchBadge) branchBadge.textContent = `Chi Nhánh: ${currentSelectedBranch || "Mặc định / Chung"}`;
+
+  await fetchCaptainData();
+  switchCapModalTab('file');
+}
+
+function closeCaptainMappingModal() {
+  const modal = document.getElementById("captainMappingModal");
+  if (modal) modal.style.display = "none";
+}
+
+function switchCapModalTab(tab) {
+  currentCapModalTab = tab;
+  ['file', 'manual', 'list'].forEach(t => {
+    const btn = document.getElementById(`capTabBtn-${t}`);
+    const content = document.getElementById(`capTabContent-${t}`);
+    if (btn) {
+      if (t === tab) {
+        btn.style.borderBottom = "2.5px solid var(--primary)";
+        btn.style.color = "var(--primary)";
+        btn.style.fontWeight = "700";
+      } else {
+        btn.style.borderBottom = "2.5px solid transparent";
+        btn.style.color = "#64748b";
+        btn.style.fontWeight = "600";
+      }
+    }
+    if (content) content.style.display = (t === tab) ? "block" : "none";
+  });
+
+  if (tab === 'manual') {
+    renderCapManualUI();
+  } else if (tab === 'list') {
+    renderCapSummaryUI();
+  }
+}
+
+async function fetchCaptainData() {
+  try {
+    let url = `/api/team_captains?force=1`;
+    if (currentSelectedBranch) url += `&branch=${encodeURIComponent(currentSelectedBranch)}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    if (d.success) {
+      capModalData = d;
+      capDraftMap = {};
+      for (const [k, v] of Object.entries(d.captains_map || {})) {
+        capDraftMap[k] = [...v];
+      }
+      activeCapName = d.captains && d.captains.length > 0 ? d.captains[0] : null;
+      renderCapManualUI();
+      renderCapSummaryUI();
+    }
+  } catch(e) {
+    showToast("Lỗi tải thông tin Đội Trưởng từ server", "error");
+  }
+}
+
+function downloadCaptainTemplate() {
+  window.location.href = "/api/team_captains/template";
+}
+
+function exportCaptainExcel() {
+  let url = "/api/team_captains/export";
+  if (currentSelectedBranch) url += `?branch=${encodeURIComponent(currentSelectedBranch)}`;
+  window.location.href = url;
+}
+
+function onCapFileSelected(input) {
+  if (!input.files || input.files.length === 0) return;
+  const file = input.files[0];
+  const nameEl = document.getElementById("capSelectedFileName");
+  if (nameEl) {
+    nameEl.textContent = `Đã chọn: ${file.name} (${Math.round(file.size/1024)} KB)`;
+    nameEl.style.display = "block";
+  }
+  const btn = document.getElementById("btnUploadCapFile");
+  if (btn) btn.style.display = "inline-flex";
+}
+
+async function uploadCaptainFile() {
+  const fileInput = document.getElementById("capFileInput");
+  if (!fileInput.files || fileInput.files.length === 0) {
+    showToast("Vui lòng chọn file Excel hoặc CSV", "warning");
+    return;
+  }
+  const btn = document.getElementById("btnUploadCapFile");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang nạp file...`;
+
+  const fd = new FormData();
+  fd.append("file", fileInput.files[0]);
+  if (currentSelectedBranch) fd.append("branch", currentSelectedBranch);
+
+  try {
+    const r = await fetch("/api/team_captains/import", {
+      method: "POST",
+      body: fd
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(d.message || "Nạp dữ liệu MAP thành công!", "success");
+      await fetchCaptainData();
+      await loadTeamCaptains(currentSelectedBranch);
+      switchCapModalTab('list');
+    } else {
+      showToast(d.error || "Nạp file thất bại", "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối khi nạp file", "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-upload"></i> Nạp Ngay Vào Hệ Thống`;
+  }
+}
+
+function renderCapManualUI() {
+  const leftList = document.getElementById("capManualLeftList");
+  const countBadge = document.getElementById("capManualCountBadge");
+  const sortedCaps = Object.keys(capDraftMap).sort();
+
+  if (countBadge) countBadge.textContent = `${sortedCaps.length} Đội`;
+
+  if (!sortedCaps.length) {
+    if (leftList) leftList.innerHTML = `<div style="text-align:center;color:#94a3b8;font-size:0.8rem;padding:20px 0;">Chưa có Đội Trưởng nào.<br>Nhập tên ở trên để tạo mới.</div>`;
+    activeCapName = null;
+    renderActiveCaptainDetail();
+    return;
+  }
+
+  if (!activeCapName || !capDraftMap[activeCapName]) {
+    activeCapName = sortedCaps[0];
+  }
+
+  if (leftList) {
+    leftList.innerHTML = sortedCaps.map(cap => {
+      const isAct = (cap === activeCapName);
+      const cnt = (capDraftMap[cap] || []).length;
+      return `
+        <div onclick="selectActiveCaptain('${esc(cap)}')" style="padding:10px 12px;border-radius:8px;background:${isAct ? '#7c3aed' : '#fff'};color:${isAct ? '#fff' : '#1e293b'};border:1px solid ${isAct ? '#7c3aed' : '#e2e8f0'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.15s;">
+          <div style="font-weight:700;font-size:0.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">${esc(cap)}</div>
+          <span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:12px;background:${isAct ? 'rgba(255,255,255,0.25)' : '#f1f5f9'};color:${isAct ? '#fff' : '#64748b'};">${cnt} NV</span>
+        </div>
+      `;
+    }).join("");
+  }
+
+  renderActiveCaptainDetail();
+}
+
+function selectActiveCaptain(capName) {
+  activeCapName = capName;
+  renderCapManualUI();
+}
+
+function addNewCaptainDraft() {
+  const inp = document.getElementById("newCapInput");
+  const val = (inp.value || "").trim();
+  if (!val) {
+    showToast("Vui lòng nhập tên Đội Trưởng", "warning");
+    return;
+  }
+  if (capDraftMap[val]) {
+    showToast("Đội Trưởng này đã tồn tại", "warning");
+    return;
+  }
+  capDraftMap[val] = [];
+  activeCapName = val;
+  inp.value = "";
+  renderCapManualUI();
+  showToast(`Đã thêm Đội Trưởng: ${val}`, "info");
+}
+
+function deleteActiveCaptainDraft() {
+  if (!activeCapName) return;
+  if (!confirm(`Bạn có chắc muốn xóa Đội Trưởng [${activeCapName}]? Các nhân viên trong đội sẽ trở về trạng thái chưa phân đội.`)) return;
+  delete capDraftMap[activeCapName];
+  const sorted = Object.keys(capDraftMap).sort();
+  activeCapName = sorted.length > 0 ? sorted[0] : null;
+  renderCapManualUI();
+}
+
+function renderActiveCaptainDetail() {
+  const title = document.getElementById("activeCapTitle");
+  const countSpan = document.getElementById("activeCapMemberCount");
+  const delBtn = document.getElementById("btnDeleteActiveCap");
+  const membersWrap = document.getElementById("activeCapMembersWrap");
+
+  if (!activeCapName || !capDraftMap[activeCapName]) {
+    if (title) title.textContent = "Chưa chọn Đội Trưởng";
+    if (countSpan) countSpan.textContent = "";
+    if (delBtn) delBtn.style.display = "none";
+    if (membersWrap) membersWrap.innerHTML = `<span style="font-size:0.8rem;color:#94a3b8;">Chọn một Đội Trưởng ở bên trái</span>`;
+    renderUnassignedEmps();
+    return;
+  }
+
+  if (delBtn) delBtn.style.display = "inline-flex";
+  if (title) title.textContent = `Đội Trưởng: ${activeCapName}`;
+  const members = capDraftMap[activeCapName] || [];
+  if (countSpan) countSpan.textContent = `(${members.length} nhân viên)`;
+
+  if (!members.length) {
+    if (membersWrap) membersWrap.innerHTML = `<span style="font-size:0.8rem;color:#94a3b8;font-style:italic;">Đội này chưa có nhân viên nào. Chọn nhân viên ở dưới để gán.</span>`;
+  } else {
+    if (membersWrap) {
+      membersWrap.innerHTML = members.map(m => `
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #cbd5e1;padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;color:#334155;">
+          ${esc(m)}
+          <i class="fa-solid fa-xmark" style="cursor:pointer;color:#ef4444;font-size:0.75rem;" onclick="removeMemberFromDraft('${esc(activeCapName)}', '${esc(m)}')" title="Gỡ khỏi đội"></i>
+        </span>
+      `).join("");
+    }
+  }
+
+  renderUnassignedEmps();
+}
+
+function removeMemberFromDraft(capName, emp) {
+  if (!capDraftMap[capName]) return;
+  capDraftMap[capName] = capDraftMap[capName].filter(e => e !== emp);
+  renderActiveCaptainDetail();
+  renderCapManualUI();
+}
+
+function renderUnassignedEmps() {
+  const wrap = document.getElementById("unassignedEmpsWrap");
+  if (!wrap) return;
+
+  const allAssigned = new Set();
+  for (const [c, emps] of Object.entries(capDraftMap)) {
+    emps.forEach(e => allAssigned.add(e));
+  }
+
+  const allAvail = capModalData.available_employees || [];
+  const searchQ = (document.getElementById("searchUnassignedEmpInput")?.value || "").toLowerCase().trim();
+
+  const candidates = allAvail.filter(e => {
+    const isAssignedToOther = allAssigned.has(e) && !(capDraftMap[activeCapName]||[]).includes(e);
+    const isAssignedToCurrent = (capDraftMap[activeCapName]||[]).includes(e);
+    if (isAssignedToCurrent) return false;
+    if (!searchQ) return !allAssigned.has(e);
+    return e.toLowerCase().includes(searchQ);
+  });
+
+  if (!candidates.length) {
+    wrap.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:16px;color:#94a3b8;font-size:0.78rem;">Không có nhân viên nào phù hợp</div>`;
+    return;
+  }
+
+  wrap.innerHTML = candidates.map(e => {
+    const isOther = allAssigned.has(e);
+    return `
+      <label style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:4px;border:1px solid #e2e8f0;background:#fff;font-size:0.76rem;cursor:pointer;">
+        <input type="checkbox" class="chk-unassigned-emp" value="${esc(e)}" style="cursor:pointer;"/>
+        <span style="font-weight:600;color:${isOther ? '#ea580c' : '#1e293b'};">${esc(e)}</span>
+        ${isOther ? '<span style="font-size:0.65rem;color:#ea580c;" title="Đang ở đội khác">(Chuyển)</span>' : ''}
+      </label>
+    `;
+  }).join("");
+}
+
+function filterUnassignedEmps() {
+  renderUnassignedEmps();
+}
+
+function toggleSelectAllUnassigned(checked) {
+  document.querySelectorAll(".chk-unassigned-emp").forEach(cb => cb.checked = checked);
+}
+
+function assignCheckedEmpsToActiveCap() {
+  if (!activeCapName) {
+    showToast("Vui lòng chọn một Đội Trưởng trước khi gán nhân viên", "warning");
+    return;
+  }
+  const checked = Array.from(document.querySelectorAll(".chk-unassigned-emp:checked")).map(cb => cb.value);
+  if (!checked.length) {
+    showToast("Vui lòng tick chọn ít nhất 1 nhân viên", "warning");
+    return;
+  }
+
+  checked.forEach(emp => {
+    for (const c of Object.keys(capDraftMap)) {
+      capDraftMap[c] = capDraftMap[c].filter(e => e !== emp);
+    }
+  });
+
+  if (!capDraftMap[activeCapName]) capDraftMap[activeCapName] = [];
+  checked.forEach(emp => {
+    if (!capDraftMap[activeCapName].includes(emp)) {
+      capDraftMap[activeCapName].push(emp);
+    }
+  });
+
+  showToast(`Đã gán ${checked.length} nhân viên vào Đội Trưởng ${activeCapName}`, "success");
+  renderCapManualUI();
+}
+
+function renderCapSummaryUI() {
+  const totalCaps = Object.keys(capDraftMap).length;
+  const allMapped = new Set();
+  for (const emps of Object.values(capDraftMap)) {
+    emps.forEach(e => allMapped.add(e));
+  }
+  const allAvail = capModalData.available_employees || [];
+  const unassigned = allAvail.filter(e => !allMapped.has(e));
+
+  const elTotalCaps = document.getElementById("statTotalCaps");
+  const elTotalMapped = document.getElementById("statTotalMappedEmps");
+  const elTotalUnassigned = document.getElementById("statTotalUnassignedEmps");
+
+  if (elTotalCaps) elTotalCaps.textContent = totalCaps;
+  if (elTotalMapped) elTotalMapped.textContent = allMapped.size;
+  if (elTotalUnassigned) elTotalUnassigned.textContent = unassigned.length;
+
+  const tableWrap = document.getElementById("capFullSummaryTableWrap");
+  if (!tableWrap) return;
+
+  const sortedCaps = Object.keys(capDraftMap).sort();
+  if (!sortedCaps.length) {
+    tableWrap.innerHTML = `<div style="text-align:center;padding:24px;color:#94a3b8;font-size:0.85rem;">Chưa có dữ liệu MAP Đội Trưởng</div>`;
+    return;
+  }
+
+  let html = `
+    <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+      <thead>
+        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;text-align:left;">
+          <th style="padding:10px 12px;font-weight:700;color:#334155;width:40px;">STT</th>
+          <th style="padding:10px 12px;font-weight:700;color:#334155;width:220px;">Đội Trưởng</th>
+          <th style="padding:10px 12px;font-weight:700;color:#334155;width:90px;text-align:center;">Số NV</th>
+          <th style="padding:10px 12px;font-weight:700;color:#334155;">Danh Sách Nhân Viên (Account Inside)</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  sortedCaps.forEach((cap, idx) => {
+    const emps = capDraftMap[cap] || [];
+    html += `
+      <tr style="border-bottom:1px solid #f1f5f9;">
+        <td style="padding:10px 12px;color:#64748b;font-weight:600;">${idx + 1}</td>
+        <td style="padding:10px 12px;font-weight:700;color:#1e293b;">
+          <i class="fa-solid fa-user-tie" style="color:#7c3aed;margin-right:6px;"></i> ${esc(cap)}
+        </td>
+        <td style="padding:10px 12px;text-align:center;">
+          <span class="chip" style="font-size:0.75rem;padding:2px 8px;font-weight:700;">${emps.length}</span>
+        </td>
+        <td style="padding:10px 12px;color:#334155;">
+          ${emps.length > 0 ? emps.map(e => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 6px;margin:2px 3px;font-size:0.75rem;font-weight:600;">${esc(e)}</span>`).join("") : '<span style="color:#94a3b8;font-style:italic;">(Chưa có nhân viên)</span>'}
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `</tbody></table>`;
+  tableWrap.innerHTML = html;
+}
+
+function clearAllCaptainsDraft() {
+  if (!confirm("Bạn có chắc chắn muốn xóa TOÀN BỘ cấu hình MAP Đội Trưởng hiện tại?")) return;
+  capDraftMap = {};
+  activeCapName = null;
+  renderCapManualUI();
+  renderCapSummaryUI();
+  showToast("Đã làm trống danh sách Đội Trưởng (Bấm 'Lưu & Áp Dụng' để hoàn tất)", "warning");
+}
+
+async function saveCaptainMapping() {
+  const btn = document.getElementById("btnSaveCapModal");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...`;
+
+  try {
+    const r = await fetch("/api/team_captains/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        captains_map: capDraftMap,
+        branch: currentSelectedBranch || undefined
+      })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(d.message || "Đã lưu cấu hình MAP Đội Trưởng thành công!", "success");
+      await loadTeamCaptains(currentSelectedBranch);
+      closeCaptainMappingModal();
+    } else {
+      showToast(d.error || "Lưu cấu hình thất bại", "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối server khi lưu", "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-check"></i> Lưu &amp; Áp Dụng Ngay`;
+  }
 }
 
 async function loadCll30Top10Table() { /* CLL30N đã bị loại bỏ */ }
@@ -1294,19 +2638,14 @@ async function doCancelJob() {
   }
 }
 
+let _pendingFilterPayload = null;
+
 async function doFilter() {
   const selectedCap = document.getElementById("captainSelect").value;
   if (!selectedEmployees.size && !selectedCap) {
     showToast("Vui lòng chọn nhân viên hoặc chọn Đội Trưởng!", "warning");
     return;
   }
-  
-  allResults = []; currentFilter = null;
-  analysisCurrentPage = 1;
-  document.getElementById("resultBody").innerHTML = "";
-  ["resultCard","progressWrap","statsRow"].forEach(id => document.getElementById(id).classList.remove("hidden"));
-  clearFilter();
-  setProgress(0,0,"Đang kiểm tra dữ liệu hợp đồng...");
 
   const startDate = document.getElementById("startDate").value;
   const endDate = document.getElementById("endDate").value;
@@ -1315,32 +2654,117 @@ async function doFilter() {
   const srcRadio = document.querySelector('input[name="dataSource"]:checked');
   currentDataSource = srcRadio ? srcRadio.value : 'bao_tri';
 
+  const basePayload = {
+    employees: [...selectedEmployees],
+    team_captain: selectedCap,
+    chi_nhanh: currentSelectedBranch || undefined,
+    start_date: startDate,
+    end_date: endDate,
+    data_source: currentDataSource
+  };
+
   try {
-    const r = await fetch("/api/filter",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        employees:[...selectedEmployees],
-        team_captain: selectedCap,
-        start_date: startDate,
-        end_date: endDate,
-        data_source: currentDataSource
-      })
+    showToast("Đang kiểm tra danh sách hợp đồng...", "info");
+    const r = await fetch("/api/filter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...basePayload, check_count_only: true })
     });
     const d = await r.json();
-    if (!d.success) { showToast("Lỗi: "+d.error,"error"); return; }
+    if (!d.success) { showToast("Lỗi: " + d.error, "error"); return; }
 
-    if (d.total===0) { showToast(d.message,"info"); document.getElementById("progressWrap").classList.add("hidden"); return; }
-    
-    if (d.skipped_24h_count && d.skipped_24h_count > 0) {
-      showToast(d.message, "info");
-    } else {
-      const srcLabel = currentDataSource === 'ton_bao_tri' ? 'Tồn Bảo Trì' : 'Bảo Trì';
-      showToast(`[${srcLabel}] Phân tích ${d.total} hợp đồng...`,"info");
+    if (d.total === 0) {
+      showToast(d.message || "Không tìm thấy hợp đồng nào phù hợp trong khoảng thời gian đã chọn.", "info");
+      return;
     }
 
+    _pendingFilterPayload = basePayload;
+
+    // NẾU TỪ 10 HỢP ĐỒNG TRỞ LÊN -> HIỆN POPUP HỎI PHÂN TÍCH ĐẦY ĐỦ HAY RÚT GỌN
+    if (d.total >= 10) {
+      const cntEl = document.getElementById("modalContractCount");
+      if (cntEl) cntEl.textContent = d.total;
+      openAnalysisModeModal();
+    } else {
+      // Dưới 10 HĐ -> Mặc định phân tích đầy đủ
+      executeFilterWithMode('full');
+    }
+
+  } catch(e) {
+    showToast("Lỗi kết nối máy chủ", "error");
+  }
+}
+
+function openAnalysisModeModal() {
+  const m = document.getElementById("analysisModeModal");
+  if (m) m.style.display = "flex";
+}
+
+function closeAnalysisModeModal() {
+  const m = document.getElementById("analysisModeModal");
+  if (m) m.style.display = "none";
+}
+
+let _isFilterExecuting = false;
+
+async function executeFilterWithMode(mode) {
+  if (_isFilterExecuting) return;
+  _isFilterExecuting = true;
+  closeAnalysisModeModal();
+  if (!_pendingFilterPayload) {
+    _isFilterExecuting = false;
+    return;
+  }
+
+  const btnFilter = document.getElementById("btnFilter");
+  if (btnFilter) btnFilter.disabled = true;
+
+  allResults = [];
+  currentFilter = null;
+  analysisCurrentPage = 1;
+  document.getElementById("resultBody").innerHTML = "";
+  ["resultCard","progressWrap","statsRow"].forEach(id => document.getElementById(id).classList.remove("hidden"));
+  clearFilter();
+  setProgress(0, 0, `Đang khởi tạo phân tích (${mode === 'compact' ? 'Rút gọn' : 'Đầy đủ'})...`);
+
+  const payload = {
+    ..._pendingFilterPayload,
+    analysis_mode: mode
+  };
+
+  try {
+    const r = await fetch("/api/filter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (!d.success) {
+      showToast("Lỗi: " + d.error, "error");
+      if (btnFilter) btnFilter.disabled = false;
+      document.getElementById("progressWrap").classList.add("hidden");
+      return;
+    }
+
+    if (d.total === 0) {
+      showToast(d.message, "info");
+      if (btnFilter) btnFilter.disabled = false;
+      document.getElementById("progressWrap").classList.add("hidden");
+      return;
+    }
+
+    const srcLabel = currentDataSource === 'ton_bao_tri' ? 'Tồn Bảo Trì' : 'Bảo Trì';
+    const modeLabel = mode === 'compact' ? '⚡ Rút Gọn' : '🔍 Đầy Đủ';
+    showToast(`[${srcLabel} - ${modeLabel}] Phân tích ${d.total} hợp đồng...`, "info");
+
     startSSE();
-  } catch(e) { showToast("Lỗi kết nối server","error"); }
+  } catch(e) {
+    showToast("Lỗi kết nối server", "error");
+    if (btnFilter) btnFilter.disabled = false;
+    document.getElementById("progressWrap").classList.add("hidden");
+  } finally {
+    setTimeout(() => { _isFilterExecuting = false; }, 2500);
+  }
 }
 
 
@@ -1357,6 +2781,8 @@ function startSSE() {
     }
     if (!d.running) {
       sseSource.close();
+      const btnFilter = document.getElementById("btnFilter");
+      if (btnFilter) btnFilter.disabled = false;
       setTimeout(() => {
         const wrap = document.getElementById("progressWrap");
         if (wrap) wrap.classList.add("hidden");
@@ -1401,8 +2827,13 @@ function onDataSourceChange() {
   const banner = document.getElementById('tonBaoTriBanner');
   if (banner) banner.style.display = isTon ? 'flex' : 'none';
 
-  // Reload danh sách nhân viên từ đúng nguồn
-  loadEmployees(currentDataSource);
+  // Reload danh sách nhân viên từ đúng nguồn và giữ lại lựa chọn Đội Trưởng
+  loadEmployees(currentDataSource, currentSelectedBranch).then(() => {
+    const capSel = document.getElementById("captainSelect");
+    if (capSel && capSel.value) {
+      onCaptainChange(capSel.value);
+    }
+  });
 
   showToast(isTon ? 'Đã chọn nguồn Tồn Bảo Trì – kèm Auto Note sau phân tích' : 'Đã chọn nguồn Bảo Trì thông thường', 'info');
 }
@@ -1680,8 +3111,9 @@ function appendRowTo(tbody,res,idx) {
     <td class="td-sys-cell">${signalVal(res.cong_suat_thu)}</td>
     <td class="td-sys-cell">${dropCount(res.so_lan_rot)}</td>
     <td class="td-modem-cell">${esc(res.loai_modem||"—")}</td>
+    <td class="td-modem-cell td-mo-hinh" style="font-weight:600; color:var(--primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(res.mo_hinh_mang||res.loai_modem||'')}">${esc(res.mo_hinh_mang||res.loai_modem||"—")}</td>
     <td class="td-modem-cell td-small">${esc(res.phien_ban_pm||"—")}</td>
-    <td class="td-modem-cell">${esc(res.dns_wan||"—")}</td>
+    <td class="td-modem-cell td-dns" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(res.dns_wan||'')}">${esc(res.dns_wan||"—")}</td>
     <td class="td-doichieu-cell">${doiChieuBadge('rot', res.doi_chieu_rot_mang)}</td>
     <td class="td-doichieu-cell">${doiChieuBadge('tap', res.doi_chieu_tap_diem)}</td>
     <td class="td-doichieu-cell">${doiChieuBadge('client', res.phan_tich_client)}</td>`;
@@ -1750,8 +3182,8 @@ function exportCSV() {
 }
 
 function exportResultsArray(arr, filename) {
-  const headers = ["So HD","Nhan Vien","TG Hoan Tat","Xu ly tu dong","Can xu ly","Canh bao","Cong suat thu","So lan rot","Loai modem","Phien ban PM","DNS WAN","Doi chieu rot mang","Doi chieu tap diem","Phan tich Client"];
-  const rows = arr.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,r.phien_ban_pm,r.dns_wan,r.doi_chieu_rot_mang,r.doi_chieu_tap_diem,r.phan_tich_client].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
+  const headers = ["So HD","Nhan Vien","TG Hoan Tat","Xu ly tu dong","Can xu ly","Canh bao","Cong suat thu","So lan rot","Loai modem","Mo hinh mang","Phien ban PM","DNS WAN","Doi chieu rot mang","Doi chieu tap diem","Phan tich Client"];
+  const rows = arr.map(r=>[r.so_hd,r.nhan_vien,r.tg_hoan_tat,r.xu_ly_loi_tu_dong,r.can_xu_ly,r.canh_bao,r.cong_suat_thu,r.so_lan_rot,r.loai_modem,(r.mo_hinh_mang||r.loai_modem||""),r.phien_ban_pm,r.dns_wan,r.doi_chieu_rot_mang,r.doi_chieu_tap_diem,r.phan_tich_client].map(c=>`"${(c||"").replace(/"/g,'""')}"`));
   const csv = [headers.join(","),...rows.map(r=>r.join(","))].join("\n");
   const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
   const a = document.createElement("a");
@@ -1848,6 +3280,7 @@ function renderHistory(runs) {
               <th style="padding:8px 10px;">Cảnh báo</th>
               <th style="padding:8px 10px;">Công suất</th>
               <th style="padding:8px 10px;">Rớt KN</th>
+              <th style="padding:8px 10px;">Mô hình mạng</th>
               <th style="padding:8px 10px;">Đối chiếu Rớt KN</th>
               <th style="padding:8px 10px;">Đối chiếu Tập Điểm</th>
               <th style="padding:8px 10px;">Phân Tích Client</th>
@@ -1863,6 +3296,7 @@ function renderHistory(runs) {
                 <td style="padding:8px 10px;">${badge("info", r.canh_bao)}</td>
                 <td style="padding:8px 10px;">${signalVal(r.cong_suat_thu)}</td>
                 <td style="padding:8px 10px;">${dropCount(r.so_lan_rot)}</td>
+                <td style="padding:8px 10px; font-weight:600; color:var(--primary); white-space:nowrap;">${esc(r.mo_hinh_mang||r.loai_modem||"—")}</td>
                 <td style="padding:8px 10px;">${doiChieuBadge('rot', r.doi_chieu_rot_mang)}</td>
                 <td style="padding:8px 10px;">${doiChieuBadge('tap', r.doi_chieu_tap_diem)}</td>
                 <td style="padding:8px 10px;">${doiChieuBadge('client', r.phan_tich_client)}</td>
@@ -2213,84 +3647,215 @@ async function clearNoteHistory() {
 }
 
 
-/* ANALYTICS TAB FUNCTIONS */
-async function loadAnalytics() {
+/* ──────────────────────────────────────────────
+ *  ANALYTICS: THỐNG KÊ XỬ LÝ SAU PHỤC VỤ & ĐÁNH GIÁ NHÂN SỰ
+ * ────────────────────────────────────────────── */
+let currentAnaData = null;
+let currentAnaList = [];
+let anaSortCol = 'total_violations';
+let anaSortAsc = false;
+
+async function loadAnalytics(branch = "") {
   try {
-    const r = await fetch("/api/analytics");
+    if (!branch) {
+      const bSel = document.getElementById("anaBranchFilterSelect");
+      if (bSel && bSel.value) branch = bSel.value;
+    }
+    const url = branch ? `/api/analytics?branch=${encodeURIComponent(branch)}` : "/api/analytics";
+    const r = await fetch(url);
     const d = await r.json();
     if (d.success) {
+      currentAnaData = d;
+      currentAnaList = d.employee_assessment || [];
       renderAnalytics(d);
+    } else {
+      showToast("Lỗi khi tải thống kê sau phục vụ", "error");
     }
   } catch(e) {
-    showToast("Không thể tải dữ liệu thống kê", "error");
+    console.error("Lỗi loadAnalytics:", e);
+    showToast("Không thể kết nối đến máy chủ", "error");
   }
 }
 
 function renderAnalytics(data) {
-  document.getElementById("anaTotalRuns").textContent = data.total_runs || 0;
+  // 1. Cập nhật 4 thẻ KPI Tổng quan
   document.getElementById("anaTotalContracts").textContent = data.total_contracts_analyzed || 0;
+  document.getElementById("anaTotalEmployees").textContent = data.total_employees || 0;
+  document.getElementById("anaTotalViolations").textContent = data.total_violations || 0;
+  document.getElementById("anaOverallPassRate").textContent = `${data.overall_pass_rate ?? 100}%`;
 
-  const groups = data.error_groups || {};
-  const highRisk = (groups.need_action?.count || 0) + (groups.warning?.count || 0);
-  document.getElementById("anaHighRiskCount").textContent = highRisk;
-
-  const leaderboard = data.employee_leaderboard || [];
-  if (leaderboard.length > 0) {
-    const top = leaderboard[0];
-    document.getElementById("anaTopEmp").textContent = `${top.nhan_vien} (${top.need_count + top.warn_count} lỗi/cảnh báo)`;
-  } else {
-    document.getElementById("anaTopEmp").textContent = "—";
+  // 2. Cập nhật dropdown chọn Chi Nhánh nếu có danh sách
+  const bSel = document.getElementById("anaBranchFilterSelect");
+  if (bSel && Array.isArray(data.available_branches)) {
+    const curVal = bSel.value || data.current_branch || "";
+    bSel.innerHTML = `<option value="">-- Tất cả Chi Nhánh --</option>` +
+      data.available_branches.map(b => 
+        `<option value="${esc(b)}" ${b === curVal ? 'selected' : ''}>🏢 ${esc(b)}</option>`
+      ).join("");
   }
 
-  // Render error groups grid
-  const groupGrid = document.getElementById("errorGroupGrid");
-  groupGrid.innerHTML = Object.entries(groups).map(([key, item]) => `
-    <div class="error-group-card">
-      <div class="error-group-left">
-        <div style="width:36px;height:36px;border-radius:8px;background:#e0f2fe;display:flex;align-items:center;justify-content:center;color:var(--primary)">
-          <i class="fa-solid ${item.icon}"></i>
+  // 3. Render 4 Thẻ Tiêu Chí Sau Phục Vụ
+  const critGrid = document.getElementById("criteriaCardsGrid");
+  if (critGrid && data.criteria_summary) {
+    critGrid.innerHTML = Object.entries(data.criteria_summary).map(([k, c]) => `
+      <div class="error-group-card" style="border-left: 4px solid ${c.color}; background:#ffffff; box-shadow:var(--shadow-sm);">
+        <div class="error-group-left">
+          <div style="width:42px;height:42px;border-radius:10px;background:${c.bg};display:flex;align-items:center;justify-content:center;color:${c.color};font-size:1.2rem;flex-shrink:0;">
+            <i class="fa-solid ${c.icon}"></i>
+          </div>
+          <div>
+            <div class="error-group-title" style="font-size:0.88rem;font-weight:700;color:var(--text-primary);">${esc(c.label)}</div>
+            <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px;">
+              Tỷ lệ: <strong style="color:${c.color};font-weight:700;">${c.pct}%</strong> trên tổng HĐ
+            </div>
+          </div>
         </div>
-        <div class="error-group-title">${esc(item.label)}</div>
+        <div class="error-group-count" style="color:${c.color};font-size:1.35rem;font-weight:800;">
+          ${c.count}
+        </div>
       </div>
-      <div class="error-group-count" style="color:${item.count > 0 ? 'var(--primary)' : 'var(--text-muted)'}">
-        ${item.count}
-      </div>
-    </div>
-  `).join("");
+    `).join("");
+  }
 
-  // Render repeat employee leaderboard table
-  const lbBody = document.getElementById("leaderboardBody");
-  if (!leaderboard.length) {
-    lbBody.innerHTML = `<tr><td colspan="8" class="td-muted" style="text-align:center;">Chưa có dữ liệu nhân viên từ lịch sử chạy.</td></tr>`;
+  // 4. Lọc và render bảng đánh giá nhân sự
+  filterAssessmentTable();
+}
+
+function onAnaBranchFilterChange(val) {
+  loadAnalytics(val);
+}
+
+function filterAssessmentTable() {
+  const q = (document.getElementById("anaSearchNvInput")?.value || "").trim().toLowerCase();
+  const rFilter = (document.getElementById("anaRatingFilterSelect")?.value || "").trim();
+
+  let filtered = currentAnaList.filter(item => {
+    if (rFilter && item.level !== rFilter) return false;
+    if (q) {
+      const nv = (item.nhan_vien || "").toLowerCase();
+      const br = (item.branch || "").toLowerCase();
+      if (!nv.includes(q) && !br.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const countBadge = document.getElementById("anaFilterCountBadge");
+  if (countBadge) {
+    countBadge.textContent = `${filtered.length} nhân viên`;
+  }
+
+  sortAndRenderAssessment(filtered);
+}
+
+function sortAssessmentTable(col) {
+  if (anaSortCol === col) {
+    anaSortAsc = !anaSortAsc;
+  } else {
+    anaSortCol = col;
+    anaSortAsc = false;
+  }
+  filterAssessmentTable();
+}
+
+function sortAndRenderAssessment(list) {
+  list.sort((a, b) => {
+    let vA = a[anaSortCol];
+    let vB = b[anaSortCol];
+    if (typeof vA === 'string') {
+      return anaSortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+    }
+    vA = Number(vA) || 0;
+    vB = Number(vB) || 0;
+    return anaSortAsc ? vA - vB : vB - vA;
+  });
+
+  const tbody = document.getElementById("assessmentBody");
+  if (!tbody) return;
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="11" class="td-muted" style="text-align:center;padding:28px;">Không tìm thấy nhân viên nào phù hợp với điều kiện lọc.</td></tr>`;
     return;
   }
 
-  lbBody.innerHTML = leaderboard.map((emp, i) => {
-    const riskTotal = emp.need_count + emp.warn_count;
-    let badgeClass = "badge-ok";
-    let badgeText = "Bình thường";
+  tbody.innerHTML = list.map((r, i) => {
+    let badgeClass = "badge-tot";
+    if (r.level === 'canh_bao') badgeClass = "badge-canh-bao";
+    else if (r.level === 'luu_y') badgeClass = "badge-luu-y";
+    else if (r.level === 'dat') badgeClass = "badge-dat";
 
-    if (riskTotal >= 5) {
-      badgeClass = "badge-error";
-      badgeText = "Cần chú ý cao (Lặp lại lỗi)";
-    } else if (riskTotal >= 2) {
-      badgeClass = "badge-pending";
-      badgeText = "Có cảnh báo";
-    }
+    const warnDensity = r.total_contracts > 0 ? (r.total_violations / r.total_contracts).toFixed(1) : 0;
 
     return `
       <tr>
-        <td>${i + 1}</td>
-        <td><strong>${esc(emp.nhan_vien)}</strong></td>
-        <td>${emp.total_contracts} HĐ</td>
-        <td style="color:${emp.need_count > 0 ? 'var(--error)' : 'inherit'}; font-weight:${emp.need_count > 0 ? 'bold' : 'normal'}">${emp.need_count}</td>
-        <td style="color:${emp.warn_count > 0 ? 'var(--warning)' : 'inherit'};">${emp.warn_count}</td>
-        <td>${emp.suy_hao_count}</td>
-        <td>${emp.rot_count}</td>
-        <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+        <td style="text-align:center;font-weight:600;color:var(--text-muted);">${i + 1}</td>
+        <td><span class="chip" style="font-size:0.75rem;font-weight:700;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">🏢 ${esc(r.branch)}</span></td>
+        <td><strong style="color:var(--text-primary);font-size:0.86rem;">${esc(r.nhan_vien)}</strong></td>
+        <td style="text-align:center;font-weight:700;">${r.total_contracts}</td>
+        <td style="text-align:center;color:${r.c1_wifi > 0 ? '#7c3aed' : 'var(--text-muted)'};font-weight:${r.c1_wifi > 0 ? '700' : 'normal'};">${r.c1_wifi}</td>
+        <td style="text-align:center;color:${r.c2_suy_hao > 0 ? '#dc2626' : 'var(--text-muted)'};font-weight:${r.c2_suy_hao > 0 ? '700' : 'normal'};">${r.c2_suy_hao}</td>
+        <td style="text-align:center;color:${r.c3_rot > 0 ? '#d97706' : 'var(--text-muted)'};font-weight:${r.c3_rot > 0 ? '700' : 'normal'};">${r.c3_rot}</td>
+        <td style="text-align:center;color:${r.c4_uptime > 0 ? '#0284c7' : 'var(--text-muted)'};font-weight:${r.c4_uptime > 0 ? '700' : 'normal'};">${r.c4_uptime}</td>
+        <td style="text-align:center;font-weight:800;color:${r.total_violations > 0 ? '#b91c1c' : 'var(--text-muted)'};font-size:0.92rem;">${r.total_violations}</td>
+        <td style="text-align:center;">
+          <span class="badge ${r.violation_rate > 40 ? 'badge-error' : (r.violation_rate > 20 ? 'badge-pending' : 'badge-ok')}" style="font-weight:700;">
+            ${r.violation_rate}%
+          </span>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="${badgeClass}">${esc(r.rating)}</span>
+            <span style="font-size:0.8rem;color:var(--text-secondary);line-height:1.35;">${esc(r.conclusion)}</span>
+          </div>
+        </td>
       </tr>
     `;
   }).join("");
+}
+
+function exportAssessmentExcel() {
+  if (!currentAnaList || !currentAnaList.length) {
+    showToast("Không có dữ liệu để xuất Excel", "error");
+    return;
+  }
+
+  const headers = [
+    "STT",
+    "Chi Nhánh",
+    "Nhân Viên",
+    "Tổng HĐ Quét",
+    "Sóng Wifi Yếu (Thu phát kém)",
+    "Suy Hao Không Đạt (< -23.5dBm)",
+    "Rớt Kết Nối Liên Tục",
+    "Chưa Tắt Mở Thiết Bị",
+    "Tổng Lượt Cảnh Báo",
+    "Tỷ Lệ HĐ Vi Phạm (%)",
+    "Xếp Loại Đánh Giá",
+    "Kết Luận Đánh Giá Nhân Sự"
+  ];
+
+  const rows = currentAnaList.map((r, i) => [
+    i + 1,
+    `"${(r.branch || '').replace(/"/g, '""')}"`,
+    `"${(r.nhan_vien || '').replace(/"/g, '""')}"`,
+    r.total_contracts,
+    r.c1_wifi,
+    r.c2_suy_hao,
+    r.c3_rot,
+    r.c4_uptime,
+    r.total_violations,
+    `${r.violation_rate}%`,
+    `"${(r.rating || '').replace(/"/g, '""')}"`,
+    `"${(r.conclusion || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.download = `Bao_Cao_Thong_Ke_Sau_Phuc_Vu_${dateStr}.csv`;
+  a.click();
+  showToast("Đã xuất file báo cáo đánh giá nhân sự thành công!", "success");
 }
 
 let toastTimer;
@@ -2307,16 +3872,482 @@ function showToast(msg,type="info") {
 let sbBrowserCurrentPage = 1;
 let sbBrowserTotalPages = 1;
 
+let allBranches = [];
+
+function isSameBranch(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  const nA = a.normalize('NFC').trim().toLowerCase().replace(/\b0(\d)\b/g, '$1');
+  const nB = b.normalize('NFC').trim().toLowerCase().replace(/\b0(\d)\b/g, '$1');
+  return nA === nB;
+}
+
+function setSelectByBranch(selectEl, branchVal) {
+  if (!selectEl) return;
+  if (!branchVal) {
+    selectEl.value = "";
+    return;
+  }
+  for (let i = 0; i < selectEl.options.length; i++) {
+    if (isSameBranch(selectEl.options[i].value, branchVal)) {
+      selectEl.selectedIndex = i;
+      return;
+    }
+  }
+  selectEl.value = branchVal;
+}
+
+async function loadBranches() {
+  try {
+    const r = await fetch("/api/branches");
+    const d = await r.json();
+    if (d.success && Array.isArray(d.branches)) {
+      allBranches = d.branches;
+      
+      // Khởi tạo Chi Nhánh đang chọn (so khớp linh hoạt Sài Gòn 1 / 01)
+      const matched = allBranches.find(b => isSameBranch(b, currentSelectedBranch));
+      if (matched) {
+        currentSelectedBranch = matched;
+      } else if (!currentSelectedBranch && allBranches.length > 0) {
+        currentSelectedBranch = allBranches[0];
+      }
+      if (currentSelectedBranch) {
+        localStorage.setItem("mybae_selected_branch", currentSelectedBranch);
+      }
+
+      // 1. Cập nhật dropdown Bước 1 ở Tab Import
+      const impSel = document.getElementById("importBranchSelect");
+      if (impSel) {
+        impSel.innerHTML = allBranches.map(b => 
+          `<option value="${esc(b)}" ${isSameBranch(b, currentSelectedBranch) ? 'selected' : ''}>🏢 ${esc(b)}</option>`
+        ).join("") + `<option value="__new__">➕ + Đặt tên Chi Nhánh mới...</option>`;
+      }
+
+      // 2. Cập nhật dropdown ở Tab Phân Tích (Tab 1)
+      const filSel = document.getElementById("filterBranchSelect");
+      if (filSel) {
+        filSel.innerHTML = `<option value="">-- Tất cả Chi Nhánh --</option>` +
+          allBranches.map(b => 
+            `<option value="${esc(b)}" ${isSameBranch(b, currentSelectedBranch) ? 'selected' : ''}>🏢 ${esc(b)}</option>`
+          ).join("");
+      }
+
+      // 3. Cập nhật dropdown ở Bảng Trực Truyền Supabase
+      const brwSel = document.getElementById("browserBranchSelect");
+      if (brwSel) {
+        brwSel.innerHTML = `<option value="">-- Tất cả Chi Nhánh --</option>` +
+          allBranches.map(b => 
+            `<option value="${esc(b)}" ${isSameBranch(b, currentSelectedBranch) ? 'selected' : ''}>🏢 ${esc(b)}</option>`
+          ).join("");
+      }
+
+      // 4. Cập nhật dropdown ở Tổng Quan Supabase Card 1
+      const sbSumSel = document.getElementById("sbSummaryBranchSelect");
+      if (sbSumSel) {
+        sbSumSel.innerHTML = `<option value="">-- Tất cả Chi Nhánh --</option>` +
+          allBranches.map(b => 
+            `<option value="${esc(b)}" ${isSameBranch(b, currentSelectedBranch) ? 'selected' : ''}>🏢 ${esc(b)}</option>`
+          ).join("");
+        if (currentSelectedBranch) {
+          setSelectByBranch(sbSumSel, currentSelectedBranch);
+        }
+      }
+
+      // Cập nhật badges & tải lại tổng quan Supabase
+      updateBranchBadges();
+      loadSupabaseSummary();
+    }
+  } catch(e) {
+    console.error("Lỗi nạp danh sách Chi Nhánh:", e);
+  }
+}
+
+function updateBranchBadges() {
+  const bBadge = document.getElementById("activeBranchBadge");
+  if (bBadge) {
+    bBadge.innerHTML = `<i class="fa-solid fa-building"></i> Chi nhánh: <strong>${esc(currentSelectedBranch || 'Chưa chọn')}</strong>`;
+  }
+  const t1Badge = document.getElementById("tab1BranchBadge");
+  if (t1Badge) {
+    t1Badge.innerHTML = currentSelectedBranch ? `Đang chọn: <strong>${esc(currentSelectedBranch)}</strong>` : `Tất cả Chi Nhánh`;
+  }
+  const hText = document.getElementById("headerBranchText");
+  if (hText) {
+    hText.textContent = currentSelectedBranch ? `CN: ${currentSelectedBranch}` : "Chọn Chi Nhánh";
+  }
+}
+
+function syncBranchDropdowns(val) {
+  currentSelectedBranch = val;
+  if (val) localStorage.setItem("mybae_selected_branch", val);
+
+  setSelectByBranch(document.getElementById("importBranchSelect"), val);
+  setSelectByBranch(document.getElementById("filterBranchSelect"), val);
+  setSelectByBranch(document.getElementById("browserBranchSelect"), val);
+  setSelectByBranch(document.getElementById("sbSummaryBranchSelect"), val);
+
+  updateBranchBadges();
+}
+
+function onSbSummaryBranchChange(val) {
+  syncBranchDropdowns(val);
+  loadSupabaseSummary();
+  loadSupabaseTableData(1);
+  if (val) {
+    loadEmployees(currentDataSource, val);
+    loadTeamCaptains(val);
+  }
+  showToast(val ? `Xem dữ liệu Supabase của Chi Nhánh: ${val}` : "Xem toàn bộ dữ liệu Supabase", "info");
+}
+
+function onBrowserBranchChange(val) {
+  syncBranchDropdowns(val);
+  loadSupabaseSummary();
+  loadSupabaseTableData(1);
+}
+
+function onImportBranchChange(val) {
+  if (val === "__new__") {
+    openNewBranchModal();
+    const impSel = document.getElementById("importBranchSelect");
+    if (impSel) impSel.value = currentSelectedBranch;
+    return;
+  }
+  syncBranchDropdowns(val);
+  loadSupabaseSummary();
+  loadSupabaseTableData(1);
+  loadEmployees(currentDataSource, val);
+  loadTeamCaptains(val);
+  showToast(`Đã chuyển làm việc sang Chi Nhánh: ${val}`, "info");
+
+  // Cập nhật nhãn preview nếu file đang được chọn
+  const fileInput = document.getElementById("importFileInput");
+  if (fileInput && fileInput.files && fileInput.files.length > 0) {
+    document.getElementById("previewCountBadge").textContent = `File ${fileInput.files[0].name} sẵn sàng import cho [${currentSelectedBranch}]`;
+  }
+}
+
+function onFilterBranchChange(val) {
+  syncBranchDropdowns(val);
+  loadSupabaseSummary();
+  loadEmployees(currentDataSource, val);
+  loadTeamCaptains(val);
+  showToast(val ? `Lọc dữ liệu theo Chi Nhánh: ${val}` : "Đang hiển thị tất cả Chi Nhánh", "info");
+}
+
+let _autoImportTimer = null;
+
+async function startAutoImport() {
+  const branch = currentSelectedBranch || (document.getElementById("importBranchSelect") || {}).value || "";
+  if (!branch) { showToast("Vui lòng chọn Chi Nhánh trước khi import tự động!", "warning"); return; }
+  if (!confirm(`Import tự động sẽ XÓA dữ liệu Tồn Bảo Trì cũ của chi nhánh "${branch}" và nạp dữ liệu mới từ Inside. Tiếp tục?`)) return;
+  try {
+    const r = await fetch("/api/auto_import/start", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({chi_nhanh: branch})
+    });
+    const d = await r.json();
+    if (!d.success) { showToast(d.error || "Không khởi động được import tự động", "error"); return; }
+    showToast(d.message, "info");
+    document.getElementById("autoImportProgressWrap").style.display = "block";
+    document.getElementById("btnAutoImportStart").style.display = "none";
+    document.getElementById("btnAutoImportCancel").style.display = "inline-flex";
+    if (_autoImportTimer) clearInterval(_autoImportTimer);
+    _autoImportTimer = setInterval(pollAutoImport, 2000);
+  } catch (e) {
+    showToast("Lỗi kết nối server: " + e.message, "error");
+  }
+}
+
+async function pollAutoImport() {
+  try {
+    const r = await fetch("/api/auto_import/status");
+    const d = await r.json();
+    if (!d.success) return;
+    const s = d.state;
+    document.getElementById("autoImportBar").style.width = (s.percent || 0) + "%";
+    const names = {logging_in:"Đang đăng nhập Inside", navigating:"Đang điều hướng", filtering:"Đang chọn ngày / TỒN POP",
+                   exporting:"Đang xuất Excel", importing:"Đang import Supabase", done:"✅ Hoàn tất",
+                   error:"❌ Lỗi", cancelled:"⛔ Đã dừng", idle:"Chờ"};
+    document.getElementById("autoImportStatusText").textContent = `${names[s.status] || s.status} (${s.percent || 0}%)`;
+    const logEl = document.getElementById("autoImportLog");
+    logEl.textContent = (s.logs || []).map(l => `[${l.time}] ${l.msg}`).join("\n");
+    logEl.scrollTop = logEl.scrollHeight;
+    if (!s.running && ["done", "error", "cancelled"].includes(s.status)) {
+      clearInterval(_autoImportTimer); _autoImportTimer = null;
+      document.getElementById("btnAutoImportStart").style.display = "inline-flex";
+      document.getElementById("btnAutoImportCancel").style.display = "none";
+      if (s.status === "done") {
+        showToast((s.result && s.result.message) || "Import tự động hoàn tất", "success");
+        loadSupabaseSummary();
+        loadSupabaseTableData(1);
+      } else if (s.status === "error") {
+        showToast((s.result && s.result.error) || "Import tự động thất bại", "error");
+      }
+    }
+  } catch (e) { /* bỏ qua lỗi mạng tạm thời */ }
+}
+
+async function cancelAutoImport() {
+  await fetch("/api/auto_import/cancel", {method: "POST"});
+  showToast("Đã gửi lệnh dừng...", "info");
+}
+
+// ── Lịch hẹn toàn trình ──────────────────────────────────────────────────────
+let _schedBranches = [];
+const _schedCaptainCache = {};
+const _DAY_LABELS = ["T2","T3","T4","T5","T6","T7","CN"];
+
+async function _schedCaptains(branch) {
+  if (!branch) return [];
+  if (_schedCaptainCache[branch]) return _schedCaptainCache[branch];
+  try {
+    const r = await fetch("/api/team_captains?branch=" + encodeURIComponent(branch));
+    const d = await r.json();
+    _schedCaptainCache[branch] = d.captains || [];
+  } catch (e) { _schedCaptainCache[branch] = []; }
+  return _schedCaptainCache[branch];
+}
+
+async function _fillCaptainSelect(row, selected) {
+  const branch = row.querySelector(".sch-branch").value;
+  const sel = row.querySelector(".sch-captain");
+  const caps = await _schedCaptains(branch);
+  sel.innerHTML = '<option value="">-- Chọn Đội Trưởng (bắt buộc) --</option>' +
+    caps.map(c => `<option value="${c}">${c}</option>`).join("");
+  if (selected) sel.value = selected;
+}
+
+function addScheduleRow(s) {
+  s = s || {time: "06:00", days: [0,1,2,3,4,5,6], chi_nhanh: currentSelectedBranch || "", captain: "", enabled: true};
+  const row = document.createElement("div");
+  row.className = "sch-row";
+  row.dataset.id = s.id || "";
+  row.style.cssText = "display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:#fff; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px;";
+  const opts = _schedBranches.map(b => `<option value="${b}" ${b === s.chi_nhanh ? "selected" : ""}>${b}</option>`).join("");
+  const days = _DAY_LABELS.map((l, i) =>
+    `<label style="font-size:0.75rem;"><input type="checkbox" class="sch-day" value="${i}" ${s.days.includes(i) ? "checked" : ""}>${l}</label>`).join(" ");
+  row.innerHTML = `
+    <input type="checkbox" class="sch-enabled" ${s.enabled !== false ? "checked" : ""} title="Bật/tắt lịch">
+    <input type="time" class="sch-time" value="${s.time}">
+    <select class="sch-branch"><option value="">-- Chi nhánh --</option>${opts}</select>
+    <select class="sch-captain"><option value="">-- Chọn Đội Trưởng (bắt buộc) --</option></select>
+    <span>${days}</span>
+    <button class="btn" title="Chạy ngay" onclick="runScheduleNow(this)"><i class="fa-solid fa-bolt"></i></button>
+    <button class="btn btn-danger" title="Xóa" onclick="this.closest('.sch-row').remove()"><i class="fa-solid fa-trash"></i></button>
+    <span style="font-size:0.72rem; color:#78716c; flex-basis:100%;">${s.last_run ? "Lần chạy gần nhất: " + s.last_run + " – " + (s.last_status || "") : "Chưa chạy"}</span>`;
+  row.querySelector(".sch-branch").onchange = () => _fillCaptainSelect(row, "");
+  document.getElementById("scheduleList").appendChild(row);
+  _fillCaptainSelect(row, s.captain);
+}
+
+async function loadSchedules() {
+  try {
+    const [rb, rs] = await Promise.all([fetch("/api/branches"), fetch("/api/schedules")]);
+    const b = await rb.json();
+    _schedBranches = (b.branches || []).map(x => typeof x === "string" ? x : (x.name || ""));
+    const d = await rs.json();
+    document.getElementById("scheduleList").innerHTML = "";
+    (d.schedules || []).forEach(addScheduleRow);
+    const logEl = document.getElementById("scheduleLog");
+    const logs = (d.state && d.state.logs) || [];
+    logEl.style.display = logs.length ? "block" : "none";
+    logEl.textContent = logs.map(l => `[${l.time}] ${l.msg}`).join("\n");
+  } catch (e) { console.error("loadSchedules", e); showToast("Không tải được lịch: " + e.message, "error"); }
+}
+
+function _collectSchedules() {
+  return [...document.querySelectorAll("#scheduleList .sch-row")].map(r => ({
+    id: r.dataset.id || undefined,
+    enabled: r.querySelector(".sch-enabled").checked,
+    time: r.querySelector(".sch-time").value,
+    chi_nhanh: r.querySelector(".sch-branch").value,
+    captain: r.querySelector(".sch-captain").value,
+    days: [...r.querySelectorAll(".sch-day:checked")].map(c => +c.value),
+  }));
+}
+
+async function saveSchedules() {
+  const items = _collectSchedules();
+  if (items.some(s => !s.captain)) { showToast("Mỗi lịch phải chọn Đội Trưởng!", "warning"); return false; }
+  const r = await fetch("/api/schedules", {method: "POST", headers: {"Content-Type": "application/json"},
+                                            body: JSON.stringify({schedules: items})});
+  const d = await r.json();
+  if (!d.success) { showToast(d.error || "Lưu lịch thất bại", "error"); return false; }
+  showToast("Đã lưu " + d.schedules.length + " lịch", "success");
+  await loadSchedules();
+  return true;
+}
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", loadSchedules);
+else loadSchedules();
+
+// ── Hiển thị flow đang chạy ────────────────────────────────────────────────
+const _FLOW_STEPS = [
+  ["import", "fa-download", "1. Import Tồn BT"],
+  ["login", "fa-right-to-bracket", "2. Đăng nhập"],
+  ["analyze", "fa-magnifying-glass-chart", "3. Phân tích"],
+  ["note", "fa-pen-to-square", "4. Auto Note"],
+];
+const _FLOW_COLORS = {pending: ["#f5f5f4", "#a8a29e"], running: ["#fff7ed", "#ea580c"], done: ["#f0fdf4", "#16a34a"],
+                     error: ["#fef2f2", "#dc2626"], skipped: ["#f8fafc", "#64748b"]};
+const _FLOW_LABELS = {pending: "Chờ", running: "Đang chạy", done: "Xong", error: "Lỗi", skipped: "Bỏ qua"};
+let _flowTimer = null;
+
+function renderFlow(st) {
+  const dot = document.getElementById("flowRunningDot");
+  if (dot) dot.style.display = st.running ? "inline-block" : "none";
+  const hdr = document.getElementById("flowHeader");
+  if (!hdr) return;
+  const sc = st.schedule;
+  hdr.textContent = sc ? `Lịch ${sc.time} • ${sc.chi_nhanh} • Đội trưởng ${sc.captain}` +
+    (st.started_at ? ` • bắt đầu ${st.started_at}` : "") + (st.queued > 1 ? ` • ${st.queued - 1} lịch chờ` : "")
+    : "Chưa có lịch nào chạy";
+  document.getElementById("flowSteps").innerHTML = _FLOW_STEPS.map(([k, icon, label], i) => {
+    const s = (st.steps || {})[k] || {status: "pending", detail: ""};
+    const [bg, fg] = _FLOW_COLORS[s.status];
+    const spin = s.status === "running" ? " fa-beat" : "";
+    return `<div style="flex:1; min-width:170px; background:${bg}; border:2px solid ${fg}; border-radius:10px; padding:10px 12px;">
+      <div style="font-weight:800; color:${fg}; font-size:0.85rem;"><i class="fa-solid ${icon}${spin}"></i> ${label}</div>
+      <div style="font-size:0.72rem; font-weight:700; color:${fg}; margin-top:2px;">${_FLOW_LABELS[s.status]}</div>
+      <div style="font-size:0.72rem; color:#57534e; margin-top:4px; word-break:break-word;">${s.detail || ""}</div></div>`;
+  }).join('<div style="align-self:center; color:#a8a29e;">➜</div>');
+  const res = document.getElementById("flowResult");
+  if (st.running) { res.textContent = ""; }
+  else if (st.last) {
+    res.style.color = st.last.ok ? "#16a34a" : "#dc2626";
+    res.textContent = `${st.last.ok ? "✅" : "❌"} ${st.last.message} (${st.last.at})`;
+  }
+  const logEl = document.getElementById("flowLog");
+  logEl.textContent = (st.logs || []).map(l => `[${l.time}] ${l.msg}`).join("\n");
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function pollFlow() {
+  if (_flowTimer) { clearTimeout(_flowTimer); _flowTimer = null; }
+  try {
+    const r = await fetch("/api/schedules/status");
+    const d = await r.json();
+    if (d.success) renderFlow(d.state);
+  } catch (e) { /* bỏ qua lỗi mạng tạm thời */ }
+  _flowTimer = setTimeout(pollFlow, 2000);
+}
+pollFlow();
+
+async function runScheduleNow(btn) {
+  if (!(await saveSchedules())) return;
+  const idx = [...document.querySelectorAll("#scheduleList .sch-row")].indexOf(btn.closest(".sch-row"));
+  const id = document.querySelectorAll("#scheduleList .sch-row")[idx].dataset.id;
+  const r = await fetch("/api/schedules/run_now", {method: "POST", headers: {"Content-Type": "application/json"},
+                                                    body: JSON.stringify({id})});
+  const d = await r.json();
+  showToast(d.message || d.error, d.success ? "info" : "warning");
+}
+
+function onImportPartChange(part) {
+  const autoPanel = document.getElementById("autoImportPanel");
+  if (autoPanel) autoPanel.style.display = (part === 'ton_bao_tri') ? "block" : "none";
+
+  const targetTable = document.getElementById("importTargetTable");
+  if (targetTable) targetTable.value = part;
+
+  const isTon = (part === 'ton_bao_tri');
+  const lbBT = document.getElementById("lblPartBaoTri");
+  const lbTon = document.getElementById("lblPartTonBaoTri");
+
+  if (lbBT) {
+    lbBT.style.border = isTon ? "2px solid #e2e8f0" : "2px solid #3b82f6";
+    lbBT.style.background = isTon ? "#fff" : "#eff6ff";
+  }
+  if (lbTon) {
+    lbTon.style.border = isTon ? "2px solid #f97316" : "2px solid #e2e8f0";
+    lbTon.style.background = isTon ? "#fff7ed" : "#fff";
+  }
+
+  const btnClear = document.getElementById("btnClearBeforeImport");
+  if (btnClear) {
+    // Với ton_bao_tri cho phép xóa dữ liệu cũ ca tồn, với bao_tri TUYỆT ĐỐI KHÔNG XÓA để bảo toàn lịch sử
+    btnClear.style.display = isTon ? "inline-flex" : "none";
+  }
+}
+
+function openNewBranchModal() {
+  const modal = document.getElementById("newBranchModal");
+  if (modal) {
+    modal.style.display = "flex";
+    const inp = document.getElementById("newBranchNameInput");
+    if (inp) {
+      inp.value = "";
+      setTimeout(() => inp.focus(), 150);
+    }
+  }
+}
+
+function closeNewBranchModal() {
+  const modal = document.getElementById("newBranchModal");
+  if (modal) modal.style.display = "none";
+}
+
+async function saveNewBranch() {
+  const inp = document.getElementById("newBranchNameInput");
+  const name = inp ? inp.value.trim() : "";
+  if (!name) {
+    showToast("Vui lòng nhập tên chi nhánh mới!", "warning");
+    if (inp) inp.focus();
+    return;
+  }
+
+  const btn = document.getElementById("btnSaveNewBranch");
+  if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...`; }
+
+  try {
+    const r = await fetch("/api/branches", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({name: name})
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(`✅ Đã tạo và chọn Chi Nhánh: ${name}`, "success");
+      currentSelectedBranch = name;
+      localStorage.setItem("mybae_selected_branch", name);
+      closeNewBranchModal();
+      await loadBranches();
+      loadEmployees(currentDataSource, name);
+      loadTeamCaptains(name);
+    } else {
+      showToast(d.error || "Không thể tạo chi nhánh mới", "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối server khi tạo chi nhánh", "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-check"></i> Lưu &amp; Chọn Chi Nhánh`; }
+  }
+}
+
 async function loadSupabaseSummary() {
   try {
-    const r = await fetch("/api/supabase/tables_summary");
+    const sbSumSel = document.getElementById("sbSummaryBranchSelect");
+    const branchToQuery = (sbSumSel && sbSumSel.value !== undefined) ? sbSumSel.value : (currentSelectedBranch || "");
+    const url = branchToQuery ? `/api/supabase/tables_summary?branch=${encodeURIComponent(branchToQuery)}` : "/api/supabase/tables_summary";
+    const r = await fetch(url);
     const d = await r.json();
     if (d.success && d.summary) {
+      const countBt = d.summary.bao_tri ?? d.summary.contracts ?? 0;
+      const countTon = d.summary.ton_bao_tri ?? 0;
       const elBt = document.getElementById("summary-bao_tri");
-      if (elBt) elBt.textContent = d.summary.bao_tri ?? d.summary.contracts ?? 0;
+      if (elBt) elBt.textContent = Number(countBt).toLocaleString('vi-VN');
 
       const elTon = document.getElementById("summary-ton_bao_tri");
-      if (elTon) elTon.textContent = d.summary.ton_bao_tri ?? 0;
+      if (elTon) elTon.textContent = Number(countTon).toLocaleString('vi-VN');
+
+      const bText = branchToQuery ? `🏢 Chi nhánh: ${branchToQuery}` : "🏢 Toàn bộ chi nhánh";
+      const elBtB = document.getElementById("summary-bao_tri-branch");
+      if (elBtB) elBtB.textContent = bText;
+      const elTonB = document.getElementById("summary-ton_bao_tri-branch");
+      if (elTonB) elTonB.textContent = bText;
+
+      loadTeamCaptains(branchToQuery);
     }
   } catch(e) {
     console.error("Lỗi tải thông số Supabase:", e);
@@ -2365,6 +4396,12 @@ async function saveSupabaseKey() {
 function onImportFileSelected(event) {
   const file = event.target.files[0];
   if (!file) return;
+
+  if (!currentSelectedBranch) {
+    showToast("Vui lòng chọn hoặc đặt tên Chi Nhánh trước khi chọn file!", "warning");
+    openNewBranchModal();
+  }
+
   const dropzoneText = document.getElementById("dropzoneText");
   if (dropzoneText) {
     dropzoneText.innerHTML = `<span style="color:var(--primary);"><i class="fa-solid fa-file-circle-check"></i> Đã chọn file: <strong>${esc(file.name)}</strong> (${(file.size/1024).toFixed(1)} KB)</span>`;
@@ -2372,19 +4409,25 @@ function onImportFileSelected(event) {
 
   const previewArea = document.getElementById("importPreviewArea");
   previewArea.style.display = "block";
-  document.getElementById("previewCountBadge").textContent = `File ${file.name} đã sẵn sàng import`;
+  document.getElementById("previewCountBadge").textContent = `File ${file.name} đã sẵn sàng import cho [${currentSelectedBranch || 'Chi Nhánh'}]`;
 
-  // Hiện nút 'Xóa Hết Data Cũ' chỉ khi bảng là bao_tri (không tự xóa trước)
+  // Nút xóa data cũ chỉ hiện cho ton_bao_tri (Bảo trì không xóa để giữ lịch sử)
   const targetTable = document.getElementById("importTargetTable").value;
   const btnClear = document.getElementById("btnClearBeforeImport");
   if (btnClear) {
-    btnClear.style.display = targetTable === 'bao_tri' ? 'inline-flex' : 'none';
+    btnClear.style.display = targetTable === 'ton_bao_tri' ? 'inline-flex' : 'none';
   }
 }
 
 async function submitImportData() {
   const fileInput = document.getElementById("importFileInput");
   const targetTable = document.getElementById("importTargetTable").value;
+
+  if (!currentSelectedBranch) {
+    showToast("Vui lòng chọn hoặc đặt tên Chi Nhánh trước khi tải dữ liệu lên!", "warning");
+    openNewBranchModal();
+    return;
+  }
 
   if (!fileInput.files || fileInput.files.length === 0) {
     showToast("Vui lòng chọn file .csv, .xlsx hoặc .json để tải lên", "warning");
@@ -2395,10 +4438,11 @@ async function submitImportData() {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("table_name", targetTable);
+  formData.append("chi_nhanh", currentSelectedBranch);
 
   const btn = document.getElementById("btnSubmitImport");
   btn.disabled = true;
-  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu lên Supabase...`;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải lên cho [${esc(currentSelectedBranch)}]...`;
 
   try {
     const r = await fetch("/api/supabase/import", {
@@ -2414,7 +4458,8 @@ async function submitImportData() {
       document.getElementById("importPreviewArea").style.display = "none";
       loadSupabaseSummary();
       loadSupabaseTableData(1);
-      loadEmployees(); // Reload danh sách nhân viên nếu import nhân sự
+      loadEmployees(currentDataSource, currentSelectedBranch);
+      loadTeamCaptains(currentSelectedBranch);
     } else {
       showToast(d.error || "Tải dữ liệu lên Supabase thất bại", "error");
     }
@@ -2422,33 +4467,41 @@ async function submitImportData() {
     showToast("Lỗi kết nối khi đẩy dữ liệu lên Supabase", "error");
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Tải Dữ Liệu Lên Supabase`;
+    btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Tải Lên Supabase`;
   }
 }
 
 async function clearTableBeforeImport() {
   const targetTable = document.getElementById("importTargetTable").value;
-  const tableName = targetTable === 'bao_tri' ? 'Bảng Bảo Trì (bao_tri)' : 'Bảng Tồn Bảo Trì (ton_bao_tri)';
-  if (!confirm(`Xác nhận xóa TOÀN BỘ dữ liệu ${tableName} trước khi import?\n\nLưu ý: Thao tác này không thể hoàn tác!`)) return;
+  const partName = targetTable === 'bao_tri' ? 'Phần 1: Bảng Bảo Trì (bao_tri)' : 'Phần 2: Bảng Tồn Bảo Trì (ton_bao_tri)';
+
+  if (!currentSelectedBranch) {
+    showToast("Vui lòng chọn Chi Nhánh cần xóa dữ liệu!", "warning");
+    return;
+  }
+
+  if (!confirm(`Xác nhận xóa dữ liệu ${partName} của riêng Chi Nhánh "${currentSelectedBranch}"?\n\nLưu ý: Dữ liệu của các chi nhánh khác hoàn toàn KHÔNG bị ảnh hưởng!`)) return;
+
   const btn = document.getElementById("btnClearBeforeImport");
   if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang xóa...`; }
   try {
     const r = await fetch("/api/supabase/clear_table", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({table_name: targetTable})
+      body: JSON.stringify({table_name: targetTable, chi_nhanh: currentSelectedBranch})
     });
     const d = await r.json();
     if (d.success) {
-      showToast(`✅ Đã xóa hết data ${tableName}! Bây giờ bấm 'Tải Dữ Liệu Lên' để import mới.`, "success");
+      showToast(`✅ Đã xóa data ${partName} của Chi Nhánh "${currentSelectedBranch}"!`, "success");
       loadSupabaseSummary();
+      loadSupabaseTableData(1);
     } else {
       showToast(d.error || "Xóa thất bại", "error");
     }
   } catch(e) {
     showToast("Lỗi kết nối khi xóa data", "error");
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-trash"></i> Xóa Hết Data Cũ Trước`; }
+    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-trash"></i> Xóa Data Cũ Của Chi Nhánh Này`; }
   }
 }
 
@@ -2456,14 +4509,18 @@ async function loadSupabaseTableData(page = 1) {
   sbBrowserCurrentPage = page;
   const table = document.getElementById("browserTableSelect").value;
   const search = document.getElementById("browserSearchInput").value;
+  const branchSel = document.getElementById("browserBranchSelect");
+  const branch = branchSel ? branchSel.value : "";
 
   const tHead = document.getElementById("sbBrowserTableHead");
   const tBody = document.getElementById("sbBrowserTableBody");
 
-  tBody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu từ Supabase...</td></tr>`;
+  tBody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu từ Supabase...</td></tr>`;
 
   try {
-    const r = await fetch(`/api/supabase/table_data?table=${table}&page=${page}&per_page=50&search=${encodeURIComponent(search)}`);
+    let url = `/api/supabase/table_data?table=${table}&page=${page}&per_page=50&search=${encodeURIComponent(search)}`;
+    if (branch) url += `&branch=${encodeURIComponent(branch)}`;
+    const r = await fetch(url);
     const d = await r.json();
 
     if (d.success && d.data) {
@@ -2471,13 +4528,14 @@ async function loadSupabaseTableData(page = 1) {
       const total = d.data.total || 0;
       sbBrowserTotalPages = Math.ceil(total / 50) || 1;
 
-      document.getElementById("sbBrowserPaginationInfo").textContent = `Trang ${page} / ${sbBrowserTotalPages} (Tổng ${total} bản ghi)`;
+      const branchInfoText = branch ? ` [${branch}]` : '';
+      document.getElementById("sbBrowserPaginationInfo").textContent = `Trang ${page} / ${sbBrowserTotalPages} (Tổng ${total} bản ghi${branchInfoText})`;
       document.getElementById("btnSbPrev").disabled = (page <= 1);
       document.getElementById("btnSbNext").disabled = (page >= sbBrowserTotalPages);
 
       if (records.length === 0) {
         tHead.innerHTML = `<tr><th>Trạng Thái</th></tr>`;
-        tBody.innerHTML = `<tr><td style="text-align:center; color: var(--text-muted); padding: 20px;"><i class="fa-solid fa-database"></i> Bảng '${table}' hiện chưa có dữ liệu nào. Vui lòng sử dụng tính năng Import để tải dữ liệu lên.</td></tr>`;
+        tBody.innerHTML = `<tr><td style="text-align:center; color: var(--text-muted); padding: 20px;"><i class="fa-solid fa-database"></i> Bảng '${table}' ${branch ? 'của chi nhánh ' + branch : ''} hiện chưa có dữ liệu nào. Vui lòng sử dụng tính năng Import để tải dữ liệu lên.</td></tr>`;
         return;
       }
 
@@ -2490,14 +4548,20 @@ async function loadSupabaseTableData(page = 1) {
       tBody.innerHTML = records.map((rec, i) => `
         <tr>
           <td>${(page - 1) * 50 + i + 1}</td>
-          ${keys.map(k => `<td>${esc(String(rec[k] ?? ''))}</td>`).join("")}
+          ${keys.map(k => {
+            const val = String(rec[k] ?? '');
+            if (k === 'chi_nhanh') {
+              return `<td><span class="chip chip-success" style="font-size:0.75rem;">${esc(val)}</span></td>`;
+            }
+            return `<td>${esc(val)}</td>`;
+          }).join("")}
         </tr>
       `).join("");
     } else {
-      tBody.innerHTML = `<tr><td colspan="10" class="td-muted" style="text-align:center;">Lỗi: ${esc(d.error || 'Không tải được dữ liệu')}</td></tr>`;
+      tBody.innerHTML = `<tr><td colspan="12" class="td-muted" style="text-align:center;">Lỗi: ${esc(d.error || 'Không tải được dữ liệu')}</td></tr>`;
     }
   } catch(e) {
-    tBody.innerHTML = `<tr><td colspan="10" class="td-muted" style="text-align:center;">Lỗi kết nối Supabase API</td></tr>`;
+    tBody.innerHTML = `<tr><td colspan="12" class="td-muted" style="text-align:center;">Lỗi kết nối Supabase API</td></tr>`;
   }
 }
 
@@ -2510,13 +4574,23 @@ function changeSbPage(delta) {
 
 async function confirmClearSupabaseTable() {
   const table = document.getElementById("browserTableSelect").value;
-  if (!confirm(`Bạn có chắc chắn muốn XÓA TOÀN BỘ DỮ LIỆU bảng '${table}' trên Supabase? Hành động này không thể hoàn tác!`)) return;
+  const branchSel = document.getElementById("browserBranchSelect");
+  const branch = branchSel ? branchSel.value : "";
+
+  let promptMsg = "";
+  if (branch) {
+    promptMsg = `Xác nhận xóa TOÀN BỘ dữ liệu của Chi Nhánh "${branch}" trong bảng '${table}' trên Supabase?\n\n(Dữ liệu các chi nhánh khác hoàn toàn không bị ảnh hưởng!)`;
+  } else {
+    promptMsg = `⚠️ CẢNH BÁO NGUY HIỂM:\nBạn đang chọn [Tất cả Chi Nhánh].\nBạn có CHẮC CHẮN muốn XÓA SẠCH TOÀN BỘ DỮ LIỆU của TẤT CẢ CÁC CHI NHÁNH trong bảng '${table}' trên Supabase không?\n\nThao tác này KHÔNG thể hoàn tác!`;
+  }
+
+  if (!confirm(promptMsg)) return;
 
   try {
     const r = await fetch("/api/supabase/clear_table", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({table_name: table})
+      body: JSON.stringify({table_name: table, chi_nhanh: branch || undefined})
     });
     const d = await r.json();
     if (d.success) {
@@ -2528,6 +4602,37 @@ async function confirmClearSupabaseTable() {
     }
   } catch(e) {
     showToast("Không thể kết nối để xóa dữ liệu bảng", "error");
+  }
+}
+
+async function doDeduplicateBaoTri() {
+  const branchSel = document.getElementById("browserBranchSelect");
+  const branch = branchSel ? branchSel.value : (currentSelectedBranch || "");
+  const branchText = branch ? `của Chi Nhánh "${branch}"` : "của TOÀN BỘ các chi nhánh";
+
+  if (!confirm(`Xác nhận quét và lọc sạch các bản ghi TRÙNG LẶP ${branchText} trong Bảng Bảo Trì (bao_tri)?\n\nQuy tắc lọc trùng: Khớp cả 5 cột (A: Số HĐ, E: TG Tạo, F: TG Hoàn Tất, D: Nhân viên, AR: Account Tạo CL).\nHệ thống sẽ giữ lại 1 bản ghi chuẩn và xóa các bản ghi trùng lặp thừa.`)) return;
+
+  const btn = document.getElementById("btnDeduplicateBaoTri");
+  if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang lọc trùng...`; }
+
+  try {
+    const r = await fetch("/api/supabase/deduplicate", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({branch: branch})
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(d.message || "Đã lọc trùng thành công!", "success");
+      loadSupabaseSummary();
+      loadSupabaseTableData(1);
+    } else {
+      showToast(d.error || "Lọc trùng thất bại", "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối khi lọc trùng", "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-broom"></i> Lọc Sạch Trùng Lặp`; }
   }
 }
 
@@ -2598,6 +4703,7 @@ function refreshAutoNoteList() {
       <td>${i + 1}</td>
       <td><strong>${esc(r.so_hd || '')}</strong></td>
       <td>${esc(r.nhan_vien || '')}</td>
+      <td style="font-weight:600; color:var(--primary); white-space:nowrap;">${esc(r.mo_hinh_mang || r.loai_modem || '—')}</td>
       <td style="color:var(--error);">${esc(r.canh_bao || '—')}</td>
       <td style="color:var(--accent);">${esc(r.can_xu_ly || '—')}</td>
     </tr>
@@ -2610,7 +4716,7 @@ function refreshAutoNoteList() {
     </div>
     <div class="table-scroll" style="max-height:300px;">
       <table class="leaderboard-table" style="font-size:0.82rem;">
-        <thead><tr><th>#</th><th>Số HĐ</th><th>Nhân Viên</th><th>Cảnh Báo</th><th>Cần Xử Lý</th></tr></thead>
+        <thead><tr><th>#</th><th>Số HĐ</th><th>Nhân Viên</th><th>Mô hình mạng</th><th>Cảnh Báo</th><th>Cần Xử Lý</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -2791,6 +4897,256 @@ function renderAutoNoteResults(results, status) {
     showToast(`Auto Note hoàn tất! ✅ ${successCount} thành công / ❌ ${failCount} thất bại`, 'success');
   }
 }
+
+
+
+
+
+
+// ─────────────────────────────────────────────────────────────
+//  PHÂN TÍCH HÀNH VI BẢO TRÌ - JavaScript
+// ─────────────────────────────────────────────────────────────
+
+let _bhvCurrentPage = 1;
+let _bhvData = null;
+
+function setBhvPreset(preset) {
+  const today = new Date();
+  function fmtDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  if (preset === '7days') {
+    const from = new Date(today); from.setDate(from.getDate() - 7);
+    document.getElementById('bhvDateFrom').value = fmtDate(from);
+    document.getElementById('bhvDateTo').value = fmtDate(today);
+  } else if (preset === '30days') {
+    const from = new Date(today); from.setDate(from.getDate() - 30);
+    document.getElementById('bhvDateFrom').value = fmtDate(from);
+    document.getElementById('bhvDateTo').value = fmtDate(today);
+  } else {
+    document.getElementById('bhvDateFrom').value = '';
+    document.getElementById('bhvDateTo').value = '';
+  }
+  loadBehaviorAnalysis(1);
+}
+
+function filterBhvByResult(val) {
+  document.getElementById('bhvFilterResult').value = val;
+  loadBehaviorAnalysis(1);
+}
+
+async function loadBehaviorAnalysis(page) {
+  page = page || 1;
+  _bhvCurrentPage = page;
+
+  const body = {
+    date_from: document.getElementById('bhvDateFrom').value || '',
+    date_to: document.getElementById('bhvDateTo').value || '',
+    employee: document.getElementById('bhvEmployee').value.trim(),
+    so_hd: document.getElementById('bhvSoHD').value.trim(),
+    filter_result: document.getElementById('bhvFilterResult').value,
+    page: page,
+    page_size: 20,
+  };
+
+  document.getElementById('bhvTableBody').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu...</td></tr>';
+  document.getElementById('bhvResultCard').style.display = '';
+  document.getElementById('bhvStatsRow').style.display = 'grid';
+
+  try {
+    const res = await fetch('/api/maintenance-behavior', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast('Lỗi: ' + (data.error || 'Không xác định'), 'error');
+      return;
+    }
+    _bhvData = data;
+    renderBhvStats(data.stats);
+    renderBhvTable(data);
+    renderBhvPagination(data);
+  } catch(e) {
+    showToast('Lỗi kết nối: ' + e.message, 'error');
+  }
+}
+
+function renderBhvStats(stats) {
+  if (!stats) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || 0; };
+  set('bhvStatTotal', stats.total);
+  set('bhvStatRatTot', stats.rat_tot);
+  set('bhvStatDat', stats.dat);
+  set('bhvStatCanhBao', stats.canh_bao);
+  set('bhvStatChuaDat', stats.chua_dat);
+  set('bhvStatKhanCap', stats.khan_cap);
+  set('bhvStatChua', stats.chua_doi_chieu);
+}
+
+function _bhvOverallBadge(overall, score) {
+  const map = {
+    'rat_tot':        { icon: '🌟', text: 'Rất tốt', bg: '#dcfce7', color: '#15803d', border: '#86efac' },
+    'dat':            { icon: '✅', text: 'Đạt', bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
+    'canh_bao':       { icon: '⚠️', text: 'Cảnh báo', bg: '#fef3c7', color: '#b45309', border: '#fcd34d' },
+    'chua_dat':       { icon: '❌', text: 'Chưa đạt', bg: '#ffedd5', color: '#c2410c', border: '#fdba74' },
+    'khan_cap':       { icon: '🚨', text: 'Cảnh báo khẩn', bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' },
+    'chua_doi_chieu': { icon: '🔍', text: 'Chưa có KQ sau BT', bg: '#ede9fe', color: '#7c3aed', border: '#c4b5fd' },
+  };
+  const m = map[overall] || { icon: '❓', text: overall, bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' };
+  const sc = (score === null || score === undefined) ? '' : ` (${score}/4)`;
+  return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;background:${m.bg};color:${m.color};border:1px solid ${m.border};white-space:nowrap;">${m.icon} ${m.text}${sc}</span>`;
+}
+
+function _bhvMetricCell(item, key) {
+  const c = (item.criteria || {})[key];
+  if (!c) return '<span style="color:#8b5cf6;font-size:0.72rem;">⏳ Chưa có sau BT</span>';
+  const color = c.pass ? '#15803d' : '#b91c1c';
+  const icon = c.pass ? '✓' : '✗';
+  return `<div style="font-size:0.75rem;line-height:1.4;">
+    <div style="font-weight:700;color:${color};">${icon} ${esc(c.label)}</div>
+    <div style="color:var(--text-muted);font-size:0.7rem;max-width:200px;word-break:break-word;">${esc(c.detail || '')}</div>
+  </div>`;
+}
+
+function renderBhvTable(data) {
+  const tbody = document.getElementById('bhvTableBody');
+  const items = data.items || [];
+  document.getElementById('bhvResultCount').textContent = data.total + ' kết quả';
+
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="td-muted" style="text-align:center;padding:30px;">Không tìm thấy kết quả phù hợp</td></tr>';
+    return;
+  }
+
+  const startIdx = (data.page - 1) * data.page_size;
+  tbody.innerHTML = items.map((item, i) => {
+    return `<tr style="cursor:pointer;" onclick='showBhvDetail(${JSON.stringify(item).replace(/'/g, "\\'")})' title="Bấm để xem chi tiết">
+      <td style="color:var(--text-muted);font-size:0.78rem;">${startIdx + i + 1}</td>
+      <td><strong style="color:var(--primary);font-size:0.82rem;">${esc(item.so_hd)}</strong></td>
+      <td style="font-size:0.8rem;">${esc(item.nhan_vien)}</td>
+      <td>${_bhvMetricCell(item, 'suy_hao')}</td>
+      <td>${_bhvMetricCell(item, 'wifi_kem')}</td>
+      <td>${_bhvMetricCell(item, 'ket_noi')}</td>
+      <td>${_bhvMetricCell(item, 'mo_hinh')}</td>
+      <td>${_bhvOverallBadge(item.overall, item.score)}</td>
+      <td>
+        <button class="btn" style="padding:4px 8px;font-size:0.75rem;background:var(--bg-hover);" onclick="event.stopPropagation(); showBhvDetail(${JSON.stringify(item).replace(/'/g, "\\'")})">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderBhvPagination(data) {
+  const pagi = document.getElementById('bhvPagination');
+  if (data.pages <= 1) {
+    pagi.style.display = 'none';
+    return;
+  }
+  pagi.style.display = 'flex';
+  document.getElementById('bhvPageInfo').textContent = `Trang ${data.page} / ${data.pages} (${data.total} kết quả)`;
+
+  const btnsEl = document.getElementById('bhvPageButtons');
+  let btns = '';
+
+  // Previous
+  if (data.page > 1) {
+    btns += `<button class="preset-btn" onclick="loadBehaviorAnalysis(${data.page - 1})">« Trước</button>`;
+  }
+
+  // Page numbers
+  const maxShow = 5;
+  let startP = Math.max(1, data.page - Math.floor(maxShow/2));
+  let endP = Math.min(data.pages, startP + maxShow - 1);
+  if (endP - startP < maxShow - 1) startP = Math.max(1, endP - maxShow + 1);
+
+  for (let p = startP; p <= endP; p++) {
+    btns += `<button class="preset-btn${p === data.page ? ' active' : ''}" onclick="loadBehaviorAnalysis(${p})">${p}</button>`;
+  }
+
+  // Next
+  if (data.page < data.pages) {
+    btns += `<button class="preset-btn" onclick="loadBehaviorAnalysis(${data.page + 1})">Sau »</button>`;
+  }
+
+  btnsEl.innerHTML = btns;
+}
+
+function showBhvDetail(item) {
+  const modal = document.getElementById('bhvDetailModal');
+  const subtitle = document.getElementById('bhvModalSubtitle');
+  const body = document.getElementById('bhvModalBody');
+
+  subtitle.textContent = `HĐ: ${item.so_hd} — NV: ${item.nhan_vien}`;
+
+  const metrics = [
+    { key: 'suy_hao', label: 'Suy hao (Rx sau BT trong -10 → -23.5 dBm)', icon: 'fa-signal' },
+    { key: 'ket_noi', label: 'Các lần kết nối (ổn định, ra mạng < trước BT)', icon: 'fa-network-wired' },
+    { key: 'mo_hinh', label: 'Mô hình mạng', icon: 'fa-diagram-project' },
+    { key: 'wifi_kem', label: 'Thiết bị bắt sóng kém (không có TB nào)', icon: 'fa-wifi' },
+  ];
+
+  let html = '<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">';
+  if (item.before) {
+    html += `<div style="flex:1;min-width:200px;padding:10px 14px;border-radius:10px;background:linear-gradient(135deg,#fff7ed,#fffbeb);border:1px solid #fed7aa;">
+      <div style="font-size:0.72rem;font-weight:700;color:#c2410c;text-transform:uppercase;">🕐 Trước bảo trì (Tồn BT)</div>
+      <div style="font-size:0.85rem;font-weight:600;margin-top:2px;">${esc(item.before.timestamp || '—')}</div>
+      <div style="font-size:0.72rem;color:#94a3b8;">NV: ${esc(item.before.nhan_vien || '—')} | Rx: ${item.before.rx ?? '—'} dBm | ${esc(item.before.mo_hinh_mang || '—')}</div>
+    </div>`;
+  }
+  if (item.after) {
+    html += `<div style="flex:1;min-width:200px;padding:10px 14px;border-radius:10px;background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #86efac;">
+      <div style="font-size:0.72rem;font-weight:700;color:#15803d;text-transform:uppercase;">✅ Sau bảo trì (Bảo Trì)</div>
+      <div style="font-size:0.85rem;font-weight:600;margin-top:2px;">${esc(item.after.timestamp || '—')}</div>
+      <div style="font-size:0.72rem;color:#94a3b8;">NV: ${esc(item.after.nhan_vien || '—')} | Rx: ${item.after.rx ?? '—'} dBm | ${esc(item.after.mo_hinh_mang || '—')}</div>
+    </div>`;
+  }
+  html += '</div>';
+
+  html += `<div style="text-align:center;margin-bottom:18px;">${_bhvOverallBadge(item.overall, item.score)}</div>`;
+
+  if (item.overall === 'chua_doi_chieu') {
+    html += `<div style="padding:12px 16px;border-radius:10px;background:linear-gradient(135deg,#ede9fe,#f5f3ff);border:2px solid #c4b5fd;margin-bottom:16px;text-align:center;">
+      <i class="fa-solid fa-lightbulb" style="color:#7c3aed;"></i>
+      <span style="font-weight:700;color:#5b21b6;"> Gợi ý:</span>
+      <span style="color:#6d28d9;"> Chạy chẩn đoán nguồn <strong>Bảo Trì</strong> cho HĐ này (sau lần Tồn BT) để đánh giá.</span>
+    </div>`;
+  }
+
+  metrics.forEach(m => {
+    const c = (item.criteria || {})[m.key];
+    if (!c) return;
+    const color = c.pass ? '#15803d' : '#b91c1c';
+    const bg = c.pass ? '#dcfce7' : '#fee2e2';
+    html += `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px;background:#fafbfc;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;">
+        <div style="font-weight:700;font-size:0.88rem;color:#334155;"><i class="fa-solid ${m.icon}" style="color:#7c3aed;margin-right:8px;"></i>${m.label}</div>
+        <span style="padding:3px 12px;border-radius:20px;font-size:0.73rem;font-weight:700;background:${bg};color:${color};white-space:nowrap;">${c.pass ? '✅ Đạt' : '❌ ' + esc(c.label)}</span>
+      </div>
+      <div style="font-size:0.78rem;color:#64748b;word-break:break-word;">${esc(c.detail || '')}</div>
+      ${c.pass ? '' : `<div style="margin-top:8px;padding:6px 10px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;font-size:0.78rem;color:#9a3412;font-weight:600;">➜ ${esc(c.action)}</div>`}
+    </div>`;
+  });
+
+  body.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function closeBhvModal() {
+  document.getElementById('bhvDetailModal').style.display = 'none';
+}
+
+// Đóng modal khi click ngoài
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('bhvDetailModal');
+  if (modal && modal.style.display === 'flex' && e.target === modal) {
+    closeBhvModal();
+  }
+});
+
 
 </script>
 </body>

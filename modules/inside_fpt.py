@@ -156,6 +156,17 @@ def _get_inside_driver(headless: bool = True):
     options.add_experimental_option("excludeSwitches", ["enable-logging", "enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
 
+    # Tải file thẳng vào downloads/inside_import, không hiện hộp thoại chọn nơi lưu
+    _dl_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "downloads", "inside_import")
+    os.makedirs(_dl_dir, exist_ok=True)
+    options.add_experimental_option("prefs", {
+        "download.default_directory": _dl_dir,
+        "download.prompt_for_download": False,
+        "download.directory_upgrade": True,
+        "safebrowsing.enabled": True,
+        "profile.default_content_setting_values.automatic_downloads": 1,
+    })
+
     for chrome_path in ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]:
         if os.path.exists(chrome_path):
             options.binary_location = chrome_path
@@ -557,6 +568,12 @@ def _build_note_contents(result: dict) -> list[str]:
     client_str = f"📱 TBI WF KÉM: {client_compact}" if is_client_kem else ""
 
     items = []
+    # Mô hình mạng: Nếu có AP / Camera / Box thì thêm vào vị trí đầu tiên (1. Mô hình mạng: ...)
+    mo_hinh = (result.get("mo_hinh_mang") or "").strip()
+    has_sub_devices = any(kw in mo_hinh for kw in ["AP", "Camera", "Box"])
+    if has_sub_devices:
+        items.append(f"Mô hình mạng: {mo_hinh}")
+
     if canh_bao and canh_bao != "—":
         items.append(f"⚠️ CẢNH BÁO: {canh_bao}")
     if can_xu_ly and can_xu_ly != "—":
@@ -587,6 +604,8 @@ def _build_note_contents(result: dict) -> list[str]:
     # Nếu trường hợp ngoại lệ vẫn > 450 ký tự:
     # Tách thành 2 phần rõ rệt, KHÔNG lặp lại Cảnh Báo hay Cần Xử Lý
     part1_raw = []
+    if has_sub_devices:
+        part1_raw.append(f"Mô hình mạng: {mo_hinh}")
     if canh_bao and canh_bao != "—":
         part1_raw.append(f"⚠️ CẢNH BÁO: {canh_bao}")
     if can_xu_ly and can_xu_ly != "—":
@@ -1060,29 +1079,23 @@ NOTE_HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath
 
 
 def load_note_history() -> list[dict]:
-    if not os.path.exists(NOTE_HISTORY_FILE):
-        return []
-    try:
-        with open(NOTE_HISTORY_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        log.error(f"Lỗi đọc lịch sử note: {e}")
-        return []
+    from modules import zstore
+    return zstore.load_json(NOTE_HISTORY_FILE, [])
 
 
 def save_note_history_run(record: dict):
+    from modules import zstore
     history = load_note_history()
     history.insert(0, record)
     try:
-        with open(NOTE_HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
+        zstore.save_json(NOTE_HISTORY_FILE, history)
     except Exception as e:
         log.error(f"Lỗi ghi lịch sử note: {e}")
 
 
 def clear_note_history():
-    if os.path.exists(NOTE_HISTORY_FILE):
-        os.remove(NOTE_HISTORY_FILE)
+    from modules import zstore
+    zstore.remove(NOTE_HISTORY_FILE)
 
 
 def get_successful_noted_contracts_24h(hours: float = 24.0) -> set[str]:
