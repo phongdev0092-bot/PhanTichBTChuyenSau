@@ -18,6 +18,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -384,8 +385,13 @@ def login(email_addr: str = None, email_pass: str = None, step_callback=None, ot
     Trả về (success: bool, message: str)
     """
     global _logged_in
-    target_email = (email_addr or EMAIL).strip()
-    target_pwd   = (email_pass or EMAIL_PASSWORD).strip()
+    try:
+        from modules import account_manager
+        active = account_manager.get_active_account()
+    except Exception:
+        active = {}
+    target_email = (email_addr or active.get("email") or EMAIL).strip()
+    target_pwd   = (email_pass or active.get("email_password") or EMAIL_PASSWORD).strip()
 
     with _login_lock:
         try:
@@ -425,11 +431,15 @@ def login(email_addr: str = None, email_pass: str = None, step_callback=None, ot
                     force_kill_driver()
                     return False, "❌ Không tìm thấy ô nhập email trên trang"
 
-            email_input.clear()
-            _set_react_input(d, email_input, target_email)
-            email_input.send_keys(target_email)
-            _set_react_input(d, email_input, target_email)
-            time.sleep(1)
+            email_input.click()
+            email_input.send_keys(Keys.CONTROL + "a")
+            email_input.send_keys(Keys.BACKSPACE)
+            time.sleep(0.2)
+            for char in target_email:
+                email_input.send_keys(char)
+                time.sleep(0.01)
+            email_input.send_keys(Keys.TAB)
+            time.sleep(0.5)
 
             # --- Bấm nút "Gửi mã OTP" ---
             if step_callback:
@@ -445,17 +455,20 @@ def login(email_addr: str = None, email_pass: str = None, step_callback=None, ot
                             clicked_otp_btn = True
                             break
                         else:
-                            # Re-trigger React change nếu nút chưa enable
                             _set_react_input(d, email_input, target_email)
                             time.sleep(0.5)
                 except Exception:
                     time.sleep(0.5)
 
             if not clicked_otp_btn:
-                # Cố gắng click qua JavaScript
+                # Cố gắng gỡ disabled và click qua JavaScript
                 try:
                     btn = d.find_element(By.XPATH, '//button[contains(.,"Gửi mã OTP") or contains(.,"Send OTP") or @type="submit"]')
-                    d.execute_script("arguments[0].click();", btn)
+                    d.execute_script("""
+                        arguments[0].removeAttribute('disabled');
+                        arguments[0].classList.remove('Mui-disabled');
+                        arguments[0].click();
+                    """, btn)
                     clicked_otp_btn = True
                 except Exception:
                     pass
@@ -464,15 +477,27 @@ def login(email_addr: str = None, email_pass: str = None, step_callback=None, ot
                 force_kill_driver()
                 return False, "❌ Nút 'Gửi mã OTP' không khả dụng hoặc bị khóa trên trang."
 
-            log.info("Đã bấm gửi yêu cầu OTP, kiểm tra phản hồi từ web...")
-            time.sleep(2)
-
-            # Kiểm tra xem có alert báo lỗi email không tồn tại hoặc lỗi khác không
-            error_alerts = d.find_elements(By.XPATH, '//*[contains(@class, "alert") or contains(@class, "error") or contains(@class, "toast")][contains(text(), "lỗi") or contains(text(), "không tồn tại") or contains(text(), "thất bại")]')
-            for a in error_alerts:
-                if a.is_displayed() and a.text.strip():
-                    force_kill_driver()
-                    return False, f"❌ Thông báo từ hệ thống: {a.text.strip()}"
+            log.info("Đã bấm gửi yêu cầu OTP, chờ trang chuyển sang màn hình nhập mã OTP...")
+            
+            # Chờ xác nhận trang đã chuyển sang màn hình nhập OTP (tối đa 10s)
+            try:
+                WebDriverWait(d, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//input[@id="otp" or @name="otp"]'))
+                )
+                log.info("Xác nhận: Trang đã chuyển sang màn hình nhập mã OTP.")
+            except Exception:
+                # Kiểm tra thông báo lỗi từ server nếu có
+                error_alerts = d.find_elements(By.XPATH, '//*[contains(@class, "alert") or contains(@class, "error") or contains(@class, "toast")][string-length(normalize-space(.)) > 0]')
+                for a in error_alerts:
+                    if a.is_displayed() and a.text.strip():
+                        force_kill_driver()
+                        return False, f"❌ Thông báo từ hệ thống: {a.text.strip()}"
+                try:
+                    d.save_screenshot("mypt_otp_screen_not_found.png")
+                except Exception:
+                    pass
+                force_kill_driver()
+                return False, "❌ Hệ thống chưa chuyển sang màn hình nhập OTP. Vui lòng thử lại sau."
 
             # --- Nếu chế độ là nhập OTP thủ công ---
             if otp_method == "manual":
@@ -509,20 +534,31 @@ def _enter_otp_and_finish(d, otp: str, step_callback=None) -> tuple[bool, str]:
         otp_field = None
         try:
             otp_field = WebDriverWait(d, 12).until(
-                EC.presence_of_element_located((By.XPATH, '//input[@id="otp" or @name="otp" or contains(@placeholder, "OTP") or contains(@placeholder, "mã") or not(@id="email")]'))
+                EC.presence_of_element_located((By.XPATH, '//input[@id="otp" or @name="otp"]'))
             )
         except Exception:
-            force_kill_driver()
-            return False, "❌ Không tìm thấy ô nhập mã OTP trên trang."
+            try:
+                otp_field = d.find_element(By.XPATH, '//input[contains(@placeholder, "OTP") or contains(@placeholder, "mã")]')
+            except Exception:
+                try:
+                    d.save_screenshot("mypt_otp_field_missing.png")
+                except Exception:
+                    pass
+                force_kill_driver()
+                return False, "❌ Không tìm thấy ô nhập mã OTP trên trang."
 
-        otp_field.clear()
-        _set_react_input(d, otp_field, otp)
-        otp_field.send_keys(otp)
-        _set_react_input(d, otp_field, otp)
-        time.sleep(1)
+        otp_field.click()
+        otp_field.send_keys(Keys.CONTROL + "a")
+        otp_field.send_keys(Keys.BACKSPACE)
+        time.sleep(0.2)
+        for digit in str(otp).strip():
+            otp_field.send_keys(digit)
+            time.sleep(0.02)
+        otp_field.send_keys(Keys.TAB)
+        time.sleep(0.5)
 
-        # Bấm nút xác nhận
-        confirm_btns = d.find_elements(By.XPATH, '//button[contains(.,"Xác nhận") or contains(.,"Đăng nhập") or @type="submit"]')
+        # Bấm nút xác nhận / Đăng nhập
+        confirm_btns = d.find_elements(By.XPATH, '//button[@type="submit" or contains(normalize-space(.), "Đăng nhập") or contains(normalize-space(.), "Xác nhận")]')
         submitted = False
         for b in confirm_btns:
             if b.is_displayed() and b.is_enabled():
@@ -534,24 +570,24 @@ def _enter_otp_and_finish(d, otp: str, step_callback=None) -> tuple[bool, str]:
             try:
                 otp_field.submit()
             except Exception:
-                d.execute_script("arguments[0].click();", confirm_btns[0] if confirm_btns else otp_field)
+                if confirm_btns:
+                    d.execute_script("arguments[0].click();", confirm_btns[0])
 
         if step_callback:
             step_callback("Đang kiểm tra kết quả xác thực...")
         time.sleep(4)
 
-        # Kiểm tra xem có còn ở trang login hay báo lỗi không
-        login_inputs = d.find_elements(By.XPATH, '//input[@id="email" or @name="email"]')
-        if login_inputs and any(i.is_displayed() for i in login_inputs):
-            # Tìm thông báo lỗi nếu có
-            err_box = d.find_elements(By.XPATH, '//*[contains(@class, "error") or contains(@class, "alert") or contains(@class, "toast")]')
-            err_txt = "Đăng nhập thất bại (Mã OTP có thể đã hết hạn hoặc không đúng)"
+        # Chờ chuyển hướng hoặc kiểm tra thông báo lỗi
+        for _ in range(8):
+            curr_url = d.current_url
+            if "/login" not in curr_url or "/check-contract" in curr_url:
+                break
+            err_box = d.find_elements(By.XPATH, '//*[contains(@class, "error") or contains(@class, "alert") or contains(@class, "toast")][string-length(normalize-space(.)) > 0]')
             for eb in err_box:
                 if eb.is_displayed() and eb.text.strip():
-                    err_txt = eb.text.strip()
-                    break
-            force_kill_driver()
-            return False, f"❌ {err_txt}"
+                    force_kill_driver()
+                    return False, f"❌ {eb.text.strip()}"
+            time.sleep(1)
 
         _save_session(d)
         _logged_in = True
@@ -577,5 +613,48 @@ def submit_manual_otp(otp: str, step_callback=None) -> tuple[bool, str]:
             return False, f"❌ Lỗi nhập OTP thủ công: {e}"
 
 
+def check_active_session() -> bool:
+    """
+    Xác minh thực tế xem Chrome Driver có đang ở trang /check-contract và phiên đăng nhập MYBAE còn hiệu lực không.
+    Nếu bị chuyển hướng về /login hoặc thấy ô đăng nhập -> trả về False và reset _logged_in = False.
+    """
+    global _logged_in, _driver
+    if not _logged_in or _driver is None:
+        return False
+    try:
+        _ = _driver.title
+        curr_url = _driver.current_url
+        if "/login" in curr_url:
+            log.warning("Active Session Check: Driver đang ở trang /login -> Phiên MYBAE hết hạn")
+            _logged_in = False
+            return False
+        
+        if "/check-contract" not in curr_url:
+            _driver.get(f"{MANAGEMENT_URL}/check-contract")
+            time.sleep(2)
+            curr_url = _driver.current_url
+            
+        if "/login" in curr_url:
+            log.warning("Active Session Check: Bị chuyển hướng về /login khi mở /check-contract -> Phiên MYBAE hết hạn")
+            _logged_in = False
+            return False
+
+        login_inputs = _driver.find_elements(By.XPATH, '//input[@id="email" or @name="email" or contains(@placeholder, "Email")]')
+        if login_inputs and any(i.is_displayed() for i in login_inputs):
+            log.warning("Active Session Check: Thấy ô đăng nhập email trên trang -> Phiên MYBAE hết hạn")
+            _logged_in = False
+            return False
+
+        _logged_in = True
+        return True
+    except Exception as e:
+        log.warning(f"Active Session Check gặp lỗi: {e}")
+        _logged_in = False
+        return False
+
+
 def is_logged_in() -> bool:
-    return _logged_in
+    if not _logged_in:
+        return False
+    return check_active_session()
+

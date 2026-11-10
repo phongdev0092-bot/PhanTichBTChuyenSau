@@ -16,6 +16,7 @@ import json
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import config
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -197,6 +198,52 @@ def close_inside_driver():
     _inside_logged_in = False
 
 
+def _is_driver_alive(d, timeout: float = 5.0) -> bool:
+    """
+    Kiểm tra driver còn phản hồi không trong vòng `timeout` giây.
+    Trả về True nếu OK, False nếu treo/chết.
+    """
+    import threading
+    result = [False]
+
+    def _probe():
+        try:
+            _ = d.title
+            result[0] = True
+        except Exception:
+            result[0] = False
+
+    t = threading.Thread(target=_probe, daemon=True)
+    t.start()
+    t.join(timeout)
+    return result[0]
+
+
+def _reset_and_relogin(
+    account: str = None,
+    password: str = None,
+    use_otp: bool = True,
+    totp_secret: str = None,
+) -> tuple[bool, str]:
+    """
+    Reset hoàn toàn trình duyệt (đóng driver cũ) rồi đăng nhập lại FPT Inside.
+    Dùng khi phát hiện driver đang bị treo hoặc session đã đăng nhập sẵn cần làm mới.
+    """
+    global _inside_driver, _inside_logged_in
+
+    _log("🔄 Reset trình duyệt: đóng driver cũ và khởi động lại...")
+    close_inside_driver()          # đóng driver cũ hoàn toàn
+    time.sleep(1)                  # chờ OS giải phóng tiến trình Chrome
+
+    _log("🔄 Đăng nhập lại FPT Inside sau khi reset...")
+    return login_inside_fpt(
+        account=account,
+        password=password,
+        use_otp=use_otp,
+        totp_secret=totp_secret,
+    )
+
+
 def _safe_click(driver, element, use_js=False):
     """Click an element safely with fallback to JS click."""
     try:
@@ -239,42 +286,58 @@ def login_inside_fpt(account: str = None, password: str = None, use_otp: bool = 
     """
     global _inside_logged_in
 
-    import config
-    acc  = account or config.INSIDE_ACCOUNT
-    pwd  = password or config.INSIDE_PASSWORD
-    login_url = getattr(config, "INSIDE_FPT_LOGIN_URL", "http://login.fpt.net/")
-    secret   = totp_secret or getattr(config, "TOTP_SECRET", "") or ""
+    from modules import account_manager
+    active = account_manager.get_active_account()
+    acc  = account or active.get("inside_account") or config.INSIDE_ACCOUNT
+    pwd  = password or active.get("inside_password") or config.INSIDE_PASSWORD
+    inside_url = getattr(config, "INSIDE_FPT_URL", "http://inside.fpt.net")
+    login_url  = getattr(config, "INSIDE_FPT_LOGIN_URL", inside_url)
+    secret   = totp_secret or active.get("totp_secret") or getattr(config, "TOTP_SECRET", "") or ""
+    if use_otp is None:
+        use_otp = active.get("use_inside_otp", True)
 
     d = _get_inside_driver(headless=True)
 
-    # ── 1. Mở trang đăng nhập ─────────────────────────────────────────────
-    _log(f"Mở trang đăng nhập: {login_url}")
+    # ── 1. Mở trang đăng nhập (qua http://inside.fpt.net) ─────────────────
+    _log(f"Mở trang FPT Inside: {login_url}")
     try:
         d.get(login_url)
-        time.sleep(2)
+        # Chờ redirect sang login.fpt.net hoặc vào thẳng default.asp nếu còn phiên
+        for _ in range(10):
+            time.sleep(0.8)
+            cur = (d.current_url or "").lower()
+            if "login.fpt.net" in cur or "default.asp" in cur:
+                break
+        if "default.asp" in (d.current_url or "").lower():
+            _inside_logged_in = True
+            _log(f"✅ Đã ở sẵn trang FPT Inside! (URL: {d.current_url})")
+            return True, f"✅ Đã đăng nhập FPT Inside thành công! (URL: {d.current_url})"
+        if "login.fpt.net" not in (d.current_url or "").lower():
+            d.get("http://login.fpt.net/?urlreturn=inside.fpt.net")
+            time.sleep(2)
     except Exception as e:
         return False, f"❌ Không mở được trang đăng nhập: {e}"
 
     # ── 2. Xử lý checkbox 'Sử dụng OTP' (cbOTP) ──────────────────────────
     try:
-        cb_otp = d.find_element(By.ID, "cbOTP")
+        cb_otp = WebDriverWait(d, 10).until(EC.presence_of_element_located((By.ID, "cbOTP")))
         if use_otp:
             if not cb_otp.is_selected():
                 _log("Tích vào checkbox 'Sử dụng OTP'...")
                 d.execute_script("arguments[0].click();", cb_otp)
-                time.sleep(0.5)
+                time.sleep(0.8)
         else:
             if cb_otp.is_selected():
                 _log("Bỏ tích checkbox 'Sử dụng OTP' (Tài khoản không yêu cầu OTP)...")
                 d.execute_script("arguments[0].click();", cb_otp)
-                time.sleep(0.5)
-    except Exception:
-        pass
+                time.sleep(0.8)
+    except Exception as e:
+        _log(f"Lỗi thao tác checkbox OTP: {e}", "warning")
 
     # ── 3. Nhập tài khoản ─────────────────────────────────────────────────
     _log(f"Nhập tài khoản: {acc}")
     try:
-        username_el = d.find_element(By.ID, "fUserName")
+        username_el = WebDriverWait(d, 10).until(EC.visibility_of_element_located((By.ID, "fUserName")))
     except NoSuchElementException:
         username_el = d.find_element(By.XPATH, '//input[@type="text"][1]')
     username_el.clear()
@@ -284,7 +347,7 @@ def login_inside_fpt(account: str = None, password: str = None, use_otp: bool = 
     # ── 4. Nhập mật khẩu ──────────────────────────────────────────────────
     _log("Nhập mật khẩu...")
     try:
-        password_el = d.find_element(By.ID, "fPassword")
+        password_el = WebDriverWait(d, 10).until(EC.visibility_of_element_located((By.ID, "fPassword")))
     except NoSuchElementException:
         password_el = d.find_element(By.XPATH, '//input[@type="password"]')
     password_el.clear()
@@ -297,7 +360,7 @@ def login_inside_fpt(account: str = None, password: str = None, use_otp: bool = 
         if otp_code:
             _log(f"Nhập mã OTP: {otp_code}")
             try:
-                otp_el = d.find_element(By.ID, "fOTP")
+                otp_el = WebDriverWait(d, 8).until(EC.visibility_of_element_located((By.ID, "fOTP")))
                 otp_el.clear()
                 otp_el.send_keys(otp_code)
                 time.sleep(0.3)
@@ -327,7 +390,7 @@ def login_inside_fpt(account: str = None, password: str = None, use_otp: bool = 
         d.execute_script("$('#btnLogin').click();")
 
     # ── 7. Đợi chuyển trang và bắt alert thông báo ────────────────────────
-    for _ in range(12):
+    for _ in range(15):
         time.sleep(1)
         try:
             alert = d.switch_to.alert
@@ -337,15 +400,34 @@ def login_inside_fpt(account: str = None, password: str = None, use_otp: bool = 
             return False, f"❌ Đăng nhập thất bại: {alert_text}"
         except Exception:
             pass
-        current_url = d.current_url
-        if "inside.fpt.net" in current_url and "login.fpt.net" not in current_url:
+        current_url = d.current_url or ""
+        if "login.fpt.net" not in current_url.lower() and ("inside.fpt.net" in current_url.lower() or "default.asp" in current_url.lower()):
             break
 
+    # ── 7b. Xử lý khi trang trung gian /functions/Login.asp bị lỗi VBScript ─
+    current_url = d.current_url or ""
+    if "inside.fpt.net" in current_url.lower() and "default.asp" not in current_url.lower():
+        _log(f"Đang ở trang trung gian ({current_url}) → điều hướng thẳng về {inside_url}...")
+        time.sleep(1.0)
+        try:
+            d.get(inside_url)
+            for _ in range(10):
+                time.sleep(1.0)
+                if "default.asp" in (d.current_url or "").lower():
+                    break
+        except Exception as e:
+            _log(f"Cảnh báo khi chuyển về {inside_url}: {e}", "warning")
+
     # ── 8. Kiểm tra đăng nhập thành công ─────────────────────────────────
-    current_url = d.current_url
+    current_url = d.current_url or ""
     _log(f"URL sau đăng nhập: {current_url}")
 
-    if "inside.fpt.net" in current_url or "default.asp" in current_url:
+    is_valid_inside = (
+        "login.fpt.net" not in current_url.lower()
+        and "functions/login.asp" not in current_url.lower()
+        and ("default.asp" in current_url.lower() or "inside.fpt.net" in current_url.lower())
+    )
+    if is_valid_inside:
         _inside_logged_in = True
         _log(f"✅ Đã đăng nhập FPT Inside thành công! (URL: {current_url})")
         return True, f"✅ Đã đăng nhập FPT Inside thành công! (URL: {current_url})"
@@ -355,7 +437,81 @@ def login_inside_fpt(account: str = None, password: str = None, use_otp: bool = 
         d.save_screenshot(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "debug_shots", "inside_login_fail.png"))
     except Exception:
         pass
-    return False, f"❌ Đăng nhập thất bại. Vẫn ở trang: {d.title}"
+    return False, f"❌ Đăng nhập thất bại. Vẫn ở trang: {d.title} (URL: {current_url})"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ĐIỀU HƯỚNG ĐẾN TRANG BẢO TRÌ
+# ─────────────────────────────────────────────────────────────────────────────
+def _switch_to_menu_frame(d, timeout: float = 15.0) -> bool:
+    """Chuyển an toàn vào Frame Menu (Left.Asp hoặc frame 0) có cơ chế chờ/retry."""
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            d.switch_to.default_content()
+            frames = d.find_elements(By.CSS_SELECTOR, "frame, iframe")
+            for fr in frames:
+                try:
+                    src = (fr.get_attribute("src") or "").lower()
+                    name = (fr.get_attribute("name") or "").lower()
+                    if "left" in src or "left" in name or "menu" in name:
+                        d.switch_to.frame(fr)
+                        return True
+                except Exception:
+                    continue
+            if len(frames) > 0:
+                d.switch_to.frame(0)
+                return True
+        except Exception:
+            pass
+        time.sleep(1.0)
+    return False
+
+
+def _switch_to_content_frame(d, timeout: float = 20.0) -> bool:
+    """Chuyển an toàn vào Frame Nội dung (Content.asp hoặc frame 1) có cơ chế chờ/retry."""
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            d.switch_to.default_content()
+            frames = d.find_elements(By.CSS_SELECTOR, "frame, iframe")
+            for fr in frames:
+                try:
+                    src = (fr.get_attribute("src") or "").lower()
+                    name = (fr.get_attribute("name") or "").lower()
+                    if "content" in src or "content" in name or "main" in name:
+                        d.switch_to.frame(fr)
+                        return True
+                except Exception:
+                    continue
+            if len(frames) > 1:
+                d.switch_to.frame(1)
+                return True
+        except Exception:
+            pass
+        time.sleep(1.0)
+    return False
+
+
+def _switch_to_maintenance_frame(d, timeout: float = 15.0) -> bool:
+    """Chuyển an toàn vào iframe Bảo trì (#frameMaintenance) nằm trong Content.asp."""
+    if not _switch_to_content_frame(d, timeout=max(5.0, timeout / 2)):
+        return False
+    end = time.time() + max(5.0, timeout / 2)
+    while time.time() < end:
+        try:
+            d.switch_to.frame("frameMaintenance")
+            return True
+        except Exception:
+            try:
+                iframes = d.find_elements(By.CSS_SELECTOR, "iframe#frameMaintenance, iframe[id*='Maintenance'], iframe[src*='Maintenance']")
+                if iframes:
+                    d.switch_to.frame(iframes[0])
+                    return True
+            except Exception:
+                pass
+        time.sleep(1.0)
+    return False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -375,69 +531,88 @@ def navigate_to_bao_tri() -> tuple[bool, str]:
 
     _log("Điều hướng đến trang Bảo Trì Inside...")
 
-    # ── Bước 1: Chuyển sang Frame 0 (Left.Asp) ───────────────────────────
+    # Đảm bảo đang ở trang chính default.asp (không bị kẹt ở functions/Login.asp)
     try:
-        d.switch_to.default_content()
-        d.switch_to.frame(0)
-    except Exception as e:
-        _log(f"Lỗi chuyển frame menu: {e}", "warning")
+        cur_url = (d.current_url or "").lower()
+        if "default.asp" not in cur_url:
+            inside_url = getattr(config, "INSIDE_FPT_URL", "http://inside.fpt.net")
+            d.get(inside_url)
+            time.sleep(2)
+    except Exception:
+        pass
+
+    # ── Bước 1: Chuyển sang Frame 0 (Left.Asp) với cơ chế chờ ─────────────────
+    if not _switch_to_menu_frame(d, timeout=20):
+        _log("⚠️ Không tìm thấy Frame Menu (Left.Asp), thử tiếp tục...", "warning")
 
     # ── Bước 2: Bấm menu 'Inside New V5' ──────────────────────────────────
     _log("Mở menu 'Inside New V5'...")
-    for a in d.find_elements(By.TAG_NAME, "a"):
-        if "Inside New V5" in a.text:
-            d.execute_script("arguments[0].click();", a)
-            break
+    try:
+        for a in d.find_elements(By.TAG_NAME, "a"):
+            if "Inside New V5" in a.text:
+                d.execute_script("arguments[0].click();", a)
+                break
+    except Exception as e:
+        _log(f"Lỗi bấm menu 'Inside New V5': {e}", "warning")
     time.sleep(1)
 
     # ── Bước 3: Bấm menu con 'Hỗ trợ kỹ thuật' ──────────────────────────
     _log("Mở menu 'Hỗ trợ kỹ thuật'...")
-    for a in d.find_elements(By.TAG_NAME, "a"):
-        if a.is_displayed() and "Hỗ trợ kỹ thuật" in a.text:
-            d.execute_script("arguments[0].click();", a)
-            break
+    try:
+        for a in d.find_elements(By.TAG_NAME, "a"):
+            if a.is_displayed() and "Hỗ trợ kỹ thuật" in a.text:
+                d.execute_script("arguments[0].click();", a)
+                break
+    except Exception as e:
+        _log(f"Lỗi bấm menu 'Hỗ trợ kỹ thuật': {e}", "warning")
     time.sleep(1)
 
     # ── Bước 4: Bấm 'Thông tin chung' ────────────────────────────────────
     _log("Bấm menu 'Thông tin chung'...")
-    for a in d.find_elements(By.TAG_NAME, "a"):
-        if a.is_displayed() and "Thông tin chung" in a.text:
-            d.execute_script("arguments[0].click();", a)
-            break
+    try:
+        for a in d.find_elements(By.TAG_NAME, "a"):
+            if a.is_displayed() and "Thông tin chung" in a.text:
+                d.execute_script("arguments[0].click();", a)
+                break
+    except Exception as e:
+        _log(f"Lỗi bấm menu 'Thông tin chung': {e}", "warning")
     time.sleep(3.5)
 
-    # ── Bước 5: Chuyển sang Frame 1 (Content.asp) ────────────────────────
-    d.switch_to.default_content()
-    d.switch_to.frame(1)
-    _log("Chuyển sang frame nội dung chính...")
-
-    # ── Bước 6: Bấm qua tab 'BẢO TRÌ' (MudBlazor tab) ────────────────────
-    _log("Bấm qua tab 'BẢO TRÌ'...")
+    # ── Bước 5 & 6: Chuyển sang Frame 1 (Content.asp) và chờ bấm tab 'BẢO TRÌ' ─
+    _log("Chuyển sang frame nội dung chính (Content.asp) và bấm tab 'BẢO TRÌ'...")
     tab_clicked = False
-    tabs = d.find_elements(By.XPATH, '//*[@class and contains(@class,"mud-tab") and not(contains(@class,"mud-tabs"))]')
-    for t in tabs:
-        if "bảo trì" in t.text.lower():
-            t.click()
-            tab_clicked = True
-            break
-
-    if not tab_clicked:
-        for el in d.find_elements(By.XPATH, '//*[text()="BẢO TRÌ" or text()="Bảo Trì"]'):
-            if el.is_displayed():
-                el.click()
-                tab_clicked = True
-                break
+    end_tab = time.time() + 25
+    while time.time() < end_tab and not tab_clicked:
+        if not _switch_to_content_frame(d, timeout=5):
+            time.sleep(1)
+            continue
+        try:
+            tabs = d.find_elements(By.XPATH, '//*[@class and contains(@class,"mud-tab") and not(contains(@class,"mud-tabs"))]')
+            for t in tabs:
+                if "bảo trì" in (t.text or "").lower():
+                    _safe_click(d, t)
+                    tab_clicked = True
+                    break
+            if not tab_clicked:
+                for el in d.find_elements(By.XPATH, '//*[text()="BẢO TRÌ" or text()="Bảo Trì"]'):
+                    if el.is_displayed():
+                        _safe_click(d, el)
+                        tab_clicked = True
+                        break
+        except Exception as e:
+            _log(f"Lỗi bấm tab Bảo Trì: {e}", "warning")
+        if not tab_clicked:
+            time.sleep(1.0)
 
     time.sleep(3)
 
     # ── Bước 7: Chuyển vào iframe frameMaintenance ────────────────────────
-    try:
-        d.switch_to.frame("frameMaintenance")
-        _log("✅ Đã vào tab BẢO TRÌ (sẵn sàng nhập hợp đồng)!")
+    if _switch_to_maintenance_frame(d, timeout=20):
+        _log("✅ Đã vào tab BẢO TRÌ (sẵn sàng thao tác hợp đồng)!")
         return True, "✅ Đã điều hướng đến trang Bảo Trì"
-    except Exception as e:
-        _log(f"⚠️ Chưa switch được vào frameMaintenance: {e}", "warning")
-        return True, "⚠️ Đã chuyển tab Bảo Trì"
+    else:
+        _log("⚠️ Chưa switch được vào frameMaintenance", "warning")
+        return False, "❌ Không vào được khung Bảo Trì (frameMaintenance)"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -658,17 +833,7 @@ def add_note_to_contract(so_hd: str, note_input) -> tuple[bool, str]:
         note_list = list(note_input)
 
     # Đảm bảo context ở Frame 1 -> frameMaintenance
-    try:
-        d.switch_to.default_content()
-        d.switch_to.frame(1)
-        d.switch_to.frame("frameMaintenance")
-    except Exception:
-        try:
-            d.switch_to.default_content()
-            d.switch_to.frame(1)
-            d.switch_to.frame("frameMaintenance")
-        except Exception:
-            pass
+    _switch_to_maintenance_frame(d, timeout=15)
 
     original_handles = set(d.window_handles)
     new_handles = set()
@@ -798,9 +963,7 @@ def add_note_to_contract(so_hd: str, note_input) -> tuple[bool, str]:
                 _log(f"  ⚠️ Phiếu {so_hd}: Không tìm thấy biểu tượng ⊕ Ghi chú{part_label} (phiếu đã hoàn tất hoặc đóng)", "warning")
                 d.close()
                 d.switch_to.window(list(original_handles)[0])
-                d.switch_to.default_content()
-                d.switch_to.frame(1)
-                d.switch_to.frame("frameMaintenance")
+                _switch_to_maintenance_frame(d)
                 return False, f"⚠️ HĐ {so_hd}: Phiếu không có nút ghi chú"
 
             # Bấm dấu ⊕ và xác thực popup dialog phải thực sự mở ra (thử tối đa 3 lần)
@@ -833,9 +996,7 @@ def add_note_to_contract(so_hd: str, note_input) -> tuple[bool, str]:
                 _log(f"  ❌ Không mở được khung popup Ghi chú cho HĐ {so_hd}{part_label}", "error")
                 d.close()
                 d.switch_to.window(list(original_handles)[0])
-                d.switch_to.default_content()
-                d.switch_to.frame(1)
-                d.switch_to.frame("frameMaintenance")
+                _switch_to_maintenance_frame(d)
                 return False, f"❌ HĐ {so_hd}: Không mở được popup Ghi chú"
 
             # ── Bước 5: Nhập nội dung ghi chú vào textarea STRICTLY trong popup ───
@@ -850,9 +1011,7 @@ def add_note_to_contract(so_hd: str, note_input) -> tuple[bool, str]:
                 _log(f"  ❌ Popup Ghi chú HĐ {so_hd} không có ô nhập liệu", "error")
                 d.close()
                 d.switch_to.window(list(original_handles)[0])
-                d.switch_to.default_content()
-                d.switch_to.frame(1)
-                d.switch_to.frame("frameMaintenance")
+                _switch_to_maintenance_frame(d)
                 return False, f"❌ HĐ {so_hd}: Popup thiếu ô nhập"
 
             _log(f"  → Nhập nội dung ghi chú vào khung{part_label}...")
@@ -883,9 +1042,7 @@ def add_note_to_contract(so_hd: str, note_input) -> tuple[bool, str]:
                 _log(f"  ❌ HĐ {so_hd}: Không tìm thấy nút Cập nhật trong popup{part_label}", "error")
                 d.close()
                 d.switch_to.window(list(original_handles)[0])
-                d.switch_to.default_content()
-                d.switch_to.frame(1)
-                d.switch_to.frame("frameMaintenance")
+                _switch_to_maintenance_frame(d)
                 return False, f"❌ HĐ {so_hd}: Không thấy nút Cập nhật trong popup"
 
             _log(f"  → Bấm Cập nhật ghi chú{part_label}...")
@@ -913,9 +1070,7 @@ def add_note_to_contract(so_hd: str, note_input) -> tuple[bool, str]:
         # Đóng tab phiếu bảo trì và quay về tab chính
         d.close()
         d.switch_to.window(list(original_handles)[0])
-        d.switch_to.default_content()
-        d.switch_to.frame(1)
-        d.switch_to.frame("frameMaintenance")
+        _switch_to_maintenance_frame(d)
         time.sleep(1)
 
         return True, f"✅ Đã ghi chú thành công HĐ {so_hd}{note_count_str}"
@@ -930,9 +1085,7 @@ def add_note_to_contract(so_hd: str, note_input) -> tuple[bool, str]:
                     d.switch_to.window(h)
                     d.close()
                 d.switch_to.window(list(original_handles)[0])
-                d.switch_to.default_content()
-                d.switch_to.frame(1)
-                d.switch_to.frame("frameMaintenance")
+                _switch_to_maintenance_frame(d)
             except Exception:
                 pass
         return False, f"❌ Lỗi xử lý HĐ {so_hd}: {e}"
@@ -969,7 +1122,28 @@ def run_auto_note(results_to_note: list[dict], account: str = None, password: st
         _log(f"🚀 Bắt đầu Auto Note {len(results_to_note)} hợp đồng")
         _log("═══════════════════════════════════════")
 
-        ok, msg = login_inside_fpt(account=account, password=password, use_otp=use_otp, totp_secret=totp_secret)
+        # ── Kiểm tra driver cũ: nếu treo hoặc đã đăng nhập sẵn → reset ───
+        if _inside_driver is not None:
+            if not _is_driver_alive(_inside_driver, timeout=5.0):
+                _log("⚠️ Phát hiện trình duyệt cũ bị treo → tự động reset...", "warning")
+                ok, msg = _reset_and_relogin(
+                    account=account, password=password,
+                    use_otp=use_otp, totp_secret=totp_secret,
+                )
+            else:
+                # Driver sống nhưng đã có session → reset để đảm bảo sạch
+                _log("⚠️ Phát hiện trình duyệt đang mở session cũ → reset để đăng nhập lại...", "warning")
+                ok, msg = _reset_and_relogin(
+                    account=account, password=password,
+                    use_otp=use_otp, totp_secret=totp_secret,
+                )
+        else:
+            # Chưa có driver → đăng nhập bình thường
+            ok, msg = login_inside_fpt(
+                account=account, password=password,
+                use_otp=use_otp, totp_secret=totp_secret,
+            )
+
         if not ok:
             _log(f"Đăng nhập thất bại: {msg}", "error")
             _auto_note_status  = "error"

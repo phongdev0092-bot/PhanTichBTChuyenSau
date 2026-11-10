@@ -5,12 +5,12 @@ import os
 
 # === Tai khoan FPT ===
 EMAIL = 'phuongnam.phongnh5@fpt.net'
-EMAIL_PASSWORD = 'Benngo@@2026'
+EMAIL_PASSWORD = 'Benngo@@20262027'
 
 # === FPT Inside Account ===
 INSIDE_ACCOUNT  = 'phuongnam.phongnh5'
 INSIDE_PASSWORD = 'Benngo@@2026'
-INSIDE_FPT_LOGIN_URL = 'http://login.fpt.net/'
+INSIDE_FPT_LOGIN_URL = 'http://inside.fpt.net'
 INSIDE_FPT_URL       = 'http://inside.fpt.net'
 
 # === Google Authenticator TOTP (sẽ cập nhật sau khi scan QR) ===
@@ -38,3 +38,8 @@ SECRET_KEY = 'mybae_auto_2026'
 
 # === Cache ===
 SESSION_FILE = 'session.pkl'
+
+# === Google Sheet Bypass (Hậu Kiểm) ===
+BYPASS_SHEET_ID = '1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M'
+BYPASS_SHEET_GID = '0'
+BYPASS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwKy9963Q4QWjFjyz3l8A8XAu15He15dMU63J-GKu36VjkDaOE1wTaFxfCVEzF8PY09pw/exec'

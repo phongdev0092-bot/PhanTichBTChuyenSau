@@ -230,6 +230,27 @@ Giao diện Web của hệ thống được tổ chức thành 5 tab điều hư
    - Hiển thị Live Terminal log chi tiết từng thao tác click chuột, mở tab, điền nội dung và bấm cập nhật.
    - Hỗ trợ tải lên ảnh mã QR để giải mã và lưu trữ Secret Key TOTP tự động.
 
+6. **Tab 6: Toàn trình tự động (Lịch hẹn Cron)**
+   - Lập lịch tự động chạy định kỳ theo khung giờ: Tự động tải file Tồn BT từ FPT Inside -> Nạp vào Supabase -> Đăng nhập MYBAE -> Phân tích theo danh sách Đội Trưởng -> Tự động Note lên FPT Inside.
+
+7. **Tab 7: 360 Quality (Hành vi bảo trì Trước & Sau)**
+   - Đối chiếu chất lượng kỹ thuật 4 tiêu chí cốt lõi giữa ca Tồn Bảo Trì (trước) và ca Bảo Trì hoàn tất (sau).
+
+8. **Tab 8: Hậu Kiểm Bypass (Google Sheet)**
+   - **Nguồn dữ liệu:** Đọc trực tiếp từ Google Sheet Bypass (SHEET ID: `1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M`, GID: `0`).
+   - **Cơ chế tự động:** Quét toàn bộ danh sách, lọc các dòng có cột `Hậu kiểm` còn trống $\rightarrow$ Tự động lấy số hợp đồng (`SHD`) và tra cứu trên MYBAE.
+   - **Quy tắc đánh giá chuẩn:**
+     - **$\text{Rx Power} \le -23.5\text{ dBm}$**: Đánh giá **`KHÔNG ĐẠT`** và ghi nhận chỉ số suy hao (ví dụ: `-24.50 dBm`) vào cột `Suy Hao Hậu Kiểm`.
+     - **$-23.5\text{ dBm} < \text{Rx Power} \le -10.0\text{ dBm}$**: Đánh giá **`ĐẠT`** và ghi nhận chỉ số suy hao (ví dụ: `-18.20 dBm`) vào cột `Suy Hao Hậu Kiểm`.
+     - **$\text{Rx Power} > -10.0\text{ dBm}$ đến số dương (hoặc mất quang $0.0\text{ dBm}$)**: Đánh giá **`KHÔNG ĐẠT`** và ghi nhận **`Mất Tín Hiệu`** vào cột `Suy Hao Hậu Kiểm`.
+   - **Cơ chế Auto định kỳ (1 tiếng / lần):**
+     - Tích hợp công tắc **BẬT AUTO** ngay trên giao diện: Hệ thống tự động đếm ngược và quét Sheet mỗi **60 phút** (có thể chọn 15, 30, 60, 120 phút).
+     - Khi phát hiện có ca mới có cột `Hậu kiểm` còn trống, hệ thống **tự động chạy MYBAE** và **tự động cập nhật (update) kết quả lên Google Sheet** qua Webhook ngay sau khi chạy xong.
+     - Hiển thị đồng hồ đếm ngược thời gian thực, thời điểm chạy tiếp theo và nhật ký chi tiết của phiên chạy Auto gần nhất.
+     - Nút **"Quét & Cập Nhật Ngay"** cho phép kích hoạt chu kỳ Auto lập tức bất kỳ lúc nào.
+   - **Đồng bộ tự động lên Google Sheet:** Sử dụng Webhook Google Apps Script cập nhật tức thì từng dòng ngay sau khi kiểm tra xong, không cần cấu hình phức tạp trên Google Cloud.
+   - **Xuất báo cáo:** Hỗ trợ xuất dữ liệu ra file Excel (.xlsx) với 1 cú click chuột.
+
 ---
 
 ## 5. HƯỚNG DẪN CÀI ĐẶT & VẬN HÀNH HỆ THỐNG
@@ -245,11 +266,11 @@ Mở file [config.py](file:///d:/Tool%20MYBAE%20AUTO/config.py) và cấu hình 
 ```python
 # Tài khoản đăng nhập MyPT (Mail FPT)
 EMAIL = 'phuongnam.phongnh5@fpt.net'
-EMAIL_PASSWORD = 'Benngo@@2026'
+EMAIL_PASSWORD = 'Benngo@@20262027'
 
 # Tài khoản đăng nhập FPT Inside
 INSIDE_ACCOUNT  = 'phuongnam.phongnh5'
-INSIDE_PASSWORD = 'Benngo@@2026'
+INSIDE_PASSWORD = 'Benngo@@20262027'
 
 # Khóa bí mật Google Authenticator TOTP (Base32)
 TOTP_SECRET = 'J5MBXLD2IZJSJWADQU'
@@ -299,4 +320,50 @@ SUPABASE_KEY = 'sb_publishable_...'
 | **Báo lỗi Supabase Request Failed** | Khóa API Key của Supabase đã hết hạn hoặc bị đổi. | Vào tab **Import / Data (Supabase)** $\rightarrow$ Dán Supabase Key mới vào ô cấu hình $\rightarrow$ Bấm **Lưu Khóa**. |
 
 ---
+
+## 7. HẬU KIỂM BYPASS (GOOGLE SHEET) & CƠ CHẾ AUTO 1 TIẾNG / LẦN
+
+### 7.1. Tổng quan & Cấu trúc Sheet Bypass
+- **Google Sheet ID:** `1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M` (GID: `0`).
+- **Đường dẫn Sheet gốc:** [Mở Google Sheet Bypass](https://docs.google.com/spreadsheets/d/1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M/edit?gid=0#gid=0).
+- **Cấu trúc 12 Cột:**
+  `ID` | `Tác Vụ` | `Email` | `MSNV` | `Account Inside` | `SHD` | `Nguyên Nhân 1` | `Nguyên Nhân 2` | `Ngày Cập Nhật` | `Thao Tác` | `Hậu kiểm` | `Suy Hao Hậu Kiểm`
+
+### 7.2. Quy tắc đánh giá chuẩn Công suất thu (Rx Power)
+Khi cột `Hậu kiểm` còn trống, hệ thống tự động lấy `SHD`, tra cứu trên MYBAE (`management.mypt.vn`), mở tab *Thông số hệ thống* để đọc giá trị công suất thu và đánh giá:
+1. **$\text{Rx Power} \le -23.5\text{ dBm}$:**
+   - **Hậu kiểm:** `KHÔNG ĐẠT` (Được tô nền đỏ nhạt `#fee2e2`, chữ đỏ đậm `#b91c1c`, in đậm).
+   - **Suy Hao Hậu Kiểm:** Ghi nhận giá trị suy hao thực tế (Ví dụ: `-24.50 dBm`).
+2. **$-23.5\text{ dBm} < \text{Rx Power} \le -10.0\text{ dBm}$:**
+   - **Hậu kiểm:** `ĐẠT` (Được tô nền xanh lá `#dcfce7`, chữ xanh lá `#15803d`, in đậm).
+   - **Suy Hao Hậu Kiểm:** Ghi nhận giá trị suy hao thực tế (Ví dụ: `-18.20 dBm`).
+3. **$\text{Rx Power} > -10.0\text{ dBm}$ đến số dương / $0.0\text{ dBm}$ / Mất quang:**
+   - **Hậu kiểm:** `KHÔNG ĐẠT` (Tô đỏ `#fee2e2`).
+   - **Suy Hao Hậu Kiểm:** `Mất Tín Hiệu` (Tô màu cam `#ffedd5`, chữ cam đậm `#c2410c`, in đậm).
+
+### 7.3. Cơ chế Tự Động (Auto Mechanism 1 tiếng / lần)
+- **Chu kỳ chạy:** Mặc định **60 phút (1 tiếng / lần)**. Có thể linh hoạt chọn các mốc 15 phút, 30 phút, 60 phút, 120 phút ngay trên giao diện.
+- **Tự động đồng bộ Sheet:** Mỗi chu kỳ đến hạn (hoặc 15 giây sau khi khởi động tool), hệ thống tự động kết nối Google Sheet, tải dữ liệu mới nhất và lọc ra toàn bộ các hợp đồng có cột *Hậu kiểm* còn trống.
+- **Tự chạy MYBAE:** Tự động đăng nhập/kiểm tra phiên MYBAE, quét lần lượt các ca cần hậu kiểm với tốc độ tối ưu 5–8s/ca.
+- **Tự cập nhật lên Sheet:**
+  - Vừa chạy xong mỗi ca: Gửi ngay kết quả lên Google Sheet qua Webhook Google Apps Script để người xem Google Sheet thấy kết quả theo thời gian thực.
+  - Kết thúc toàn bộ danh sách: Thực hiện quét đối chiếu (Batch Fallback Sync) đảm bảo 100% hợp đồng đều được đồng bộ thành công vào Sheet.
+  - Lên lịch chu kỳ tiếp theo sau đúng 60 phút nữa, hiển thị đồng hồ đếm ngược từng giây trên Dashboard.
+- **Tính năng chủ động:** Bất kỳ lúc nào, bạn cũng có thể bấm nút **"Quét & Cập Nhật Ngay"** để kích hoạt chu kỳ hậu kiểm ngay lập tức mà không cần chờ hết 60 phút.
+
+### 7.4. Hướng dẫn cài đặt Google Apps Script Webhook (Chỉ làm 1 lần trong 1 phút)
+Để Tool có quyền ghi trực tiếp vào Google Sheet của bạn:
+1. Mở [Google Sheet Bypass](https://docs.google.com/spreadsheets/d/1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M/edit?gid=0#gid=0).
+2. Trên thanh menu, chọn: **Tiện ích mở rộng** *(Extensions)* $\rightarrow$ **Apps Script**.
+3. Trên giao diện Tool MYBAE AUTO, bấm nút **"Cấu Hình Webhook Sheet"** $\rightarrow$ Bấm **"Sao Chép Mã Nguồn Apps Script"**.
+4. Dán đoạn mã vừa copy vào trình soạn thảo Apps Script rồi bấm **Lưu** *(Ctrl + S)*.
+5. Nhấn nút **Triển khai** *(Deploy)* màu xanh góc trên bên phải $\rightarrow$ Chọn **Triển khai mới** *(New deployment)*:
+   - Loại: **Ứng dụng web** *(Web app)*.
+   - Thực thi dưới dạng *(Execute as)*: **Tôi** *(Me)*.
+   - Ai có quyền truy cập *(Who has access)*: **Bất kỳ ai** *(Anyone)*.
+6. Bấm **Triển khai** *(Deploy)* và copy đường link **URL ứng dụng web** *(Web app URL)* có đuôi `/exec`.
+7. Dán link vào ô **URL Webhook** trên Tool $\rightarrow$ Bấm **Kiểm Tra** $\rightarrow$ Bấm **Lưu**. Kể từ lúc này, hệ thống sẽ tự động cập nhật kết quả lên Google Sheet 1 tiếng/lần hoàn toàn tự động!
+
+---
+
 *Tài liệu kỹ thuật được biên soạn phục vụ vận hành và bàn giao Hệ Thống Phân Tích Chất Lượng Bảo Trì Sài Gòn 01.*

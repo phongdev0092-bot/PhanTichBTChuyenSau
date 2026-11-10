@@ -8,6 +8,46 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="/static/style.css"/>
+  <style>
+    .bp-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      margin: 0;
+    }
+    .bp-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .bp-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #cbd5e1;
+      transition: .3s;
+      border-radius: 24px;
+    }
+    .bp-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    input:checked + .bp-slider {
+      background-color: #10b981;
+    }
+    input:checked + .bp-slider:before {
+      transform: translateX(20px);
+    }
+  </style>
 </head>
 <body>
 
@@ -71,6 +111,11 @@
       </button>
       <button class="nav-tab" id="tabBtn-behavior" onclick="switchTab('behavior-tab')">
         <i class="fa-solid fa-crosshairs"></i> 360 Quality
+      </button>
+      <button class="nav-tab" id="tabBtn-bypass" onclick="switchTab('bypass-tab')">
+        <i class="fa-solid fa-shield-halved"></i> Hậu Kiểm Bypass
+        <span id="bypassPendingBadge" class="badge" style="background:#ef4444;color:#fff;font-size:11px;padding:1px 6px;border-radius:10px;margin-left:4px;display:none;">0</span>
+        <span id="bypassRunningDot" class="dot" style="display:none;background:#22c55e;margin-left:4px;"></span>
       </button>
 
     </div>
@@ -1136,6 +1181,301 @@
     </div><!-- end #behavior-tab -->
 
 
+    <!-- TAB: HẬU KIỂM BYPASS (GOOGLE SHEET) -->
+    <div id="bypass-tab" class="tab-panel">
+
+      <!-- HEADER & CẤU HÌNH NHANH -->
+      <div class="card" style="border:2px solid #3b82f6;">
+        <div class="card-header" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);">
+          <i class="fa-solid fa-shield-halved" style="color:#2563eb;font-size:1.3rem;"></i>
+          <h2 style="color:#1e40af;">Hậu Kiểm Bypass (Google Sheet)</h2>
+          <span class="chip" style="background:#2563eb;color:#fff;">
+            <i class="fa-solid fa-table"></i> GID: 0 | Sheet ID: 1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M
+          </span>
+          <a href="https://docs.google.com/spreadsheets/d/1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M/edit?gid=0#gid=0" target="_blank" class="btn btn-sm" style="background:#fff;border:1px solid #bfdbfe;color:#1d4ed8;margin-left:auto;text-decoration:none;padding:5px 12px;font-size:0.78rem;font-weight:600;border-radius:8px;">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Sheet Gốc
+          </a>
+        </div>
+        <div class="card-body">
+          <div style="font-size:0.83rem;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
+            Hệ thống tự động quét các dòng <strong>Hậu kiểm còn trống</strong> trong Google Sheet Bypass, gọi <strong>MYBAE</strong> để tra cứu công suất thu (Rx Power) và tự động đánh giá:
+            <span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:#dcfce7;color:#15803d;border-radius:6px;font-weight:600;">
+              -10dBm đến -23.5dBm ➜ ĐẠT
+            </span>
+            <span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:#fee2e2;color:#b91c1c;border-radius:6px;font-weight:600;">
+              &le; -23.5dBm ➜ KHÔNG ĐẠT (Ghi nhận Suy Hao)
+            </span>
+            <span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:#ffedd5;color:#c2410c;border-radius:6px;font-weight:600;">
+              &gt; -10dBm đến dương / 0.0dBm ➜ Mất Tín Hiệu - KHÔNG ĐẠT
+            </span>
+          </div>
+
+          <!-- WARNING BANNER NẾU CHƯA CẤU HÌNH WEBHOOK -->
+          <div id="bpWebhookWarningBanner" style="display:none;background:#fffbeb;border:2px solid #f59e0b;border-radius:12px;padding:12px 18px;margin-bottom:16px;box-shadow:0 3px 12px rgba(245,158,11,0.12);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center;color:#d97706;font-size:1.2rem;flex-shrink:0;">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                  <strong style="color:#b45309;font-size:0.92rem;">Chưa Cấu Hình Webhook Google Apps Script!</strong>
+                  <div style="font-size:0.8rem;color:#92400e;margin-top:2px;">
+                    Tool đang tra cứu MYBAE bình thường nhưng <strong>chưa thể tự động ghi đè kết quả lên Google Sheet</strong> vì chưa có URL Webhook.
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-sm" onclick="toggleBypassConfigModal(true)" style="background:#d97706;color:#fff;font-weight:700;padding:7px 16px;border-radius:8px;box-shadow:0 2px 8px rgba(217,119,6,0.25);">
+                <i class="fa-solid fa-plug-circle-bolt"></i> Cài Đặt Webhook Ngay (1 Phút)
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI STAT CARDS -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;text-align:center;">
+              <div style="font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;">Tổng Số Ca Trong Sheet</div>
+              <div id="bpStatTotal" style="font-size:1.6rem;font-weight:800;color:#0f172a;margin-top:4px;">0</div>
+            </div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 16px;text-align:center;">
+              <div style="font-size:0.75rem;color:#1d4ed8;font-weight:700;text-transform:uppercase;">Chưa Hậu Kiểm (Cần Chạy)</div>
+              <div id="bpStatEmpty" style="font-size:1.6rem;font-weight:800;color:#2563eb;margin-top:4px;">0</div>
+            </div>
+            <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:12px 16px;text-align:center;">
+              <div style="font-size:0.75rem;color:#047857;font-weight:700;text-transform:uppercase;">Đạt Chuẩn (-10 → -23.5)</div>
+              <div id="bpStatDat" style="font-size:1.6rem;font-weight:800;color:#059669;margin-top:4px;">0</div>
+            </div>
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 16px;text-align:center;">
+              <div style="font-size:0.75rem;color:#b91c1c;font-weight:700;text-transform:uppercase;">Không Đạt (&le; -23.5)</div>
+              <div id="bpStatKhongDat" style="font-size:1.6rem;font-weight:800;color:#dc2626;margin-top:4px;">0</div>
+            </div>
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;text-align:center;">
+              <div style="font-size:0.75rem;color:#c2410c;font-weight:700;text-transform:uppercase;">Mất Tín Hiệu (&gt; -10 / 0.0)</div>
+              <div id="bpStatMatTinHieu" style="font-size:1.6rem;font-weight:800;color:#ea580c;margin-top:4px;">0</div>
+            </div>
+          </div>
+
+          <!-- AUTO MECHANISM CARD (1 TIẾNG / LẦN) -->
+          <div style="background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 60%,#f8fafc 100%);border:2px solid #10b981;border-radius:14px;padding:14px 18px;margin-bottom:18px;box-shadow:0 4px 16px rgba(16,185,129,0.12);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center;color:#059669;font-size:1.2rem;">
+                  <i class="fa-solid fa-arrows-rotate" id="bpAutoIcon"></i>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <strong style="color:#065f46;font-size:0.95rem;">Cơ Chế Auto: Tự Động Quét & Cập Nhật Lên Google Sheet</strong>
+                    <span id="bpAutoStatusBadge" style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.73rem;font-weight:700;background:#e2e8f0;color:#64748b;">
+                      ⚪ ĐANG TẮT
+                    </span>
+                  </div>
+                  <div style="font-size:0.78rem;color:#047857;margin-top:2px;">
+                    Lần quét kế tiếp: <strong id="bpAutoNextRun" style="font-family:monospace;color:#065f46;font-size:0.85rem;">--:--:--</strong>
+                    <span id="bpAutoCountdownBox" style="display:none;"> (còn <strong id="bpAutoCountdown" style="color:#059669;">--:--</strong>)</span>
+                    <span style="color:#64748b;margin:0 6px;">|</span>
+                    Lần quét gần nhất: <span id="bpAutoLastRun" style="color:#64748b;">Chưa chạy</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CONTROLS: SWITCH, INTERVAL, RUN NOW -->
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:8px;background:#ffffff;padding:6px 12px;border-radius:10px;border:1px solid #a7f3d0;">
+                  <span style="font-size:0.8rem;font-weight:700;color:#065f46;">BẬT AUTO:</span>
+                  <label class="bp-switch">
+                    <input type="checkbox" id="bpAutoToggle" onchange="toggleAutoBypass(this.checked)">
+                    <span class="bp-slider"></span>
+                  </label>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:0.78rem;font-weight:600;color:#065f46;">Chu kỳ:</span>
+                  <select id="bpAutoInterval" class="date-input" style="padding:6px 10px;font-size:0.78rem;font-weight:600;border-color:#a7f3d0;" onchange="changeAutoBypassInterval(this.value)">
+                    <option value="60" selected>60 phút (1 tiếng / lần)</option>
+                    <option value="30">30 phút / lần</option>
+                    <option value="15">15 phút / lần</option>
+                    <option value="120">120 phút (2 tiếng / lần)</option>
+                  </select>
+                </div>
+
+                <button class="btn btn-sm" onclick="triggerAutoBypassNow()" style="background:#059669;color:#fff;font-weight:700;padding:7px 14px;border-radius:8px;box-shadow:0 3px 8px rgba(5,150,105,0.25);">
+                  <i class="fa-solid fa-bolt"></i> Quét & Cập Nhật Ngay
+                </button>
+              </div>
+            </div>
+
+            <!-- RESULT MESSAGE -->
+            <div id="bpAutoLastMsgBox" style="margin-top:10px;padding-top:10px;border-top:1px dashed #a7f3d0;font-size:0.78rem;display:flex;align-items:center;gap:6px;color:#334155;">
+              <i class="fa-solid fa-circle-info" style="color:#059669;"></i>
+              <span>Nhật ký Auto gần nhất:</span>
+              <span id="bpAutoLastResultText" style="font-weight:600;color:#0f172a;">Chưa có phiên chạy nào</span>
+            </div>
+          </div>
+
+          <!-- ACTION CONTROLS BAR -->
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid #e2e8f0;padding-top:14px;">
+            <button id="btnStartBypass" class="btn btn-primary" onclick="startBypassCheck()" style="padding:10px 20px;font-weight:700;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 4px 12px rgba(37,99,235,0.25);">
+              <i class="fa-solid fa-play"></i> Bắt Đầu Hậu Kiểm Bypass
+            </button>
+            <button id="btnStopBypass" class="btn btn-danger" onclick="stopBypassCheck()" style="display:none;padding:10px 18px;font-weight:700;">
+              <i class="fa-solid fa-stop"></i> Dừng Tiến Trình
+            </button>
+            <button class="btn btn-secondary" onclick="loadBypassData(true)" style="padding:10px 14px;">
+              <i class="fa-solid fa-rotate"></i> Tải Lại Sheet
+            </button>
+            <button class="btn btn-secondary" onclick="toggleBypassConfigModal(true)" style="padding:10px 14px;">
+              <i class="fa-solid fa-plug-circle-bolt"></i> Cấu Hình Webhook Sheet
+            </button>
+            <button class="btn btn-secondary" onclick="exportBypassExcel()" style="padding:10px 14px;background:#f0fdf4;border-color:#bbf7d0;color:#166534;">
+              <i class="fa-solid fa-file-excel"></i> Xuất File Excel
+            </button>
+
+            <!-- TÙY CHỌN LỌC NHANH -->
+            <div style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;color:#475569;cursor:pointer;">
+                <input type="checkbox" id="bpOnlyEmpty" checked style="width:16px;height:16px;cursor:pointer;" onchange="filterBypassRows()">
+                Chỉ chạy ca chưa hậu kiểm
+              </label>
+              <select id="bpFilterStatus" class="date-input" style="padding:7px 10px;font-size:0.8rem;" onchange="filterBypassRows()">
+                <option value="all">-- Lọc: Tất cả --</option>
+                <option value="pending">⏳ Chưa hậu kiểm (Trống)</option>
+                <option value="dat">✅ Đạt chuẩn</option>
+                <option value="khong_dat">❌ Không đạt</option>
+                <option value="mat_tin_hieu">⚠️ Mất tín hiệu</option>
+              </select>
+              <input type="text" id="bpSearchInput" class="date-input" placeholder="🔍 Tìm SHD, Inside, MSNV..." style="padding:7px 12px;font-size:0.8rem;width:200px;" oninput="filterBypassRows()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE PROGRESS TRACKER BANNER (WHEN RUNNING) -->
+      <div id="bpProgressBox" style="display:none;margin-top:14px;background:#ffffff;border:2px solid #3b82f6;border-radius:14px;padding:16px 20px;box-shadow:0 6px 20px rgba(59,130,246,0.12);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="spinner" style="width:20px;height:20px;border-width:3px;border-color:#3b82f6;border-top-color:transparent;"></div>
+            <span id="bpCurrentStep" style="font-size:0.9rem;font-weight:700;color:#1e40af;">Đang chuẩn bị tiến trình...</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span id="bpProgressCounter" style="font-size:0.85rem;font-weight:700;color:#64748b;">0 / 0</span>
+            <span id="bpProgressPercent" style="font-size:0.95rem;font-weight:800;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:6px;">0%</span>
+          </div>
+        </div>
+        <div style="width:100%;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;">
+          <div id="bpProgressBar" style="width:0%;height:100%;background:linear-gradient(90deg,#3b82f6,#2563eb);transition:width 0.3s ease;"></div>
+        </div>
+      </div>
+
+      <!-- DATA TABLE -->
+      <div class="card" style="margin-top:14px;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <i class="fa-solid fa-list-check" style="color:#2563eb;"></i>
+            <h3 style="margin:0;">Danh Sách Hợp Đồng Bypass (<span id="bpDisplayedCount" style="color:#2563eb;">0</span> ca)</h3>
+            <span id="bpPageInfoBadge" class="chip" style="font-size:0.75rem;padding:2px 8px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;">Trang 1 / 1</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button class="btn btn-sm" onclick="syncSelectedBypassRows()" style="background:#3b82f6;color:#fff;font-size:0.75rem;padding:5px 12px;border-radius:6px;font-weight:600;">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Đồng bộ dòng đã chọn lên Sheet
+            </button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div style="overflow-x:auto;">
+            <table class="result-table" style="width:100%;min-width:1150px;font-size:0.8rem;border-collapse:collapse;table-layout:fixed;">
+              <thead>
+                <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;text-align:left;color:#475569;font-weight:700;">
+                  <th style="width:38px;padding:10px 6px;text-align:center;">
+                    <input type="checkbox" id="bpSelectAll" onchange="toggleSelectAllBypass(this.checked)" title="Chọn tất cả trên trang này">
+                  </th>
+                  <th style="width:45px;padding:10px 6px;text-align:center;">ID</th>
+                  <th style="width:115px;padding:10px 8px;">Số HĐ (SHD)</th>
+                  <th style="width:125px;padding:10px 8px;">Account Inside</th>
+                  <th style="width:75px;padding:10px 8px;text-align:center;">MSNV</th>
+                  <th style="min-width:170px;padding:10px 8px;">Nguyên Nhân</th>
+                  <th style="width:135px;padding:10px 8px;">Ngày Cập Nhật</th>
+                  <th style="width:90px;padding:10px 8px;text-align:center;">Thao Tác</th>
+                  <th style="width:115px;padding:10px 8px;text-align:center;">Hậu Kiểm</th>
+                  <th style="width:130px;padding:10px 8px;text-align:center;">Suy Hao Hậu Kiểm</th>
+                  <th style="width:110px;padding:10px 8px;text-align:center;">Đồng Bộ</th>
+                  <th style="width:90px;padding:10px 8px;text-align:center;">Hành Động</th>
+                </tr>
+              </thead>
+              <tbody id="bpTableBody">
+                <tr>
+                  <td colspan="12" style="text-align:center;padding:30px;color:var(--text-muted);">
+                    <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i> Đang tải dữ liệu từ Google Sheet Bypass...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- PHÂN TRANG CHO BYPASS -->
+          <div id="bpPaginationContainer" class="mui-pagination-wrap"></div>
+        </div>
+      </div>
+
+    </div><!-- end #bypass-tab -->
+
+
+    <!-- MODAL: CẤU HÌNH WEBHOOK GOOGLE APPS SCRIPT -->
+    <div id="bpWebhookModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:rgba(15,23,42,0.65);justify-content:center;align-items:center;padding:20px;">
+      <div style="background:#ffffff;border-radius:16px;width:100%;max-width:760px;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.25);border:1px solid #e2e8f0;display:flex;flex-direction:column;">
+        <div style="padding:18px 24px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:16px 16px 0 0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <i class="fa-solid fa-plug-circle-bolt" style="color:#2563eb;font-size:1.2rem;"></i>
+            <h3 style="margin:0;font-size:1.1rem;color:#1e40af;">Cấu Hình Webhook Google Apps Script</h3>
+          </div>
+          <button onclick="toggleBypassConfigModal(false)" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;font-size:1.1rem;cursor:pointer;color:#64748b;padding:6px 10px;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div style="padding:22px 24px;flex:1;">
+          <div style="margin-bottom:18px;">
+            <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:6px;">
+              URL Webhook Ứng dụng Web (Google Apps Script Web App URL):
+            </label>
+            <div style="display:flex;gap:8px;">
+              <input type="url" id="bpWebhookUrlInput" class="date-input" placeholder="https://script.google.com/macros/s/AKfycb.../exec" style="flex:1;font-size:0.85rem;padding:9px 12px;">
+              <button class="btn btn-secondary" onclick="testBypassWebhook()" style="white-space:nowrap;padding:9px 14px;">
+                <i class="fa-solid fa-bolt"></i> Kiểm Tra
+              </button>
+              <button class="btn btn-primary" onclick="saveBypassConfig()" style="white-space:nowrap;padding:9px 16px;">
+                <i class="fa-solid fa-save"></i> Lưu
+              </button>
+            </div>
+            <div id="bpWebhookTestMsg" style="margin-top:6px;font-size:0.8rem;display:none;"></div>
+          </div>
+
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px;">
+            <h4 style="margin:0 0 10px 0;font-size:0.9rem;color:#1e293b;">
+              <i class="fa-solid fa-circle-question" style="color:#2563eb;"></i> Hướng dẫn kích hoạt ghi Sheet trong 3 bước:
+            </h4>
+            <ol style="margin:0;padding-left:20px;font-size:0.82rem;color:#475569;line-height:1.6;">
+              <li>Mở Google Sheet Bypass: chọn menu <strong>Tiện ích mở rộng (Extensions) &gt; Apps Script</strong>.</li>
+              <li>Xóa hết nội dung cũ, bấm nút <strong>"Sao Chép Mã Apps Script"</strong> bên dưới rồi dán vào và nhấn <strong>Lưu (Ctrl + S)</strong>.</li>
+              <li>Nhấn nút <strong>Triển khai (Deploy) &gt; Triển khai mới (New deployment)</strong>:
+                <br>&bull; Chọn loại: <strong>Ứng dụng web (Web app)</strong>
+                <br>&bull; Thực thi dưới dạng (Execute as): <strong>Tôi (Me)</strong>
+                <br>&bull; Ai có quyền truy cập (Who has access): <strong>Bất kỳ ai (Anyone)</strong>
+                <br>&bull; Nhấn <strong>Triển khai</strong> và sao chép <strong>URL ứng dụng web</strong> dán vào ô bên trên.
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:0.82rem;font-weight:700;color:#334155;">Mã nguồn Google Apps Script sẵn sàng sử dụng:</span>
+              <button class="btn btn-sm btn-secondary" onclick="copyAppsScriptTemplate()" style="padding:4px 10px;font-size:0.75rem;">
+                <i class="fa-regular fa-copy"></i> Sao Chép Mã Apps Script
+              </button>
+            </div>
+            <textarea id="bpAppsScriptCode" readonly style="width:100%;height:160px;font-family:monospace;font-size:0.78rem;padding:10px;border-radius:8px;border:1px solid #cbd5e1;background:#0f172a;color:#f8fafc;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
     <!-- MODAL: 360 QUALITY DETAIL -->
     <div id="bhvDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:rgba(255,255,255,0.95);justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto;">
       <div style="background:#ffffff;border-radius:16px;width:100%;max-width:900px;margin:0 auto;box-shadow:0 8px 40px rgba(0,0,0,0.15);border:1px solid #e2e8f0;">
@@ -1429,39 +1769,52 @@
       <button onclick="closeLoginConfigModal()" style="border:none;background:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;padding:4px;"><i class="fa-solid fa-xmark"></i></button>
     </div>
 
-    <!-- KHUNG CHỌN CHẾ ĐỘ -->
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:16px;">
-      <div style="font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:10px;">
-        <i class="fa-solid fa-sliders" style="color:#3b82f6;"></i> Chọn Chế Độ Đăng Nhập:
+    <!-- KHUNG QUẢN LÝ & CHỌN TÀI KHOẢN ĐỊNH DANH (accounts.json) -->
+    <div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:12px;padding:14px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:0.88rem;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-users-gear" style="color:#2563eb;"></i> Chọn Tài Khoản Định Danh (Tái Sử Dụng):
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn btn-secondary" onclick="addNewAccountPrompt()" style="height:32px;font-size:0.78rem;padding:0 10px;background:#fff;">
+            <i class="fa-solid fa-user-plus" style="color:#16a34a;"></i> Thêm Tài Khoản Mới
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="deleteCurrentAccount()" id="btnDeleteAccount" style="height:32px;font-size:0.78rem;padding:0 10px;background:#fff;color:#dc2626;border-color:#fca5a5;">
+            <i class="fa-solid fa-trash"></i> Xóa
+          </button>
+        </div>
       </div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;">
-        <label id="lblLoginDefault" style="flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #3b82f6;background:#eff6ff;cursor:pointer;transition:all 0.2s;">
-          <input type="radio" name="loginMode" id="modeDefault" value="default" checked onchange="toggleLoginMode()" style="margin-top:2px;accent-color:#3b82f6;"/>
-          <div>
-            <div style="font-weight:700;font-size:0.88rem;color:#1e40af;">Mặc Định</div>
-            <div style="font-size:0.75rem;color:#475569;margin-top:2px;">Sử dụng tài khoản hệ thống có sẵn (Giữ nguyên logic gốc).</div>
-          </div>
-        </label>
-        <label id="lblLoginCustom" style="flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #cbd5e1;background:#fff;cursor:pointer;transition:all 0.2s;">
-          <input type="radio" name="loginMode" id="modeCustom" value="custom" onchange="toggleLoginMode()" style="margin-top:2px;accent-color:#3b82f6;"/>
-          <div>
-            <div style="font-weight:700;font-size:0.88rem;color:#1e293b;">Tùy Chọn</div>
-            <div style="font-size:0.75rem;color:#475569;margin-top:2px;">Điền thông tin tài khoản cá nhân linh hoạt cho nhiều người dùng.</div>
-          </div>
-        </label>
+
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div style="flex:1;">
+          <select id="accountSelector" onchange="onAccountSelected()" class="date-input" style="width:100%;height:38px;font-weight:700;font-size:0.85rem;color:#1e293b;background:#fff;">
+          </select>
+        </div>
+        <button type="button" class="btn" onclick="saveCurrentAccountCredentials()" style="background:#2563eb;color:#fff;height:38px;padding:0 14px;font-size:0.8rem;font-weight:700;white-space:nowrap;border-radius:8px;">
+          <i class="fa-solid fa-floppy-disk"></i> Lưu Mật Khẩu
+        </button>
+      </div>
+      <div style="font-size:0.74rem;color:#64748b;margin-top:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+        <span>📁 Lưu tập trung tại file <code>accounts.json</code>. Chọn tài khoản và sửa mật khẩu trực tiếp bên dưới.</span>
+        <button type="button" class="btn btn-ghost" onclick="setActiveAccountCurrent()" style="font-size:0.74rem;color:#2563eb;padding:2px 6px;font-weight:700;text-decoration:underline;">
+          ⭐ Đặt tài khoản này làm mặc định chạy tự động
+        </button>
       </div>
     </div>
 
-    <!-- BANNER NHẮC NHỞ CHO MẶC ĐỊNH -->
-    <div id="defaultNoticeBanner" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 14px;font-size:0.83rem;color:#9a3412;margin-bottom:18px;display:flex;gap:10px;align-items:center;">
-      <i class="fa-solid fa-circle-info" style="font-size:1.3rem;color:#f97316;flex-shrink:0;"></i>
-      <div>
-        <strong>Ghi chú nhắc nhở:</strong> Chế độ <strong>Mặc định</strong> sử dụng tài khoản hệ thống hiện tại và <span style="text-decoration:underline;font-weight:800;">chỉ hỗ trợ tại khu vực Hồ Chí Minh</span>.
+    <!-- KHUNG ĐIỀN THÔNG TIN TÀI KHOẢN -->
+    <div id="customConfigSection" style="background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:18px;">
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:14px;background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px dashed #cbd5e1;">
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Mã / Định danh (ID):</label>
+          <input type="text" id="cfgAccountId" placeholder="Ví dụ: giangvt" class="date-input" style="width:100%;height:34px;font-size:0.83rem;font-weight:800;background:#f1f5f9;color:#0f172a;" readonly/>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Tên hiển thị / Mô tả:</label>
+          <input type="text" id="cfgAccountName" placeholder="Ví dụ: Võ Trường Giang" class="date-input" style="width:100%;height:34px;font-size:0.83rem;"/>
+        </div>
       </div>
-    </div>
 
-    <!-- KHUNG ĐIỀN THÔNG TIN TÙY CHỌN -->
-    <div id="customConfigSection" style="display:none;background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:18px;">
       <div style="font-size:0.88rem;font-weight:800;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #f1f5f9;padding-bottom:8px;">
         <i class="fa-solid fa-envelope" style="color:#0284c7;"></i> 1. Đăng nhập Management MyPT (https://management.mypt.vn/)
       </div>
@@ -1744,6 +2097,12 @@ function switchTab(tabId) {
   if (tabId === 'behavior-tab') {
     document.getElementById("tabBtn-behavior").classList.add("active");
   }
+  if (tabId === 'bypass-tab') {
+    document.getElementById("tabBtn-bypass").classList.add("active");
+    loadBypassData();
+    pollBypassStatus();
+    pollAutoBypassState();
+  }
   if (tabId === 'analysis-tab') {
     document.getElementById("tabBtn-analysis").classList.add("active");
   }
@@ -1861,36 +2220,202 @@ function updateSelectedCount() {
   document.getElementById("selectedCount").textContent = `${selectedEmployees.size} đã chọn`;
 }
 
+let _currentAccounts = [];
+let _activeAccountId = "";
+
+async function loadAccountsList() {
+  try {
+    const r = await fetch("/api/accounts");
+    const d = await r.json();
+    if (d.success && d.accounts) {
+      _currentAccounts = d.accounts;
+      _activeAccountId = d.active_id || (d.accounts[0] ? d.accounts[0].id : "");
+      renderAccountSelector();
+    }
+  } catch(e) {
+    console.error("Lỗi nạp accounts:", e);
+  }
+}
+
+function renderAccountSelector() {
+  const sel = document.getElementById("accountSelector");
+  if (!sel) return;
+  sel.innerHTML = "";
+  _currentAccounts.forEach(acc => {
+    const opt = document.createElement("option");
+    opt.value = acc.id;
+    const isDef = acc.is_default ? " ⭐ [Đang Kích Hoạt]" : "";
+    opt.textContent = `👤 [${acc.id}] ${acc.name || acc.inside_account || acc.email}${isDef}`;
+    if (acc.id === _activeAccountId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  fillAccountForm(_activeAccountId);
+}
+
+function onAccountSelected() {
+  const sel = document.getElementById("accountSelector");
+  if (!sel) return;
+  _activeAccountId = sel.value;
+  fillAccountForm(_activeAccountId);
+}
+
+function fillAccountForm(accId) {
+  const acc = _currentAccounts.find(a => a.id === accId) || {};
+  const inpId = document.getElementById("cfgAccountId");
+  if (inpId) inpId.value = acc.id || "";
+  const inpName = document.getElementById("cfgAccountName");
+  if (inpName) inpName.value = acc.name || "";
+  document.getElementById("cfgEmail").value = acc.email || "";
+  document.getElementById("cfgEmailPassword").value = acc.email_password || "";
+  document.getElementById("cfgInsideAccount").value = acc.inside_account || "";
+  document.getElementById("cfgInsidePassword").value = acc.inside_password || "";
+  document.getElementById("cfgUseInsideOtp").checked = acc.use_inside_otp !== false;
+  document.getElementById("cfgTotpSecret").value = acc.totp_secret || "";
+
+  const btnDel = document.getElementById("btnDeleteAccount");
+  if (btnDel) btnDel.disabled = _currentAccounts.length <= 1;
+  toggleOtpMethod();
+}
+
+async function saveCurrentAccountCredentials() {
+  const accId = document.getElementById("cfgAccountId")?.value.trim() || _activeAccountId;
+  const accName = document.getElementById("cfgAccountName")?.value.trim() || accId;
+  const email = document.getElementById("cfgEmail")?.value.trim();
+  const emailPass = document.getElementById("cfgEmailPassword")?.value.trim();
+  const insideAcc = document.getElementById("cfgInsideAccount")?.value.trim();
+  const insidePass = document.getElementById("cfgInsidePassword")?.value.trim();
+  const useOtp = document.getElementById("cfgUseInsideOtp")?.checked;
+  const totpSecret = document.getElementById("cfgTotpSecret")?.value.trim();
+
+  if (!accId) {
+    showToast("Vui lòng nhập Định danh (ID) tài khoản!", "error");
+    return;
+  }
+
+  const payload = {
+    id: accId,
+    name: accName,
+    email: email,
+    email_password: emailPass,
+    inside_account: insideAcc,
+    inside_password: insidePass,
+    use_inside_otp: useOtp,
+    totp_secret: totpSecret,
+    is_default: true
+  };
+
+  try {
+    const r = await fetch("/api/accounts/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(d.message || "Đã lưu tài khoản thành công!", "success");
+      _currentAccounts = d.accounts || [];
+      _activeAccountId = accId;
+      renderAccountSelector();
+    } else {
+      showToast("Lỗi: " + (d.message || d.error), "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối khi lưu tài khoản", "error");
+  }
+}
+
+async function setActiveAccountCurrent() {
+  const sel = document.getElementById("accountSelector");
+  if (!sel || !sel.value) return;
+  const accId = sel.value;
+  try {
+    const r = await fetch("/api/accounts/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: accId })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(`⭐ Đã kích hoạt tài khoản [${accId}] làm mặc định cho hệ thống & lịch chạy!`, "success");
+      await loadAccountsList();
+    } else {
+      showToast("Lỗi: " + (d.message || d.error), "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối", "error");
+  }
+}
+
+async function addNewAccountPrompt() {
+  const accId = prompt("Nhập Định danh (ID/Mã) cho tài khoản mới (ví dụ: giangvt, phongnh5, namlh):");
+  if (!accId || !accId.trim()) return;
+  const cleanId = accId.trim().toLowerCase();
+
+  const accName = prompt(`Nhập Tên hiển thị cho tài khoản [${cleanId}] (ví dụ: Võ Trường Giang):`, cleanId) || cleanId;
+
+  const newAcc = {
+    id: cleanId,
+    name: accName.trim(),
+    email: "",
+    email_password: "",
+    inside_account: "",
+    inside_password: "",
+    use_inside_otp: true,
+    totp_secret: "",
+    is_default: true
+  };
+
+  try {
+    const r = await fetch("/api/accounts/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newAcc)
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(`Đã tạo tài khoản [${cleanId}]. Hãy điền mật khẩu bên dưới và bấm Lưu!`, "success");
+      _currentAccounts = d.accounts || [];
+      _activeAccountId = cleanId;
+      renderAccountSelector();
+    } else {
+      showToast("Lỗi tạo tài khoản: " + (d.message || d.error), "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối", "error");
+  }
+}
+
+async function deleteCurrentAccount() {
+  const sel = document.getElementById("accountSelector");
+  if (!sel || !sel.value) return;
+  const accId = sel.value;
+  if (!confirm(`Bạn có chắc muốn xóa tài khoản [${accId}] khỏi danh sách không?`)) return;
+
+  try {
+    const r = await fetch("/api/accounts/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: accId })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast(`Đã xóa tài khoản [${accId}]`, "success");
+      _currentAccounts = d.accounts || [];
+      _activeAccountId = _currentAccounts[0] ? _currentAccounts[0].id : "";
+      renderAccountSelector();
+    } else {
+      showToast("Lỗi xóa: " + (d.message || d.error), "error");
+    }
+  } catch(e) {
+    showToast("Lỗi kết nối", "error");
+  }
+}
+
 async function openLoginConfigModal() {
   const modal = document.getElementById("loginConfigModal");
   if (!modal) return;
   modal.style.display = "flex";
-
-  try {
-    const r = await fetch("/api/user_config");
-    const d = await r.json();
-    if (d.success && d.config) {
-      const cfg = d.config;
-      const mode = cfg.mode || "default";
-
-      if (mode === "custom") {
-        document.getElementById("modeCustom").checked = true;
-      } else {
-        document.getElementById("modeDefault").checked = true;
-      }
-
-      document.getElementById("cfgEmail").value = cfg.email || "";
-      document.getElementById("cfgEmailPassword").value = cfg.email_password || "";
-      document.getElementById("cfgInsideAccount").value = cfg.inside_account || "";
-      document.getElementById("cfgInsidePassword").value = cfg.inside_password || "";
-      document.getElementById("cfgUseInsideOtp").checked = cfg.use_inside_otp !== false;
-      document.getElementById("cfgTotpSecret").value = cfg.totp_secret || "";
-
-      toggleLoginMode();
-    }
-  } catch(e) {
-    console.error("Lỗi đọc user_config:", e);
-  }
+  await loadAccountsList();
 }
 
 function closeLoginConfigModal() {
@@ -1915,7 +2440,7 @@ async function uploadQrImageModal(input) {
       document.getElementById("cfgTotpSecret").value = d.secret;
       showToast(`✅ Đã giải mã QR! Secret: ${d.secret} (Mã OTP mẫu: ${d.otp_sample || ''})`, "success");
     } else {
-      showToast("Lỗi giải mã QR: " + (d.error || "Không đọc được QR code tu ảnh này"), "error");
+      showToast("Lỗi giải mã QR: " + (d.error || "Không đọc được QR code từ ảnh này"), "error");
     }
   } catch(e) {
     showToast("Lỗi kết nối khi quét ảnh QR", "error");
@@ -1940,27 +2465,6 @@ function toggleOtpMethod() {
   }
 }
 
-function toggleLoginMode() {
-  const isCustom = document.getElementById("modeCustom")?.checked;
-  const banner = document.getElementById("defaultNoticeBanner");
-  const customSection = document.getElementById("customConfigSection");
-  const lblDef = document.getElementById("lblLoginDefault");
-  const lblCus = document.getElementById("lblLoginCustom");
-
-  if (isCustom) {
-    if (banner) banner.style.display = "none";
-    if (customSection) customSection.style.display = "block";
-    if (lblDef) lblDef.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #cbd5e1;background:#fff;cursor:pointer;transition:all 0.2s;";
-    if (lblCus) lblCus.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #3b82f6;background:#eff6ff;cursor:pointer;transition:all 0.2s;";
-    toggleOtpMethod();
-  } else {
-    if (banner) banner.style.display = "flex";
-    if (customSection) customSection.style.display = "none";
-    if (lblDef) lblDef.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #3b82f6;background:#eff6ff;cursor:pointer;transition:all 0.2s;";
-    if (lblCus) lblCus.style.cssText = "flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;border:2px solid #cbd5e1;background:#fff;cursor:pointer;transition:all 0.2s;";
-  }
-}
-
 function doLogin() {
   openLoginConfigModal();
 }
@@ -1982,42 +2486,38 @@ async function doResetLoginDriver() {
 }
 
 async function saveAndDoLogin() {
-  const isCustom = document.getElementById("modeCustom")?.checked;
-  const mode = isCustom ? "custom" : "default";
+  await saveCurrentAccountCredentials();
+
   const otpMethod = document.querySelector('input[name="otpMethod"]:checked')?.value || "auto";
+  const email = document.getElementById("cfgEmail")?.value.trim();
+  const emailPass = document.getElementById("cfgEmailPassword")?.value.trim();
+  const insideAcc = document.getElementById("cfgInsideAccount")?.value.trim();
+  const insidePass = document.getElementById("cfgInsidePassword")?.value.trim();
+
+  if (!email) {
+    showToast("Vui lòng điền Email FPT / MyPT!", "error");
+    return;
+  }
+  if (otpMethod === "auto" && !emailPass) {
+    showToast("Chế độ Tự động đọc OTP yêu cầu điền Mật khẩu Email!", "error");
+    return;
+  }
+  if (!insideAcc || !insidePass) {
+    showToast("Vui lòng điền đầy đủ User và Mật Khẩu Inside!", "error");
+    return;
+  }
 
   const payload = {
-    mode: mode,
+    mode: "custom",
     otp_method: otpMethod,
+    email: email,
+    email_password: emailPass,
+    inside_account: insideAcc,
+    inside_password: insidePass,
+    use_inside_otp: document.getElementById("cfgUseInsideOtp")?.checked,
+    totp_secret: document.getElementById("cfgTotpSecret")?.value.trim(),
     force_relogin: true
   };
-
-  if (isCustom) {
-    const email = document.getElementById("cfgEmail")?.value.trim();
-    const emailPass = document.getElementById("cfgEmailPassword")?.value.trim();
-    const insideAcc = document.getElementById("cfgInsideAccount")?.value.trim();
-    const insidePass = document.getElementById("cfgInsidePassword")?.value.trim();
-
-    if (!email) {
-      showToast("Vui lòng điền Email FPT / MyPT!", "error");
-      return;
-    }
-    if (otpMethod === "auto" && !emailPass) {
-      showToast("Chế độ Tự động đọc OTP yêu cầu điền Mật khẩu Email!", "error");
-      return;
-    }
-    if (!insideAcc || !insidePass) {
-      showToast("Vui lòng điền đầy đủ User và Mật Khẩu Inside!", "error");
-      return;
-    }
-
-    payload.email = email;
-    payload.email_password = emailPass;
-    payload.inside_account = insideAcc;
-    payload.inside_password = insidePass;
-    payload.use_inside_otp = document.getElementById("cfgUseInsideOtp")?.checked;
-    payload.totp_secret = document.getElementById("cfgTotpSecret")?.value.trim();
-  }
 
   closeLoginConfigModal();
   setBadge("pending", "Đang kết nối đăng nhập...");
@@ -2031,7 +2531,7 @@ async function saveAndDoLogin() {
     });
     const d = await r.json();
     if (d.success) {
-      showToast(mode === "custom" ? "Bắt đầu đăng nhập với tài khoản tùy chọn..." : "Bắt đầu đăng nhập hệ thống (Mặc định)...", "info");
+      showToast(`Bắt đầu đăng nhập với tài khoản [${_activeAccountId}]...`, "info");
     } else {
       showToast("Lỗi đăng nhập: " + (d.message || d.error), "error");
       setBadge("error", "Đăng nhập thất bại");
@@ -4127,6 +4627,8 @@ function addScheduleRow(s) {
   const opts = _schedBranches.map(b => `<option value="${b}" ${b === s.chi_nhanh ? "selected" : ""}>${b}</option>`).join("");
   const days = _DAY_LABELS.map((l, i) =>
     `<label style="font-size:0.75rem;"><input type="checkbox" class="sch-day" value="${i}" ${s.days.includes(i) ? "checked" : ""}>${l}</label>`).join(" ");
+  const isErr = s.last_status && s.last_status.startsWith("LỖI");
+  const statusColor = isErr ? "#dc2626" : "#78716c";
   row.innerHTML = `
     <input type="checkbox" class="sch-enabled" ${s.enabled !== false ? "checked" : ""} title="Bật/tắt lịch">
     <input type="time" class="sch-time" value="${s.time}">
@@ -4135,7 +4637,10 @@ function addScheduleRow(s) {
     <span>${days}</span>
     <button class="btn" title="Chạy ngay" onclick="runScheduleNow(this)"><i class="fa-solid fa-bolt"></i></button>
     <button class="btn btn-danger" title="Xóa" onclick="this.closest('.sch-row').remove()"><i class="fa-solid fa-trash"></i></button>
-    <span style="font-size:0.72rem; color:#78716c; flex-basis:100%;">${s.last_run ? "Lần chạy gần nhất: " + s.last_run + " – " + (s.last_status || "") : "Chưa chạy"}</span>`;
+    <div style="font-size:0.72rem; color:${statusColor}; flex-basis:100%; display:flex; align-items:center; gap:8px; margin-top:4px;">
+      <span>${s.last_run ? "Lần chạy gần nhất: " + s.last_run + " – " + (s.last_status || "") : "Chưa chạy"}</span>
+      ${isErr ? `<button class="btn btn-sm" style="background:#fef2f2; border:1px solid #fca5a5; color:#dc2626; font-size:0.72rem; padding:2px 8px; border-radius:4px; cursor:pointer; font-weight:700;" onclick="runScheduleNow(this)"><i class="fa-solid fa-rotate-right"></i> Thực thi lại</button>` : ""}
+    </div>`;
   row.querySelector(".sch-branch").onchange = () => _fillCaptainSelect(row, "");
   document.getElementById("scheduleList").appendChild(row);
   _fillCaptainSelect(row, s.captain);
@@ -4213,14 +4718,33 @@ function renderFlow(st) {
       <div style="font-size:0.72rem; color:#57534e; margin-top:4px; word-break:break-word;">${s.detail || ""}</div></div>`;
   }).join('<div style="align-self:center; color:#a8a29e;">➜</div>');
   const res = document.getElementById("flowResult");
-  if (st.running) { res.textContent = ""; }
+  if (st.running) { res.innerHTML = ""; }
   else if (st.last) {
-    res.style.color = st.last.ok ? "#16a34a" : "#dc2626";
-    res.textContent = `${st.last.ok ? "✅" : "❌"} ${st.last.message} (${st.last.at})`;
+    const isOk = st.last.ok;
+    const color = isOk ? "#16a34a" : "#dc2626";
+    const sid = st.last.schedule_id || "";
+    const retryBtn = `<button class="btn btn-sm" style="margin-left:12px; background:${isOk ? '#f0fdf4' : '#fef2f2'}; border:1px solid ${isOk ? '#86efac' : '#fca5a5'}; color:${color}; font-size:0.76rem; padding:4px 12px; border-radius:6px; cursor:pointer; font-weight:700;" onclick="retrySchedule('${sid}')">
+      <i class="fa-solid fa-rotate-right"></i> ${isOk ? 'Thực thi lại lịch này' : 'Thực thi lại khi lỗi'}
+    </button>`;
+    res.style.color = color;
+    res.innerHTML = `<div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+      <span>${isOk ? "✅" : "❌"} ${st.last.message} (${st.last.at})</span>
+      ${retryBtn}
+    </div>`;
   }
   const logEl = document.getElementById("flowLog");
   logEl.textContent = (st.logs || []).map(l => `[${l.time}] ${l.msg}`).join("\n");
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function retrySchedule(sid) {
+  const r = await fetch("/api/schedules/run_now", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({id: sid || "last"})
+  });
+  const d = await r.json();
+  showToast(d.message || d.error, d.success ? "success" : "warning");
 }
 
 async function pollFlow() {
@@ -4235,13 +4759,16 @@ async function pollFlow() {
 pollFlow();
 
 async function runScheduleNow(btn) {
+  const row = btn ? btn.closest(".sch-row") : null;
+  const targetId = row ? (row.dataset.id || "") : "";
   if (!(await saveSchedules())) return;
-  const idx = [...document.querySelectorAll("#scheduleList .sch-row")].indexOf(btn.closest(".sch-row"));
-  const id = document.querySelectorAll("#scheduleList .sch-row")[idx].dataset.id;
-  const r = await fetch("/api/schedules/run_now", {method: "POST", headers: {"Content-Type": "application/json"},
-                                                    body: JSON.stringify({id})});
+  const r = await fetch("/api/schedules/run_now", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({id: targetId || "last"})
+  });
   const d = await r.json();
-  showToast(d.message || d.error, d.success ? "info" : "warning");
+  showToast(d.message || d.error, d.success ? "success" : "warning");
 }
 
 function onImportPartChange(part) {
@@ -5145,6 +5672,700 @@ document.addEventListener('click', function(e) {
   if (modal && modal.style.display === 'flex' && e.target === modal) {
     closeBhvModal();
   }
+  const bpModal = document.getElementById('bpWebhookModal');
+  if (bpModal && bpModal.style.display === 'flex' && e.target === bpModal) {
+    toggleBypassConfigModal(false);
+  }
+});
+
+
+// ============================================================
+//   TÍNH NĂNG HẬU KIỂM BYPASS (GOOGLE SHEET)
+// ============================================================
+let bpAllRows = [];
+let bpFilteredRows = [];
+let bpPollTimer = null;
+let bpIsRunning = false;
+let bpCurrentPage = 1;
+let bpPageSize = 20;
+
+async function loadBypassData(force = false) {
+  const tbody = document.getElementById('bpTableBody');
+  if (force) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i> Đang tải lại dữ liệu từ Google Sheet Bypass...</td></tr>`;
+  }
+  try {
+    const res = await fetch('/api/bypass/data');
+    const data = await res.json();
+    if (!data.success) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:30px;color:#ef4444;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i> Lỗi tải Google Sheet: ${esc(data.error || 'Không rõ nguyên nhân')}</td></tr>`;
+      return;
+    }
+
+    bpAllRows = data.rows || [];
+    const stats = data.stats || {};
+    
+    // Cập nhật thẻ chỉ số thống kê KPI
+    document.getElementById('bpStatTotal').textContent = stats.total || bpAllRows.length;
+    document.getElementById('bpStatEmpty').textContent = stats.empty_count || 0;
+    document.getElementById('bpStatDat').textContent = stats.dat_count || 0;
+    document.getElementById('bpStatKhongDat').textContent = stats.khong_dat_count || 0;
+    document.getElementById('bpStatMatTinHieu').textContent = stats.mat_tin_hieu_count || 0;
+
+    // Cập nhật badge trên thanh Tab
+    const badge = document.getElementById('bypassPendingBadge');
+    if (stats.empty_count > 0) {
+      badge.textContent = stats.empty_count;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+    // Cập nhật cảnh báo nếu chưa cấu hình Webhook
+    try {
+      const cfgRes = await fetch('/api/bypass/config');
+      const cfg = await cfgRes.json();
+      const banner = document.getElementById('bpWebhookWarningBanner');
+      if (banner) {
+        banner.style.display = (cfg.webhook_url && cfg.webhook_url.trim()) ? 'none' : 'block';
+      }
+    } catch (_) {}
+
+    filterBypassRows();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:30px;color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Lỗi kết nối máy chủ: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+function filterBypassRows() {
+  const onlyEmpty = document.getElementById('bpOnlyEmpty').checked;
+  const filterStatus = document.getElementById('bpFilterStatus').value;
+  const search = (document.getElementById('bpSearchInput').value || '').trim().toLowerCase();
+
+  bpFilteredRows = bpAllRows.filter(r => {
+    if (onlyEmpty && !r.is_empty) return false;
+    if (filterStatus === 'pending' && !r.is_empty) return false;
+    if (filterStatus === 'dat') {
+      const hk = (r.hau_kiem || '').toLowerCase();
+      if (!hk.includes('đạt') || hk.includes('không')) return false;
+    }
+    if (filterStatus === 'khong_dat') {
+      const hk = (r.hau_kiem || '').toLowerCase();
+      if (!hk.includes('không đạt')) return false;
+    }
+    if (filterStatus === 'mat_tin_hieu') {
+      const sh = (r.suy_hao || '').toLowerCase();
+      if (!sh.includes('mất tín hiệu')) return false;
+    }
+
+    if (search) {
+      const matchSearch = (r.shd || '').toLowerCase().includes(search) ||
+                          (r.account_inside || '').toLowerCase().includes(search) ||
+                          (r.msnv || '').toLowerCase().includes(search) ||
+                          (r.email || '').toLowerCase().includes(search) ||
+                          (r.nguyen_nhan_1 || '').toLowerCase().includes(search) ||
+                          (r.nguyen_nhan_2 || '').toLowerCase().includes(search);
+      if (!matchSearch) return false;
+    }
+    return true;
+  });
+
+  bpCurrentPage = 1;
+  renderBypassPagedTable();
+}
+
+function renderBypassPagedTable() {
+  const totalItems = bpFilteredRows.length;
+  const totalPages = Math.ceil(totalItems / bpPageSize) || 1;
+  if (bpCurrentPage > totalPages) bpCurrentPage = totalPages;
+  if (bpCurrentPage < 1) bpCurrentPage = 1;
+
+  const startIdx = (bpCurrentPage - 1) * bpPageSize;
+  const endIdx = Math.min(startIdx + bpPageSize, totalItems);
+  const pageRows = bpFilteredRows.slice(startIdx, endIdx);
+
+  document.getElementById('bpDisplayedCount').textContent = totalItems;
+  const pageBadge = document.getElementById('bpPageInfoBadge');
+  if (pageBadge) {
+    pageBadge.textContent = `Trang ${bpCurrentPage} / ${totalPages}`;
+  }
+
+  // Bỏ tích checkbox chọn tất cả khi đổi trang
+  const selectAllCb = document.getElementById('bpSelectAll');
+  if (selectAllCb) selectAllCb.checked = false;
+
+  renderBypassTable(pageRows);
+  renderBypassPagination(totalItems, totalPages, startIdx + 1, endIdx);
+}
+
+function renderBypassPagination(totalItems, totalPages, startNum, endNum) {
+  const container = document.getElementById('bpPaginationContainer');
+  if (!container) return;
+
+  if (totalItems === 0) {
+    container.innerHTML = `
+      <div class="mui-pagination-left">
+        <span>Hiển thị</span>
+        <select class="mui-pagination-select" id="bpPageSizeSelect" onchange="changeBypassPageSize(this.value)">
+          <option value="5" ${bpPageSize === 5 ? 'selected' : ''}>5</option>
+          <option value="10" ${bpPageSize === 10 ? 'selected' : ''}>10</option>
+          <option value="20" ${bpPageSize === 20 ? 'selected' : ''}>20</option>
+          <option value="50" ${bpPageSize === 50 ? 'selected' : ''}>50</option>
+          <option value="100" ${bpPageSize === 100 ? 'selected' : ''}>100</option>
+        </select>
+        <span>dòng mỗi trang</span>
+      </div>
+      <div class="mui-pagination-right">
+        <span class="mui-pagination-info">0 hợp đồng</span>
+      </div>
+    `;
+    return;
+  }
+
+  let pageBtns = '';
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= bpCurrentPage - 1 && p <= bpCurrentPage + 1)) {
+      pageBtns += `<button class="mui-page-btn ${p === bpCurrentPage ? 'active' : ''}" onclick="changeBypassPage(${p})">${p}</button>`;
+    } else if (p === bpCurrentPage - 2 || p === bpCurrentPage + 2) {
+      pageBtns += `<span style="padding:0 4px;color:var(--text-muted);">...</span>`;
+    }
+  }
+
+  container.innerHTML = `
+    <div class="mui-pagination-left">
+      <span>Hiển thị</span>
+      <select class="mui-pagination-select" id="bpPageSizeSelect" onchange="changeBypassPageSize(this.value)">
+        <option value="5" ${bpPageSize === 5 ? 'selected' : ''}>5</option>
+        <option value="10" ${bpPageSize === 10 ? 'selected' : ''}>10</option>
+        <option value="20" ${bpPageSize === 20 ? 'selected' : ''}>20</option>
+        <option value="50" ${bpPageSize === 50 ? 'selected' : ''}>50</option>
+        <option value="100" ${bpPageSize === 100 ? 'selected' : ''}>100</option>
+      </select>
+      <span>dòng mỗi trang</span>
+    </div>
+    <div class="mui-pagination-right">
+      <span class="mui-pagination-info">${startNum}–${endNum} trên ${totalItems} hợp đồng</span>
+      <button class="mui-page-btn" ${bpCurrentPage === 1 ? 'disabled' : ''} onclick="changeBypassPage(1)" title="Trang đầu"><i class="fa-solid fa-angles-left"></i></button>
+      <button class="mui-page-btn" ${bpCurrentPage === 1 ? 'disabled' : ''} onclick="changeBypassPage(${bpCurrentPage - 1})" title="Trang trước"><i class="fa-solid fa-chevron-left"></i></button>
+      ${pageBtns}
+      <button class="mui-page-btn" ${bpCurrentPage === totalPages ? 'disabled' : ''} onclick="changeBypassPage(${bpCurrentPage + 1})" title="Trang sau"><i class="fa-solid fa-chevron-right"></i></button>
+      <button class="mui-page-btn" ${bpCurrentPage === totalPages ? 'disabled' : ''} onclick="changeBypassPage(${totalPages})" title="Trang cuối"><i class="fa-solid fa-angles-right"></i></button>
+    </div>
+  `;
+}
+
+function changeBypassPage(page) {
+  bpCurrentPage = page;
+  renderBypassPagedTable();
+}
+
+function changeBypassPageSize(size) {
+  bpPageSize = parseInt(size, 10);
+  bpCurrentPage = 1;
+  renderBypassPagedTable();
+}
+
+function renderBypassTable(rows) {
+  const tbody = document.getElementById('bpTableBody');
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:35px;color:var(--text-muted);"><i class="fa-solid fa-inbox" style="font-size:1.5rem;display:block;margin-bottom:8px;"></i> Không có hợp đồng nào phù hợp bộ lọc</td></tr>`;
+    return;
+  }
+
+  let html = '';
+  rows.forEach((r, idx) => {
+    let hkBadge = `<span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;white-space:nowrap;"><i class="fa-solid fa-hourglass"></i> Chưa kiểm</span>`;
+    if (r.hau_kiem) {
+      if (r.hau_kiem.includes('ĐẠT') && !r.hau_kiem.includes('KHÔNG')) {
+        hkBadge = `<span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#dcfce7;color:#15803d;border:1px solid #86efac;white-space:nowrap;"><i class="fa-solid fa-circle-check"></i> ĐẠT</span>`;
+      } else if (r.hau_kiem.includes('KHÔNG')) {
+        hkBadge = `<span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;white-space:nowrap;"><i class="fa-solid fa-circle-xmark"></i> KHÔNG ĐẠT</span>`;
+      } else {
+        hkBadge = `<span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;white-space:nowrap;"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(r.hau_kiem)}</span>`;
+      }
+    }
+
+    let shBadge = `<span style="color:#94a3b8;">—</span>`;
+    if (r.suy_hao) {
+      if (r.suy_hao.toLowerCase().includes('mất tín hiệu')) {
+        shBadge = `<span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;white-space:nowrap;"><i class="fa-solid fa-triangle-exclamation"></i> Mất Tín Hiệu</span>`;
+      } else {
+        shBadge = `<span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-family:monospace;white-space:nowrap;">${esc(r.suy_hao)}</span>`;
+      }
+    }
+
+    let syncBadge = `<span style="color:#94a3b8;font-size:0.75rem;white-space:nowrap;">Chưa đồng bộ</span>`;
+    if (r.synced || r.sync_status === 'synced') {
+      syncBadge = `<span style="color:#15803d;font-weight:700;font-size:0.75rem;white-space:nowrap;"><i class="fa-solid fa-circle-check"></i> Đã đồng bộ</span>`;
+    }
+
+    const nn1 = r.nguyen_nhan_1 || '';
+    const nn2 = r.nguyen_nhan_2 || '';
+    let nnHtml = '—';
+    if (nn1 || nn2) {
+      nnHtml = `<div style="font-weight:600;color:#334155;">${esc(nn1)}</div>`;
+      if (nn2 && nn2 !== nn1) {
+        nnHtml += `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${esc(nn2)}</div>`;
+      }
+    }
+
+    html += `<tr id="bpRow-${r.row_num}" style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+      <td style="text-align:center;padding:8px 4px;"><input type="checkbox" class="bp-row-select" value="${r.row_num}" data-id="${esc(r.id)}" data-shd="${esc(r.shd)}"></td>
+      <td style="text-align:center;padding:8px 4px;font-weight:600;color:#64748b;">${esc(r.id)}</td>
+      <td style="padding:8px 10px;font-weight:700;color:#1d4ed8;font-family:monospace;white-space:nowrap;">${esc(r.shd)}</td>
+      <td style="padding:8px 10px;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.account_inside || '')}">${esc(r.account_inside || '—')}</td>
+      <td style="padding:8px 6px;color:#64748b;text-align:center;white-space:nowrap;">${esc(r.msnv || '—')}</td>
+      <td style="padding:8px 10px;font-size:0.76rem;line-height:1.35;word-break:break-word;">${nnHtml}</td>
+      <td style="padding:8px 8px;color:#64748b;font-size:0.75rem;white-space:nowrap;">${esc(r.ngay_cap_nhat || '—')}</td>
+      <td style="text-align:center;padding:8px 6px;white-space:nowrap;"><span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:4px;font-size:0.73rem;font-weight:600;">${esc(r.thao_tac || '—')}</span></td>
+      <td style="text-align:center;padding:8px 6px;white-space:nowrap;" id="bpHkCell-${r.row_num}">${hkBadge}</td>
+      <td style="text-align:center;padding:8px 6px;white-space:nowrap;" id="bpShCell-${r.row_num}">${shBadge}</td>
+      <td style="text-align:center;padding:8px 6px;white-space:nowrap;" id="bpSyncCell-${r.row_num}">${syncBadge}</td>
+      <td style="text-align:center;padding:8px 6px;white-space:nowrap;">
+        <button class="btn btn-sm btn-secondary" onclick="checkSingleBypassRow('${esc(r.shd)}', ${r.row_num}, '${esc(r.id)}')" style="padding:3px 8px;font-size:0.72rem;white-space:nowrap;border-radius:6px;">
+          <i class="fa-solid fa-play"></i> Kiểm tra
+        </button>
+      </td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function toggleSelectAllBypass(checked) {
+  document.querySelectorAll('.bp-row-select').forEach(cb => cb.checked = checked);
+}
+
+async function startBypassCheck() {
+  const onlyEmpty = document.getElementById('bpOnlyEmpty').checked;
+  const cfgRes = await fetch('/api/bypass/config');
+  const cfg = await cfgRes.json();
+  const webhookUrl = cfg.webhook_url || '';
+
+  const selectedBoxes = Array.from(document.querySelectorAll('.bp-row-select:checked')).map(cb => parseInt(cb.value));
+
+  document.getElementById('btnStartBypass').style.display = 'none';
+  document.getElementById('btnStopBypass').style.display = 'inline-block';
+  document.getElementById('bpProgressBox').style.display = 'block';
+  document.getElementById('bypassRunningDot').style.display = 'inline-block';
+
+  try {
+    const res = await fetch('/api/bypass/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        only_empty: onlyEmpty,
+        webhook_url: webhookUrl,
+        selected_rows: selectedBoxes.length > 0 ? selectedBoxes : null
+      })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || 'Không thể khởi động tiến trình');
+      stopBypassCheckUI();
+      return;
+    }
+    pollBypassStatus();
+  } catch (err) {
+    alert('Lỗi khởi động tiến trình: ' + err.message);
+    stopBypassCheckUI();
+  }
+}
+
+async function stopBypassCheck() {
+  if (confirm('Bạn có chắc chắn muốn dừng tiến trình Hậu kiểm Bypass?')) {
+    await fetch('/api/bypass/cancel', { method: 'POST' });
+  }
+}
+
+function stopBypassCheckUI() {
+  document.getElementById('btnStartBypass').style.display = 'inline-block';
+  document.getElementById('btnStopBypass').style.display = 'none';
+  document.getElementById('bypassRunningDot').style.display = 'none';
+  if (bpPollTimer) {
+    clearInterval(bpPollTimer);
+    bpPollTimer = null;
+  }
+}
+
+function pollBypassStatus() {
+  if (bpPollTimer) clearInterval(bpPollTimer);
+
+  bpPollTimer = setInterval(async () => {
+    try {
+      const res = await fetch('/api/bypass/status');
+      const data = await res.json();
+      const state = data.state || {};
+
+      bpIsRunning = state.is_running;
+
+      if (bpIsRunning) {
+        document.getElementById('bpProgressBox').style.display = 'block';
+        document.getElementById('btnStartBypass').style.display = 'none';
+        document.getElementById('btnStopBypass').style.display = 'inline-block';
+        document.getElementById('bypassRunningDot').style.display = 'inline-block';
+
+        document.getElementById('bpCurrentStep').textContent = state.current_step || 'Đang xử lý...';
+        document.getElementById('bpProgressBar').style.width = (state.percent || 0) + '%';
+        document.getElementById('bpProgressPercent').textContent = (state.percent || 0) + '%';
+        document.getElementById('bpProgressCounter').textContent = `${state.completed || 0} / ${state.total || 0}`;
+
+        // Cập nhật kết quả động cho từng dòng
+        if (state.results && state.results.length > 0) {
+          state.results.forEach(item => {
+            const rowNum = item.row_num;
+
+            // Cập nhật mảng bộ nhớ bpAllRows
+            const rowInMem = bpAllRows.find(r => r.row_num === rowNum || (item.shd && r.shd === item.shd));
+            if (rowInMem) {
+              rowInMem.hau_kiem = item.hau_kiem;
+              rowInMem.suy_hao = item.suy_hao;
+              rowInMem.cong_suat_thu = item.cong_suat_thu;
+              rowInMem.is_empty = false;
+              rowInMem.synced = item.synced;
+              rowInMem.sync_msg = item.sync_msg;
+            }
+
+            const hkCell = document.getElementById(`bpHkCell-${rowNum}`);
+            const shCell = document.getElementById(`bpShCell-${rowNum}`);
+            const syncCell = document.getElementById(`bpSyncCell-${rowNum}`);
+
+            if (hkCell && item.hau_kiem) {
+              if (item.hau_kiem.includes('ĐẠT') && !item.hau_kiem.includes('KHÔNG')) {
+                hkCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#dcfce7;color:#15803d;border:1px solid #86efac;"><i class="fa-solid fa-circle-check"></i> ĐẠT</span>`;
+              } else if (item.hau_kiem.includes('KHÔNG')) {
+                hkCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;"><i class="fa-solid fa-circle-xmark"></i> KHÔNG ĐẠT</span>`;
+              } else {
+                hkCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(item.hau_kiem)}</span>`;
+              }
+            }
+
+            if (shCell && item.suy_hao) {
+              if (item.suy_hao.toLowerCase().includes('mất tín hiệu')) {
+                shCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;"><i class="fa-solid fa-triangle-exclamation"></i> Mất Tín Hiệu</span>`;
+              } else {
+                shCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-family:monospace;">${esc(item.suy_hao)}</span>`;
+              }
+            }
+
+            if (syncCell) {
+              if (item.synced) {
+                syncCell.innerHTML = `<span style="color:#15803d;font-weight:700;font-size:0.75rem;"><i class="fa-solid fa-circle-check"></i> Đã đồng bộ</span>`;
+              } else {
+                syncCell.innerHTML = `<span style="color:#dc2626;font-size:0.75rem;" title="${esc(item.sync_msg)}"><i class="fa-solid fa-circle-exclamation"></i> ${esc(item.sync_msg || 'Chưa ghi Sheet')}</span>`;
+              }
+            }
+          });
+        }
+      } else {
+        stopBypassCheckUI();
+        if (state.end_time) {
+          document.getElementById('bpCurrentStep').textContent = state.current_step || 'Hoàn tất!';
+          document.getElementById('bpProgressBar').style.width = '100%';
+          document.getElementById('bpProgressPercent').textContent = '100%';
+        }
+      }
+    } catch (e) {
+      console.error('Lỗi poll bypass status:', e);
+    }
+  }, 1500);
+}
+
+async function checkSingleBypassRow(shd, rowNum, id) {
+  const hkCell = document.getElementById(`bpHkCell-${rowNum}`);
+  const shCell = document.getElementById(`bpShCell-${rowNum}`);
+  const syncCell = document.getElementById(`bpSyncCell-${rowNum}`);
+
+  if (hkCell) hkCell.innerHTML = `<span style="color:#3b82f6;"><i class="fa-solid fa-spinner fa-spin"></i> Đang chạy...</span>`;
+
+  try {
+    const res = await fetch('/api/bypass/check_single', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shd, row_num: rowNum, id })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert('Lỗi kiểm tra: ' + (data.error || 'Không rõ'));
+      return;
+    }
+    const r = data.result || {};
+    if (hkCell && r.hau_kiem) {
+      if (r.hau_kiem.includes('ĐẠT') && !r.hau_kiem.includes('KHÔNG')) {
+        hkCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#dcfce7;color:#15803d;border:1px solid #86efac;"><i class="fa-solid fa-circle-check"></i> ĐẠT</span>`;
+      } else {
+        hkCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;"><i class="fa-solid fa-circle-xmark"></i> KHÔNG ĐẠT</span>`;
+      }
+    }
+    if (shCell && r.suy_hao) {
+      if (r.suy_hao.toLowerCase().includes('mất tín hiệu')) {
+        shCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;"><i class="fa-solid fa-triangle-exclamation"></i> Mất Tín Hiệu</span>`;
+      } else {
+        shCell.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-family:monospace;">${esc(r.suy_hao)}</span>`;
+      }
+    }
+    if (syncCell) {
+      if (r.synced) {
+        syncCell.innerHTML = `<span style="color:#15803d;font-weight:700;font-size:0.75rem;"><i class="fa-solid fa-circle-check"></i> Đã đồng bộ</span>`;
+      } else {
+        syncCell.innerHTML = `<span style="color:#64748b;font-size:0.75rem;">${esc(r.sync_msg || 'Chưa cấu hình')}</span>`;
+      }
+    }
+  } catch (err) {
+    alert('Lỗi tra cứu: ' + err.message);
+  }
+}
+
+async function syncSelectedBypassRows() {
+  const selectedBoxes = Array.from(document.querySelectorAll('.bp-row-select:checked'));
+  if (selectedBoxes.length === 0) {
+    alert('Vui lòng tích chọn ít nhất 1 dòng hợp đồng để đồng bộ lên Google Sheet.');
+    return;
+  }
+
+  // 1. Kiểm tra Webhook URL trước
+  const cfgRes = await fetch('/api/bypass/config');
+  const cfg = await cfgRes.json();
+  const webhookUrl = (cfg.webhook_url || '').trim();
+
+  if (!webhookUrl) {
+    alert('⚠️ Bạn chưa cấu hình Webhook Google Apps Script!\n\nĐể Tool có quyền ghi kết quả vào Google Sheet của bạn:\n1. Bấm vào nút "Cấu Hình Webhook Sheet"\n2. Bấm "Sao Chép Mã Nguồn Apps Script"\n3. Dán vào Google Sheet (Extensions > Apps Script) và Deploy Web app\n4. Dán URL Web app vào Tool và bấm Lưu.\n\nCửa sổ cấu hình sẽ mở ra ngay bây giờ.');
+    toggleBypassConfigModal(true);
+    return;
+  }
+
+  // 2. Thu thập dữ liệu các dòng được chọn
+  const updates = [];
+  selectedBoxes.forEach(cb => {
+    const rowNum = parseInt(cb.value);
+    let row = bpAllRows.find(r => r.row_num === rowNum);
+    let hauKiem = row ? row.hau_kiem : '';
+    let suyHao = row ? row.suy_hao : '';
+
+    // Fallback nếu trong DOM đã hiển thị kết quả
+    if (!hauKiem) {
+      const hkEl = document.getElementById(`bpHkCell-${rowNum}`);
+      if (hkEl && hkEl.textContent) {
+        const text = hkEl.textContent.trim();
+        if (text.includes('ĐẠT') && !text.includes('KHÔNG')) hauKiem = 'ĐẠT';
+        else if (text.includes('KHÔNG ĐẠT')) hauKiem = 'KHÔNG ĐẠT';
+      }
+    }
+    if (!suyHao) {
+      const shEl = document.getElementById(`bpShCell-${rowNum}`);
+      if (shEl && shEl.textContent) {
+        suyHao = shEl.textContent.trim();
+      }
+    }
+
+    if (hauKiem) {
+      updates.push({
+        row: rowNum,
+        id: cb.dataset.id || (row ? row.id : String(rowNum - 1)),
+        shd: cb.dataset.shd || (row ? row.shd : ''),
+        hau_kiem: hauKiem,
+        suy_hao: suyHao
+      });
+    }
+  });
+
+  if (updates.length === 0) {
+    alert('Các dòng đã chọn chưa có kết quả Hậu kiểm. Vui lòng bấm "Bắt đầu Hậu kiểm" trước để tra cứu công suất.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/bypass/sync_sheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates, webhook_url: webhookUrl })
+    });
+    const data = await res.json();
+    alert(data.message || (data.success ? 'Đồng bộ thành công!' : 'Đồng bộ thất bại'));
+    if (data.success) {
+      loadBypassData();
+    }
+  } catch (err) {
+    alert('Lỗi đồng bộ: ' + err.message);
+  }
+}
+
+async function toggleBypassConfigModal(open) {
+  const modal = document.getElementById('bpWebhookModal');
+  if (open) {
+    modal.style.display = 'flex';
+    const res = await fetch('/api/bypass/config');
+    const data = await res.json();
+    document.getElementById('bpWebhookUrlInput').value = data.webhook_url || '';
+
+    const scRes = await fetch('/api/bypass/template_script');
+    const scData = await scRes.json();
+    document.getElementById('bpAppsScriptCode').value = scData.script || '';
+  } else {
+    modal.style.display = 'none';
+  }
+}
+
+async function saveBypassConfig() {
+  const url = document.getElementById('bpWebhookUrlInput').value.trim();
+  const res = await fetch('/api/bypass/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ webhook_url: url })
+  });
+  const data = await res.json();
+  alert(data.message || 'Đã lưu cấu hình thành công!');
+}
+
+async function testBypassWebhook() {
+  const url = document.getElementById('bpWebhookUrlInput').value.trim();
+  const msgEl = document.getElementById('bpWebhookTestMsg');
+  msgEl.style.display = 'block';
+  msgEl.style.color = '#3b82f6';
+  msgEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang kiểm tra kết nối Webhook...`;
+
+  try {
+    const res = await fetch('/api/bypass/test_webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhook_url: url })
+    });
+    const data = await res.json();
+    if (data.success) {
+      msgEl.style.color = '#15803d';
+      msgEl.textContent = data.message;
+    } else {
+      msgEl.style.color = '#b91c1c';
+      msgEl.textContent = data.message;
+    }
+  } catch (err) {
+    msgEl.style.color = '#b91c1c';
+    msgEl.textContent = 'Lỗi kết nối: ' + err.message;
+  }
+}
+
+function copyAppsScriptTemplate() {
+  const textarea = document.getElementById('bpAppsScriptCode');
+  textarea.select();
+  navigator.clipboard.writeText(textarea.value).then(() => {
+    alert('✅ Đã sao chép mã nguồn Google Apps Script vào bộ nhớ tạm!');
+  }).catch(() => {
+    document.execCommand('copy');
+    alert('✅ Đã sao chép mã nguồn Google Apps Script vào bộ nhớ tạm!');
+  });
+}
+
+function exportBypassExcel() {
+  window.open('/api/bypass/export_excel', '_blank');
+}
+
+
+// ── AUTO BYPASS MECHANISM (1 TIẾNG / LẦN) ──────────────
+let bpAutoPollTimer = null;
+
+async function pollAutoBypassState() {
+  try {
+    const res = await fetch('/api/bypass/auto_status');
+    const data = await res.json();
+    const st = data.state || {};
+
+    const toggle = document.getElementById('bpAutoToggle');
+    const badge = document.getElementById('bpAutoStatusBadge');
+    const nextRun = document.getElementById('bpAutoNextRun');
+    const countdown = document.getElementById('bpAutoCountdown');
+    const countdownBox = document.getElementById('bpAutoCountdownBox');
+    const lastRun = document.getElementById('bpAutoLastRun');
+    const lastResult = document.getElementById('bpAutoLastResultText');
+    const intervalSelect = document.getElementById('bpAutoInterval');
+    const icon = document.getElementById('bpAutoIcon');
+
+    if (toggle && document.activeElement !== toggle) {
+      toggle.checked = !!st.enabled;
+    }
+    if (intervalSelect && st.interval_minutes && document.activeElement !== intervalSelect) {
+      intervalSelect.value = String(st.interval_minutes);
+    }
+
+    if (st.enabled) {
+      badge.style.background = '#10b981';
+      badge.style.color = '#fff';
+      badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> ĐANG BẬT (Mỗi ${st.interval_minutes || 60}p)`;
+      if (icon) icon.className = "fa-solid fa-arrows-rotate fa-spin";
+      if (nextRun) nextRun.textContent = st.next_run || '--:--:--';
+
+      if (st.remaining_seconds > 0) {
+        countdownBox.style.display = 'inline';
+        const m = Math.floor(st.remaining_seconds / 60);
+        const s = st.remaining_seconds % 60;
+        countdown.textContent = `${m}p ${s < 10 ? '0' : ''}${s}s`;
+      } else {
+        countdownBox.style.display = 'none';
+      }
+    } else {
+      badge.style.background = '#e2e8f0';
+      badge.style.color = '#64748b';
+      badge.innerHTML = `⚪ ĐANG TẮT`;
+      if (icon) icon.className = "fa-solid fa-arrows-rotate";
+      if (nextRun) nextRun.textContent = 'Đang tắt';
+      countdownBox.style.display = 'none';
+    }
+
+    if (lastRun) lastRun.textContent = st.last_run || 'Chưa chạy';
+    if (lastResult && st.last_result) {
+      lastResult.textContent = st.last_result;
+    }
+  } catch (err) {
+    console.warn('Lỗi đọc auto bypass status:', err);
+  }
+}
+
+async function toggleAutoBypass(enabled) {
+  const interval = parseInt(document.getElementById('bpAutoInterval').value || '60');
+  try {
+    const res = await fetch('/api/bypass/auto_toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled, interval_minutes: interval })
+    });
+    const data = await res.json();
+    pollAutoBypassState();
+  } catch (err) {
+    alert('Lỗi cập nhật Auto Bypass: ' + err.message);
+  }
+}
+
+async function changeAutoBypassInterval(val) {
+  const toggle = document.getElementById('bpAutoToggle');
+  try {
+    await fetch('/api/bypass/auto_toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: toggle.checked, interval_minutes: parseInt(val) })
+    });
+    pollAutoBypassState();
+  } catch (err) {
+    console.error('Lỗi đổi chu kỳ:', err);
+  }
+}
+
+async function triggerAutoBypassNow() {
+  if (confirm('Kích hoạt chu kỳ Quét Sheet & Hậu Kiểm Bypass ngay lập tức?')) {
+    try {
+      const res = await fetch('/api/bypass/auto_run_now', { method: 'POST' });
+      const data = await res.json();
+      alert(data.message || (data.success ? 'Đã khởi chạy!' : 'Lỗi'));
+      pollBypassStatus();
+      pollAutoBypassState();
+    } catch (err) {
+      alert('Lỗi: ' + err.message);
+    }
+  }
+}
+
+// Khởi chạy vòng lặp cập nhật đếm ngược mỗi 2 giây
+setInterval(pollAutoBypassState, 2000);
+document.addEventListener('DOMContentLoaded', () => {
+  pollAutoBypassState();
+  loadBypassData();
 });
 
 

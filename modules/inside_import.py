@@ -179,6 +179,11 @@ def _find_text(d, texts, exact=True, timeout=20):
         el = _walk_frames(d, lambda drv: drv.execute_script(_FIND_TEXT_JS, targets, exact))
         if el is not None:
             return el
+        if exact:
+            # Fallback sang matching tương đối (chứa từ) nếu exact=True không khớp được phần tử có chứa số đếm/badge
+            el = _walk_frames(d, lambda drv: drv.execute_script(_FIND_TEXT_JS, targets, False))
+            if el is not None:
+                return el
         time.sleep(1)
     return None
 
@@ -350,8 +355,12 @@ def _set_date_range(d, d_from: date, d_to: date) -> bool:
     end = time.time() + 25
     while time.time() < end and not inputs:
         _check_cancel()
-        d.switch_to.default_content()
-        inputs = _walk_frames(d, finder)
+        # Ưu tiên tìm trong frameMaintenance của tab Bảo Trì trước
+        if inside_fpt._switch_to_maintenance_frame(d, timeout=4):
+            inputs = finder(d)
+        if not inputs:
+            d.switch_to.default_content()
+            inputs = _walk_frames(d, finder)
         if not inputs:
             time.sleep(1)
     if not inputs:
@@ -376,6 +385,8 @@ def _set_date_range(d, d_from: date, d_to: date) -> bool:
         except Exception as e:
             _log(f"Lỗi khi chọn ngày {dmy}: {e}", "warning")
             d.execute_script(_SET_DATE_JS, inp, dmy, target.isoformat())
+        finally:
+            _close_calendar(d)
 
     v_from = d.execute_script("return arguments[0].value;", inputs[0])
     v_to = d.execute_script("return arguments[0].value;", inputs[1])
@@ -399,14 +410,36 @@ document.querySelectorAll('*').forEach(function(el){
 return best;
 """
 
-# Click phần tử nhỏ nằm bên trái (dir=-1) / bên phải (dir=1) tiêu đề lịch để đổi tháng
+# Đóng popup lịch MudBlazor nếu còn đang mở (tránh che mất tab TỒN POP)
+_CLOSE_CAL_JS = """
+var closed = false;
+document.querySelectorAll('.mud-overlay').forEach(function(ov){
+  if (ov.offsetWidth > 0 && ov.offsetHeight > 0) {
+    ov.click();
+    closed = true;
+  }
+});
+if (document.activeElement) {
+  document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', code:'Escape', keyCode:27, bubbles:true}));
+}
+return closed;
+"""
+
+# Click nút chuyển tháng bên trái (dir=-1) / bên phải (dir=1) tiêu đề lịch
 _CAL_NAV_JS = """
 var h = arguments[0], dir = arguments[1];
+var mudRoot = h.closest('.mud-picker-calendar-content, .mud-picker-container, .mud-popover, .mud-picker');
+if (mudRoot) {
+  var navBtn = mudRoot.querySelector(dir < 0 ? '.mud-picker-nav-button-prev' : '.mud-picker-nav-button-next');
+  if (navBtn) { navBtn.click(); return true; }
+}
 var hr = h.getBoundingClientRect();
-var root = h;
-for (var i = 0; i < 6 && root.parentElement; i++) {
-  root = root.parentElement;
-  if ((root.textContent || '').indexOf('Sun') >= 0) break;
+var root = mudRoot || h;
+if (!mudRoot) {
+  for (var i = 0; i < 6 && root.parentElement; i++) {
+    root = root.parentElement;
+    if ((root.textContent || '').indexOf('Sun') >= 0) break;
+  }
 }
 var cands = [];
 root.querySelectorAll('*').forEach(function(el){
@@ -427,13 +460,27 @@ var target = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 
 return true;
 """
 
-# Bấm vào ô ngày (số) trong bảng lịch
+# Bấm vào ô ngày (số) trong bảng lịch (hỗ trợ chuẩn MudBlazor .mud-picker-calendar-day)
 _CAL_DAY_JS = """
 var h = arguments[0], day = String(arguments[1]);
-var root = h;
-for (var i = 0; i < 6 && root.parentElement; i++) {
-  root = root.parentElement;
-  if ((root.textContent || '').indexOf('Sun') >= 0) break;
+var root = h.closest('.mud-picker-calendar-content, .mud-picker-container, .mud-popover, .mud-picker');
+if (!root) {
+  root = h;
+  for (var i = 0; i < 8 && root.parentElement; i++) {
+    root = root.parentElement;
+    if (root.querySelectorAll('button').length >= 28) break;
+  }
+}
+var dayBtns = root.querySelectorAll('.mud-picker-calendar button.mud-picker-calendar-day, .mud-picker-calendar button');
+for (var j = 0; j < dayBtns.length; j++) {
+  var btn = dayBtns[j];
+  var cls = (btn.className && btn.className.toString) ? btn.className.toString() : '';
+  if (btn.disabled || /mud-hidden|mud-day-itudin|disabled|outside|other/i.test(cls)) continue;
+  if (btn.offsetWidth === 0 || btn.offsetHeight === 0) continue;
+  if ((btn.textContent || '').trim() === day) {
+    btn.click();
+    return true;
+  }
 }
 var hr = h.getBoundingClientRect();
 var found = null;
@@ -442,18 +489,27 @@ root.querySelectorAll('*').forEach(function(el){
   if ((el.textContent || '').trim() !== day) return;
   var r = el.getBoundingClientRect();
   if (r.width === 0 || r.height === 0 || r.top <= hr.bottom) return;
-  var cs = window.getComputedStyle(el);
   var cls = (el.className && el.className.toString ? el.className.toString() : '') + ' ' +
             ((el.parentElement && el.parentElement.className) ? el.parentElement.className.toString() : '');
-  if (/other|outside|disabled|off|prev|next/i.test(cls)) return;
-  found = el;
+  if (/mud-hidden|other|outside|disabled|off|prev|next/i.test(cls)) return;
+  found = el.closest('button') || el;
 });
 if (!found) return false;
-['mousedown','mouseup','click'].forEach(function(t){
-  found.dispatchEvent(new MouseEvent(t, {bubbles:true, cancelable:true, view:window}));
-});
+found.click();
 return true;
 """
+
+
+def _close_calendar(d):
+    """Đảm bảo popup lịch đã đóng hoàn toàn trước khi thao tác tiếp."""
+    try:
+        for _ in range(3):
+            if d.execute_script(_CAL_HEADER_JS) is None:
+                return
+            d.execute_script(_CLOSE_CAL_JS)
+            time.sleep(0.4)
+    except Exception:
+        pass
 
 
 def _pick_date(d, inp, target: date) -> bool:
@@ -463,10 +519,30 @@ def _pick_date(d, inp, target: date) -> bool:
     def header():
         return d.execute_script(_CAL_HEADER_JS)
 
+    # Đóng lịch cũ nếu đang mở
+    _close_calendar(d)
+
     def open_calendar():
         d.execute_script("arguments[0].scrollIntoView({block:'center'});", inp)
+        # Ưu tiên bấm nút icon lịch bên trong .mud-input-adornment của ô inp
+        try:
+            clicked_icon = d.execute_script("""
+                var inp = arguments[0];
+                var wrap = inp.closest('.mud-input-control, .mud-input') || inp.parentElement;
+                var btn = wrap ? wrap.querySelector('.mud-input-adornment button, button') : null;
+                if (btn) { btn.click(); return true; }
+                return false;
+            """, inp)
+            if clicked_icon:
+                time.sleep(0.8)
+                h = header()
+                if h is not None:
+                    return h
+        except Exception:
+            pass
+
         w = inp.size.get("width", 100)
-        # Lần 1: bấm vào icon lịch (sát mép phải ô nhập); lần 2: bấm vào chính ô nhập
+        # Fallback: bấm vào icon lịch (sát mép phải ô nhập) hoặc chính ô nhập
         for off in (int(w / 2) - 14, 0):
             try:
                 ActionChains(d).move_to_element_with_offset(inp, off, 0).click().perform()
@@ -570,6 +646,9 @@ def run_auto_import(on_file, account=None, password=None, use_otp=True, totp_sec
         # ── Bước 2: Inside New V5 → Hỗ trợ kỹ thuật → Thông tin chung → tab BẢO TRÌ ──
         ok, msg = inside_fpt.navigate_to_bao_tri()
         _log(msg, "info" if ok else "warning")
+        if not ok:
+            _shot(d, "import_navigate_fail.png")
+            raise RuntimeError(f"Điều hướng trang Bảo Trì thất bại: {msg}")
         _set("filtering", 30)
         _check_cancel()
 
@@ -582,7 +661,7 @@ def run_auto_import(on_file, account=None, password=None, use_otp=True, totp_sec
 
         # ── Bước 4: TỒN POP → Xem báo cáo ───────────────────────────────
         _log("Bấm tab 'TỒN POP'...")
-        tab = _find_text(d, ["TỒN POP"], exact=True, timeout=20)
+        tab = _find_text(d, ["TỒN POP", "TON POP"], exact=False, timeout=20)
         if tab is None:
             _shot(d, "import_tab_fail.png")
             raise RuntimeError("Không tìm thấy tab 'TỒN POP'")
@@ -608,7 +687,7 @@ def run_auto_import(on_file, account=None, password=None, use_otp=True, totp_sec
             link = _find_number(d)
             if link is None and not retried_tab and time.time() > end - 60:
                 retried_tab = True
-                t = _find_text(d, ["TỒN POP"], exact=True, timeout=5)
+                t = _find_text(d, ["TỒN POP", "TON POP"], exact=False, timeout=5)
                 if t is not None:
                     _click(d, t)
                     b = _find_text(d, ["XEM BÁO CÁO"], exact=False, timeout=5)

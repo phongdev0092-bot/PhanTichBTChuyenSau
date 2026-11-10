@@ -6,8 +6,9 @@ import threading
 import time
 import logging
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, Response, stream_with_context
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context, send_file
 
+import config
 from config import FLASK_PORT, SECRET_KEY
 from modules.auth import login, is_logged_in, close_driver, force_kill_driver, submit_manual_otp
 from modules.sheet_reader import get_employees, get_contracts, get_team_captains
@@ -21,6 +22,7 @@ from modules import inside_fpt
 from modules import inside_import
 from modules import branch_manager
 from modules import captain_manager
+from modules import account_manager
 import io
 import pandas as pd
 
@@ -81,14 +83,36 @@ USER_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "use
 
 def load_user_config():
     default_cfg = {
-        "mode": "default",          # "default" | "custom"
+        "mode": "custom",          # "default" | "custom"
+        "active_account_id": "",
         "email": "",
         "email_password": "",
         "inside_account": "",
         "inside_password": "",
         "use_inside_otp": True,
-        "totp_secret": ""
+        "totp_secret": "",
+        "bypass_sheet_id": getattr(config, "BYPASS_SHEET_ID", "1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M"),
+        "bypass_sheet_gid": getattr(config, "BYPASS_SHEET_GID", "0"),
+        "bypass_webhook_url": getattr(config, "BYPASS_WEBHOOK_URL", ""),
+        "bypass_auto_enabled": False,
+        "bypass_auto_interval": 60
     }
+    # Tự động lấy thông tin từ tài khoản active trong account_manager
+    try:
+        active_acc = account_manager.get_active_account()
+        if active_acc:
+            default_cfg.update({
+                "active_account_id": active_acc.get("id", ""),
+                "email": active_acc.get("email", ""),
+                "email_password": active_acc.get("email_password", ""),
+                "inside_account": active_acc.get("inside_account", ""),
+                "inside_password": active_acc.get("inside_password", ""),
+                "use_inside_otp": active_acc.get("use_inside_otp", True),
+                "totp_secret": active_acc.get("totp_secret", ""),
+            })
+    except Exception as e:
+        log.warning(f"Lỗi nạp active account: {e}")
+
     if not os.path.exists(USER_CONFIG_FILE):
         return default_cfg
     try:
@@ -108,19 +132,95 @@ def save_user_config(cfg_data):
         log.error(f"Lỗi ghi user_config.json: {e}")
 
 
+@app.route("/api/accounts", methods=["GET"])
+def api_get_accounts():
+    accs = account_manager.load_accounts()
+    active = account_manager.get_active_account()
+    return jsonify({
+        "success": True,
+        "accounts": accs,
+        "active_id": active.get("id", "")
+    })
+
+
+@app.route("/api/accounts/active", methods=["POST"])
+def api_set_active_account():
+    data = request.get_json() or {}
+    acc_id = data.get("id")
+    ok, msg = account_manager.set_active_account(acc_id)
+    if ok:
+        acc = account_manager.get_account_by_id(acc_id)
+        cfg = load_user_config()
+        cfg.update({
+            "active_account_id": acc.get("id"),
+            "email": acc.get("email"),
+            "email_password": acc.get("email_password"),
+            "inside_account": acc.get("inside_account"),
+            "inside_password": acc.get("inside_password"),
+            "use_inside_otp": acc.get("use_inside_otp", True),
+            "totp_secret": acc.get("totp_secret", ""),
+        })
+        save_user_config(cfg)
+    return jsonify({"success": ok, "message": msg, "active_id": acc_id})
+
+
+@app.route("/api/accounts/save", methods=["POST"])
+def api_save_account():
+    data = request.get_json() or {}
+    ok, msg = account_manager.upsert_account(data)
+    if ok:
+        if data.get("is_default"):
+            account_manager.set_active_account(data.get("id"))
+        cfg = load_user_config()
+        save_user_config(cfg)
+    return jsonify({"success": ok, "message": msg, "accounts": account_manager.load_accounts()})
+
+
+@app.route("/api/accounts/delete", methods=["POST"])
+def api_delete_account():
+    data = request.get_json() or {}
+    acc_id = data.get("id")
+    ok, msg = account_manager.delete_account(acc_id)
+    if ok:
+        cfg = load_user_config()
+        save_user_config(cfg)
+    return jsonify({"success": ok, "message": msg, "accounts": account_manager.load_accounts()})
+
+
 @app.route("/api/user_config", methods=["GET", "POST"])
 def api_user_config():
     if request.method == "POST":
         data = request.get_json() or {}
         cfg = load_user_config()
         if "mode" in data: cfg["mode"] = data["mode"]
+        if "active_account_id" in data: cfg["active_account_id"] = data["active_account_id"].strip()
         if "email" in data: cfg["email"] = data["email"].strip()
         if "email_password" in data: cfg["email_password"] = data["email_password"].strip()
         if "inside_account" in data: cfg["inside_account"] = data["inside_account"].strip()
         if "inside_password" in data: cfg["inside_password"] = data["inside_password"].strip()
         if "use_inside_otp" in data: cfg["use_inside_otp"] = bool(data["use_inside_otp"])
         if "totp_secret" in data: cfg["totp_secret"] = data["totp_secret"].strip()
+        if "bypass_sheet_id" in data: cfg["bypass_sheet_id"] = data["bypass_sheet_id"].strip()
+        if "bypass_sheet_gid" in data: cfg["bypass_sheet_gid"] = data["bypass_sheet_gid"].strip()
+        if "bypass_webhook_url" in data: cfg["bypass_webhook_url"] = data["bypass_webhook_url"].strip()
+        if "bypass_auto_enabled" in data: cfg["bypass_auto_enabled"] = bool(data["bypass_auto_enabled"])
+        if "bypass_auto_interval" in data: cfg["bypass_auto_interval"] = int(data["bypass_auto_interval"])
         save_user_config(cfg)
+
+        # Đồng bộ ngược vào tài khoản active trong accounts.json nếu có thay đổi
+        if cfg.get("inside_account") or cfg.get("email"):
+            active_id = cfg.get("active_account_id") or account_manager.get_active_account().get("id")
+            account_manager.upsert_account({
+                "id": active_id,
+                "email": cfg.get("email"),
+                "email_password": cfg.get("email_password"),
+                "inside_account": cfg.get("inside_account"),
+                "inside_password": cfg.get("inside_password"),
+                "use_inside_otp": cfg.get("use_inside_otp", True),
+                "totp_secret": cfg.get("totp_secret", ""),
+                "is_default": True
+            })
+
         return jsonify({"success": True, "config": cfg})
     else:
         return jsonify({"success": True, "config": load_user_config()})
@@ -743,16 +843,13 @@ def api_auto_import_start():
         return _import_ton_bao_tri_file(path, chi_nhanh)
 
     def run_job():
-        if cfg.get("mode") == "custom":
-            inside_import.run_auto_import(
-                on_file,
-                account=cfg.get("inside_account"),
-                password=cfg.get("inside_password"),
-                use_otp=cfg.get("use_inside_otp", True),
-                totp_secret=totp_secret,
-            )
-        else:
-            inside_import.run_auto_import(on_file, totp_secret=totp_secret)
+        inside_import.run_auto_import(
+            on_file,
+            account=cfg.get("inside_account") or None,
+            password=cfg.get("inside_password") or None,
+            use_otp=cfg.get("use_inside_otp", True),
+            totp_secret=totp_secret or cfg.get("totp_secret") or None,
+        )
 
     threading.Thread(target=run_job, daemon=True).start()
     d_from, d_to = inside_import.get_date_range()
@@ -807,16 +904,13 @@ def api_auto_note_start():
         return jsonify({"success": False, "error": "Không có hợp đồng nào đủ điều kiện ghi chú (các HĐ có cảnh báo đã được note auto thành công trong 24H qua)"}), 400
 
     def run_job():
-        if cfg.get("mode") == "custom":
-            inside_fpt.run_auto_note(
-                to_note,
-                account=cfg.get("inside_account"),
-                password=cfg.get("inside_password"),
-                use_otp=cfg.get("use_inside_otp", True),
-                totp_secret=totp_secret
-            )
-        else:
-            inside_fpt.run_auto_note(to_note, totp_secret=totp_secret)
+        inside_fpt.run_auto_note(
+            to_note,
+            account=cfg.get("inside_account") or None,
+            password=cfg.get("inside_password") or None,
+            use_otp=cfg.get("use_inside_otp", True),
+            totp_secret=totp_secret or cfg.get("totp_secret") or None
+        )
 
     t = threading.Thread(target=run_job, daemon=True)
     t.start()
@@ -1814,23 +1908,250 @@ def api_schedules_status():
 
 @app.route("/api/schedules/run_now", methods=["POST"])
 def api_schedules_run_now():
-    sid = (request.get_json() or {}).get("id")
-    if not any(s["id"] == sid for s in scheduler.load_schedules()):
-        return jsonify({"success": False, "error": "Không tìm thấy lịch"}), 404
+    data = request.get_json() or {}
+    sid = data.get("id")
+    schedules = scheduler.load_schedules()
+    if not sid or sid == "last":
+        st = scheduler.get_state()
+        sid = (st.get("last") or {}).get("schedule_id") or st.get("schedule_id")
+        if not sid and schedules:
+            sid = schedules[0]["id"]
+    if not sid or not any(s["id"] == sid for s in schedules):
+        if schedules:
+            sid = schedules[0]["id"]
+        else:
+            return jsonify({"success": False, "error": "Chưa có lịch nào. Vui lòng bấm 'Thêm lịch' và 'Lưu lịch' trước."}), 404
     ok = scheduler.enqueue(sid)
-    return jsonify({"success": ok, "message": "Đã xếp lịch vào hàng chạy" if ok else "Lịch đang chờ/chạy"})
+    return jsonify({"success": ok, "message": "Đã xếp lịch vào hàng thực thi" if ok else "Lịch đang trong hàng chờ hoặc đang chạy"})
+
+
+# ============================================================
+#   TÍNH NĂNG HẬU KIỂM BYPASS (GOOGLE SHEET)
+# ============================================================
+from modules.bypass_checker import (
+    bypass_manager,
+    auto_bypass_scheduler,
+    fetch_bypass_data,
+    update_google_sheet_via_webhook,
+    test_webhook_connection,
+    check_single_contract_power,
+    GOOGLE_APPS_SCRIPT_TEMPLATE
+)
+
+
+@app.route("/api/bypass/data", methods=["GET"])
+def api_bypass_data():
+    cfg = load_user_config()
+    sheet_id = request.args.get("sheet_id") or cfg.get("bypass_sheet_id") or getattr(config, "BYPASS_SHEET_ID", "1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M")
+    gid = request.args.get("gid") or cfg.get("bypass_sheet_gid") or getattr(config, "BYPASS_SHEET_GID", "0")
+    res = fetch_bypass_data(sheet_id=sheet_id, gid=gid)
+    return jsonify(res)
+
+
+@app.route("/api/bypass/start", methods=["POST"])
+def api_bypass_start():
+    data = request.get_json() or {}
+    cfg = load_user_config()
+    sheet_id = data.get("sheet_id") or cfg.get("bypass_sheet_id") or getattr(config, "BYPASS_SHEET_ID", "1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M")
+    gid = data.get("gid") or cfg.get("bypass_sheet_gid") or getattr(config, "BYPASS_SHEET_GID", "0")
+    webhook_url = data.get("webhook_url") or cfg.get("bypass_webhook_url") or getattr(config, "BYPASS_WEBHOOK_URL", "")
+    only_empty = data.get("only_empty", True)
+    selected_rows = data.get("selected_rows", None)
+
+    ok, msg = bypass_manager.start_check(
+        sheet_id=sheet_id,
+        gid=gid,
+        webhook_url=webhook_url,
+        only_empty=only_empty,
+        selected_rows=selected_rows
+    )
+    return jsonify({"success": ok, "message": msg})
+
+
+@app.route("/api/bypass/status", methods=["GET"])
+def api_bypass_status():
+    return jsonify({"success": True, "state": bypass_manager.get_status()})
+
+
+@app.route("/api/bypass/cancel", methods=["POST"])
+def api_bypass_cancel():
+    ok = bypass_manager.request_cancel()
+    return jsonify({"success": ok, "message": "Đã gửi yêu cầu dừng tiến trình Hậu kiểm Bypass" if ok else "Không có tiến trình đang chạy"})
+
+
+@app.route("/api/bypass/check_single", methods=["POST"])
+def api_bypass_check_single():
+    data = request.get_json() or {}
+    shd = data.get("shd", "").strip()
+    row_num = data.get("row_num")
+    item_id = data.get("id")
+    cfg = load_user_config()
+    webhook_url = data.get("webhook_url") or cfg.get("bypass_webhook_url") or getattr(config, "BYPASS_WEBHOOK_URL", "")
+
+    if not shd:
+        return jsonify({"success": False, "error": "Thiếu số hợp đồng SHD"}), 400
+
+    res = check_single_contract_power(shd)
+    synced = False
+    sync_msg = ""
+    if webhook_url and res.get("status") == "ok":
+        update_item = {
+            "row": row_num,
+            "id": item_id,
+            "shd": shd,
+            "hau_kiem": res.get("hau_kiem"),
+            "suy_hao": res.get("suy_hao")
+        }
+        synced, sync_msg = update_google_sheet_via_webhook(webhook_url, [update_item])
+
+    res["synced"] = synced
+    res["sync_msg"] = sync_msg
+    return jsonify({"success": True, "result": res})
+
+
+@app.route("/api/bypass/sync_sheet", methods=["POST"])
+def api_bypass_sync_sheet():
+    data = request.get_json() or {}
+    updates = data.get("updates", [])
+    cfg = load_user_config()
+    webhook_url = data.get("webhook_url") or cfg.get("bypass_webhook_url") or getattr(config, "BYPASS_WEBHOOK_URL", "")
+
+    if not webhook_url:
+        return jsonify({"success": False, "error": "Chưa cấu hình Google Apps Script Webhook URL"}), 400
+    if not updates:
+        return jsonify({"success": False, "error": "Không có dữ liệu để đồng bộ"}), 400
+
+    ok, msg = update_google_sheet_via_webhook(webhook_url, updates)
+    return jsonify({"success": ok, "message": msg})
+
+
+@app.route("/api/bypass/test_webhook", methods=["POST"])
+def api_bypass_test_webhook():
+    data = request.get_json() or {}
+    url = data.get("webhook_url", "").strip()
+    ok, msg = test_webhook_connection(url)
+    return jsonify({"success": ok, "message": msg})
+
+
+@app.route("/api/bypass/template_script", methods=["GET"])
+def api_bypass_template_script():
+    return jsonify({"success": True, "script": GOOGLE_APPS_SCRIPT_TEMPLATE})
+
+
+@app.route("/api/bypass/config", methods=["GET", "POST"])
+def api_bypass_config():
+    cfg = load_user_config()
+    if request.method == "POST":
+        data = request.get_json() or {}
+        if "sheet_id" in data:
+            cfg["bypass_sheet_id"] = data["sheet_id"].strip()
+        if "sheet_gid" in data:
+            cfg["bypass_sheet_gid"] = data["sheet_gid"].strip()
+        if "webhook_url" in data:
+            cfg["bypass_webhook_url"] = data["webhook_url"].strip()
+        save_user_config(cfg)
+        return jsonify({"success": True, "message": "Đã lưu cấu hình Bypass thành công", "config": cfg})
+    else:
+        return jsonify({
+            "success": True,
+            "sheet_id": cfg.get("bypass_sheet_id") or getattr(config, "BYPASS_SHEET_ID", "1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M"),
+            "sheet_gid": cfg.get("bypass_sheet_gid") or getattr(config, "BYPASS_SHEET_GID", "0"),
+            "webhook_url": cfg.get("bypass_webhook_url") or getattr(config, "BYPASS_WEBHOOK_URL", "")
+        })
+
+
+@app.route("/api/bypass/auto_status", methods=["GET"])
+def api_bypass_auto_status():
+    return jsonify({"success": True, "state": auto_bypass_scheduler.get_status()})
+
+
+@app.route("/api/bypass/auto_toggle", methods=["POST"])
+def api_bypass_auto_toggle():
+    data = request.get_json() or {}
+    enabled = data.get("enabled", True)
+    interval = data.get("interval_minutes", 60)
+    cfg = load_user_config()
+    cfg["bypass_auto_enabled"] = bool(enabled)
+    cfg["bypass_auto_interval"] = int(interval)
+    save_user_config(cfg)
+
+    auto_bypass_scheduler.configure(enabled=bool(enabled), interval_minutes=int(interval))
+    return jsonify({
+        "success": True,
+        "message": f"{'Đã BẬT' if enabled else 'Đã TẮT'} cơ chế Auto Hậu kiểm Bypass ({interval} phút/lần)",
+        "state": auto_bypass_scheduler.get_status()
+    })
+
+
+@app.route("/api/bypass/auto_run_now", methods=["POST"])
+def api_bypass_auto_run_now():
+    ok, msg = auto_bypass_scheduler.trigger_run_now()
+    return jsonify({"success": ok, "message": msg})
+
+
+@app.route("/api/bypass/export_excel", methods=["GET"])
+def api_bypass_export_excel():
+    cfg = load_user_config()
+    sheet_id = cfg.get("bypass_sheet_id") or getattr(config, "BYPASS_SHEET_ID", "1Sw-qSbLzvVdcW4rj7ywEZBEzKI6w5M82EQeYJUpdx7M")
+    gid = cfg.get("bypass_sheet_gid") or getattr(config, "BYPASS_SHEET_GID", "0")
+    sheet_data = fetch_bypass_data(sheet_id=sheet_id, gid=gid)
+    rows = sheet_data.get("rows", [])
+    if not rows:
+        return jsonify({"success": False, "error": "Không có dữ liệu để xuất"}), 400
+
+    # Lấy thêm các kết quả đã chạy trong memory nếu có
+    st = bypass_manager.get_status()
+    mem_results = {r["shd"]: r for r in st.get("results", [])}
+
+    export_rows = []
+    for r in rows:
+        shd = r.get("shd")
+        hau_kiem = r.get("hau_kiem")
+        suy_hao = r.get("suy_hao")
+        if shd in mem_results:
+            hau_kiem = mem_results[shd].get("hau_kiem")
+            suy_hao = mem_results[shd].get("suy_hao")
+
+        export_rows.append({
+            "ID": r.get("id"),
+            "Tác Vụ": r.get("tac_vu"),
+            "Email": r.get("email"),
+            "MSNV": r.get("msnv"),
+            "Account Inside": r.get("account_inside"),
+            "SHD": shd,
+            "Nguyên Nhân 1": r.get("nguyen_nhan_1"),
+            "Nguyên Nhân 2": r.get("nguyen_nhan_2"),
+            "Ngày Cập Nhật": r.get("ngay_cap_nhat"),
+            "Thao Tác": r.get("thao_tac"),
+            "Hậu kiểm": hau_kiem,
+            "Suy Hao Hậu Kiểm": suy_hao
+        })
+
+    df = pd.DataFrame(export_rows)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name="Bypass_Hau_Kiem")
+    output.seek(0)
+    filename = f"Bypass_Hau_Kiem_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(output, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 def _sched_run_import(chi_nhanh):
     cfg = load_user_config()
+    import importlib
+    from modules import inside_import
+    importlib.reload(inside_import)
 
     def on_file(path):
         return _import_ton_bao_tri_file(path, chi_nhanh)
 
-    kwargs = {"totp_secret": cfg.get("totp_secret") or None}
-    if cfg.get("mode") == "custom":
-        kwargs.update(account=cfg.get("inside_account"), password=cfg.get("inside_password"),
-                      use_otp=cfg.get("use_inside_otp", True))
+    kwargs = {
+        "account": cfg.get("inside_account") or None,
+        "password": cfg.get("inside_password") or None,
+        "use_otp": cfg.get("use_inside_otp", True),
+        "totp_secret": cfg.get("totp_secret") or None,
+    }
     inside_import.run_auto_import(on_file, **kwargs)
     res = inside_import.get_state()
     if res["status"] == "done":
@@ -1850,24 +2171,34 @@ def _sched_job_state():
                 "total": _job_total, "results": list(_job_results)}
 
 
-def _sched_ensure_login():
-    """Đảm bảo đã đăng nhập hệ thống phân tích (tự đăng nhập nếu phiên hết hạn)."""
+def _sched_ensure_login(force_reset: bool = True):
+    """
+    Đảm bảo đã đăng nhập hệ thống phân tích MYBAE.
+    Với force_reset=True (mặc định trong các lịch tự động), hệ thống chủ động reset trình duyệt,
+    xác minh phiên đăng nhập thực tế và tự đăng nhập lại nếu phiên bị hết hạn.
+    """
     global _login_status, _login_message
-    if is_logged_in():
-        _login_status = "ok"
-        return True, "Đã đăng nhập sẵn"
+    from modules.auth import check_active_session
     cfg = load_user_config()
+
+    if not force_reset and is_logged_in() and check_active_session():
+        _login_status = "ok"
+        return True, "Đã đăng nhập sẵn (Phiên hợp lệ)"
+
+    log.info("🔄 Tiến hành reset trình duyệt & kiểm tra phiên MYBAE trước khi chạy lịch...")
+    force_kill_driver()
     _login_status = "pending"
     try:
-        if cfg.get("mode") == "custom":
-            ok, msg = login(email_addr=cfg.get("email"), email_pass=cfg.get("email_password"),
-                            step_callback=lambda m: log.info(f"Login Step: {m}"), otp_method="auto")
-        else:
-            ok, msg = login(step_callback=lambda m: log.info(f"Login Step: {m}"), otp_method="auto")
+        ok, msg = login(
+            email_addr=cfg.get("email") or None,
+            email_pass=cfg.get("email_password") or None,
+            step_callback=lambda m: log.info(f"Login Step: {m}"),
+            otp_method="auto"
+        )
     except Exception as e:
         force_kill_driver()
         _login_status, _login_message = "error", str(e)
-        return False, f"Lỗi đăng nhập: {e}"
+        return False, f"Lỗi đăng nhập MYBAE: {e}"
     if ok and msg != "waiting_otp":
         _login_status, _login_message = "ok", msg
         return True, msg
@@ -1879,13 +2210,26 @@ def _sched_ensure_login():
 def start_scheduler():
     scheduler.start({
         "ensure_login": _sched_ensure_login,
-        "busy": lambda: inside_import._running or inside_fpt._auto_note_running or _job_running,
+        "busy": lambda: inside_import._running or inside_fpt._auto_note_running or _job_running or bypass_manager.is_running(),
         "run_import": _sched_run_import,
         "filter": lambda p: _sched_post("/api/filter", p),
         "job_state": _sched_job_state,
         "note": lambda p: _sched_post("/api/auto_note/start", p),
         "note_running": lambda: inside_fpt._auto_note_running,
     })
+
+    # Khởi động cơ chế Auto Bypass định kỳ (1 tiếng / lần)
+    cfg = load_user_config()
+    auto_bypass_scheduler.set_hooks(
+        login_hook=_sched_ensure_login,
+        get_config_hook=load_user_config,
+        busy_hook=lambda: inside_import._running or inside_fpt._auto_note_running or _job_running
+    )
+    auto_bypass_scheduler.configure(
+        enabled=cfg.get("bypass_auto_enabled", True),
+        interval_minutes=cfg.get("bypass_auto_interval", 60)
+    )
+    auto_bypass_scheduler.start()
 
 
 if __name__ == "__main__":

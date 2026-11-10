@@ -124,6 +124,14 @@ def get_state() -> dict:
 # ── Pipeline ─────────────────────────────────────────────────────────────────
 def run_pipeline(sched: dict) -> tuple[bool, str]:
     """Chạy tuần tự: import → đăng nhập → phân tích → note. Trả về (ok, message)."""
+    try:
+        import importlib
+        from modules import inside_import, inside_fpt, analyzer, auth
+        for m in (inside_import, inside_fpt, analyzer, auth):
+            importlib.reload(m)
+    except Exception as e:
+        log.warning(f"Reload modules: {e}")
+
     h = _hooks
     chi_nhanh, captain = sched["chi_nhanh"], sched["captain"]
     _log(f"▶ Bắt đầu lịch {sched['time']} – CN '{chi_nhanh}' – Đội trưởng '{captain}'")
@@ -224,7 +232,7 @@ def _worker():
         _update_schedule(sid, last_run=datetime.now().strftime("%Y-%m-%d %H:%M"),
                          last_status=("OK: " if ok else "LỖI: ") + msg)
         _state.update(running=False, schedule_id=None, step="",
-                      last={"ok": ok, "message": msg, "at": datetime.now().strftime("%H:%M:%S")})
+                      last={"ok": ok, "message": msg, "at": datetime.now().strftime("%H:%M:%S"), "schedule_id": sid})
         _queued_ids.discard(sid)
 
 

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "phongnh5",
+    "name": "Nguyễn Hồng Phong (phongnh5)",
+    "email": "phuongnam.phongnh5@fpt.net",
+    "email_password": "Benngo@@20262027",
+    "inside_account": "phuongnam.phongnh5",
+    "inside_password": "Benngo@@2026",
+    "use_inside_otp": true,
+    "totp_secret": "J5MBXLD2IZJSJWADQU",
+    "is_default": true
+  },
+  {
+    "id": "giangvt",
+    "name": "Võ Trường Giang (giangvt)",
+    "email": "phuongnam.giangvt@fpt.net",
+    "email_password": "Le2cofhe@123123@@##",
+    "inside_account": "phuongnam.giangvt",
+    "inside_password": "F$G$oh2009@@",
+    "use_inside_otp": false,
+    "totp_secret": "",
+    "is_default": false
+  }
+]

@@ -280,7 +280,13 @@ def _go_check_contract(d):
         log.warning("Phát hiện URL ở trang /login, thử khôi phục session cache...")
         from modules.auth import _try_load_session
         if not _try_load_session(d):
-            raise Exception("Phiên đăng nhập Management MyPT đã hết hạn. Vui lòng bấm Đăng nhập lại trên giao diện.")
+            log.warning("Session cache không hợp lệ, đang tự động đăng nhập lại MYBAE...")
+            from app import _sched_ensure_login
+            ok, msg = _sched_ensure_login(force_reset=True)
+            if not ok:
+                raise Exception(f"Phiên đăng nhập Management MyPT đã hết hạn và không thể tự đăng nhập lại: {msg}")
+            d.get(f"{MANAGEMENT_URL}/check-contract")
+            time.sleep(2)
 
     if "/check-contract" not in d.current_url:
         el = _find_visible(d, [

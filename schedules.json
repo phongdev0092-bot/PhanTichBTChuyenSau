@@ -1,7 +1,7 @@
 [
   {
     "id": "b6ee4f3c",
-    "time": "09:00",
+    "time": "08:30",
     "days": [
       0,
       1,
@@ -14,12 +14,12 @@
     "chi_nhanh": "Sài Gòn 1",
     "captain": "Nguyễn Hồng Phong",
     "enabled": true,
-    "last_run": "",
-    "last_status": ""
+    "last_run": "2026-11-10 08:32",
+    "last_status": "LỖI: Import thất bại: Không đặt được Từ ngày / Đến ngày (xem debug_shots/import_date_fail.png)"
   },
   {
     "id": "44185588",
-    "time": "11:00",
+    "time": "09:30",
     "days": [
       0,
       1,
@@ -32,11 +32,47 @@
     "chi_nhanh": "Sài Gòn 1",
     "captain": "Nguyễn Hồng Phong",
     "enabled": true,
-    "last_run": "2026-10-05 11:04",
-    "last_status": "OK: Hoàn tất: import → phân tích 2 HĐ → note 1 HĐ"
+    "last_run": "2026-11-10 09:41",
+    "last_status": "LỖI: Import thất bại: Không đặt được Từ ngày / Đến ngày (xem debug_shots/import_date_fail.png)"
   },
   {
     "id": "adcf12f4",
+    "time": "10:30",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "2026-11-09 10:42",
+    "last_status": "OK: Hoàn tất: import → phân tích 5 HĐ → note 5 HĐ"
+  },
+  {
+    "id": "d12dad51",
+    "time": "11:30",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "2026-11-09 11:42",
+    "last_status": "OK: Hoàn tất: import → phân tích 6 HĐ → note 5 HĐ"
+  },
+  {
+    "id": "ebacab20",
     "time": "13:00",
     "days": [
       0,
@@ -50,11 +86,29 @@
     "chi_nhanh": "Sài Gòn 1",
     "captain": "Nguyễn Hồng Phong",
     "enabled": true,
-    "last_run": "",
-    "last_status": ""
+    "last_run": "2026-11-09 13:01",
+    "last_status": "LỖI: Import thất bại: Không tìm thấy tab 'TỒN POP'"
   },
   {
-    "id": "d12dad51",
+    "id": "7f4d9540",
+    "time": "14:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "2026-11-09 14:00",
+    "last_status": "LỖI: Import thất bại: ❌ Đăng nhập thất bại. Vẫn ở trang: Không được phép truy cập (URL: http://login.fpt.net/?urlreturn=inside.fpt.net)"
+  },
+  {
+    "id": "24843fb9",
     "time": "15:00",
     "days": [
       0,
@@ -68,11 +122,29 @@
     "chi_nhanh": "Sài Gòn 1",
     "captain": "Nguyễn Hồng Phong",
     "enabled": true,
-    "last_run": "",
-    "last_status": ""
+    "last_run": "2026-11-09 15:00",
+    "last_status": "LỖI: Import thất bại: ❌ Đăng nhập thất bại. Vẫn ở trang: Không được phép truy cập (URL: http://login.fpt.net/?urlreturn=inside.fpt.net)"
   },
   {
-    "id": "ebacab20",
+    "id": "9d32ebbe",
+    "time": "16:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "2026-11-09 16:00",
+    "last_status": "LỖI: Import thất bại: ❌ Đăng nhập thất bại. Vẫn ở trang: Không được phép truy cập (URL: http://login.fpt.net/?urlreturn=inside.fpt.net)"
+  },
+  {
+    "id": "c97e7c6a",
     "time": "17:00",
     "days": [
       0,
@@ -86,12 +158,12 @@
     "chi_nhanh": "Sài Gòn 1",
     "captain": "Nguyễn Hồng Phong",
     "enabled": true,
-    "last_run": "",
-    "last_status": ""
+    "last_run": "2026-11-08 20:06",
+    "last_status": "OK: Hoàn tất: import → phân tích 12 HĐ → note 10 HĐ"
   },
   {
-    "id": "7f4d9540",
-    "time": "10:25",
+    "id": "612b2e8d",
+    "time": "22:00",
     "days": [
       0,
       1,
@@ -104,7 +176,25 @@
     "chi_nhanh": "Sài Gòn 1",
     "captain": "Nguyễn Hồng Phong",
     "enabled": true,
-    "last_run": "2026-10-05 10:38",
-    "last_status": "OK: Hoàn tất: import → phân tích 11 HĐ → note 10 HĐ"
+    "last_run": "2026-11-08 22:01",
+    "last_status": "LỖI: Import thất bại: Không tìm thấy tab 'TỒN POP'"
+  },
+  {
+    "id": "25681a0c",
+    "time": "12:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chi_nhanh": "Sài Gòn 1",
+    "captain": "Nguyễn Hồng Phong",
+    "enabled": true,
+    "last_run": "2026-11-09 12:07",
+    "last_status": "OK: Hoàn tất: import → phân tích 3 HĐ → note 3 HĐ"
   }
 ]
