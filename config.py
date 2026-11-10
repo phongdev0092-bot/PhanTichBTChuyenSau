@@ -32,6 +32,15 @@ SHEET_GID = '1109348771'
 SUPABASE_URL = 'https://zqkithrewcorqyckfdrr.supabase.co'
 SUPABASE_KEY = 'sb_publishable_Tgnpn53W9b0dxDSYCkNXOw_jug0G3ML'
 
+# === PostgreSQL Database cho Data Bảo Trì ===
+# SG01 (Mặc định): Bảng "bt"
+DEFAULT_DB_URL = "postgresql+psycopg2://postgres.pmhyostihrzwzwprdkbs:Benngo@@2027@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
+BT_DEFAULT_TABLE = "bt"
+
+# Các đơn vị khác: Tự tạo và gán bảng "bt_[donvi]"
+OTHER_UNIT_DB_URL = "postgresql://postgres:Benngo@@2026@db.cjpdsvgjwdreclfhclrd.supabase.co:5432/postgres"
+OTHER_UNIT_POOLER_URL = "postgresql+psycopg2://postgres.cjpdsvgjwdreclfhclrd:Benngo@@2026@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
+
 # === Flask ===
 FLASK_PORT = 5000
 SECRET_KEY = 'mybae_auto_2026'

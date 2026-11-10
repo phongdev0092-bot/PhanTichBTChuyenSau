@@ -636,7 +636,7 @@
             
             <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 18px 24px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
               <div>
-                <div style="font-size: 0.88rem; color: #1e40af; font-weight: 800; text-transform: uppercase;">BẢNG BẢO TRÌ (bao_tri)</div>
+                <div id="summary-bao_tri-title" style="font-size: 0.88rem; color: #1e40af; font-weight: 800; text-transform: uppercase;">BẢNG BẢO TRÌ (bt)</div>
                 <div id="summary-bao_tri" style="font-size: 2rem; font-weight: 800; color: #1e3a8a; margin-top: 4px;">0</div>
                 <div id="summary-bao_tri-branch" style="font-size: 0.78rem; color: #2563eb; font-weight: 700; margin-top: 4px;">Chi nhánh: Đang tải...</div>
               </div>
@@ -714,24 +714,24 @@
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
               
-              <!-- PHẦN 1: BẢNG BẢO TRÌ -->
-              <label id="lblPartBaoTri" style="border: 2px solid #3b82f6; background: #eff6ff; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; display: flex; gap: 12px; align-items: flex-start;">
-                <input type="radio" name="importPartChoice" id="partChoiceBaoTri" value="bao_tri" checked onchange="onImportPartChange('bao_tri')" style="margin-top: 4px; accent-color: #3b82f6; width: 18px; height: 18px;"/>
+              <!-- PHẦN 1: BẢNG BẢO TRÌ (ĐỒNG BỘ TRỰC TIẾP POSTGRESQL) -->
+              <label id="lblPartBaoTri" style="border: 2px solid #e2e8f0; background: #f8fafc; border-radius: 12px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; opacity: 0.92;">
+                <input type="radio" name="importPartChoice" id="partChoiceBaoTri" value="bao_tri" disabled style="margin-top: 4px; accent-color: #3b82f6; width: 18px; height: 18px;"/>
                 <div>
                   <div style="font-weight: 800; font-size: 0.98rem; color: #1e40af; display: flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-shield-halved"></i> Phần 1: Bảng Bảo Trì (bao_tri)
+                    <i class="fa-solid fa-database"></i> Phần 1: Data Bảo Trì (PostgreSQL Trực Tiếp – Không Cần Import)
                   </div>
                   <div style="font-size: 0.8rem; color: #1e40af; margin-top: 4px; line-height: 1.45;">
-                    • <strong>Giữ nguyên data hiện có</strong> (Tuyệt đối không xóa lịch sử).<br/>
-                    • <strong>Tự động lọc trùng 5 cột:</strong> A (Số HĐ), E (TG Tạo), F (TG Hoàn Tất), D (Nhân viên), AR (Account Tạo CL).<br/>
-                    • Chỉ thêm mới và cập nhật bản ghi hợp lệ.
+                    • <strong>Đơn vị SG01:</strong> Lấy trực tiếp từ bảng <code>bt</code> trên PostgreSQL.<br/>
+                    • <strong>Đơn vị khác:</strong> Khi tạo đơn vị mới sẽ tự khởi tạo &amp; gán bảng <code>bt_[donvi]</code>.<br/>
+                    • Đã ngắt import thủ công, dữ liệu được đọc trực tiếp từ Database.
                   </div>
                 </div>
               </label>
 
               <!-- PHẦN 2: BẢNG TỒN BẢO TRÌ -->
-              <label id="lblPartTonBaoTri" style="border: 2px solid #e2e8f0; background: #fff; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; display: flex; gap: 12px; align-items: flex-start;">
-                <input type="radio" name="importPartChoice" id="partChoiceTonBaoTri" value="ton_bao_tri" onchange="onImportPartChange('ton_bao_tri')" style="margin-top: 4px; accent-color: #f97316; width: 18px; height: 18px;"/>
+              <label id="lblPartTonBaoTri" style="border: 2px solid #f97316; background: #fff7ed; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; display: flex; gap: 12px; align-items: flex-start;">
+                <input type="radio" name="importPartChoice" id="partChoiceTonBaoTri" value="ton_bao_tri" checked onchange="onImportPartChange('ton_bao_tri')" style="margin-top: 4px; accent-color: #f97316; width: 18px; height: 18px;"/>
                 <div>
                   <div style="font-weight: 800; font-size: 0.98rem; color: #9a3412; display: flex; align-items: center; gap: 6px;">
                     <i class="fa-solid fa-clock-rotate-left"></i> Phần 2: Bảng Tồn Bảo Trì (ton_bao_tri)
@@ -746,13 +746,13 @@
             </div>
             <!-- Ẩn select gốc nhưng đồng bộ giá trị để tương thích 100% -->
             <select id="importTargetTable" style="display: none;">
+              <option value="ton_bao_tri" selected>ton_bao_tri</option>
               <option value="bao_tri">bao_tri</option>
-              <option value="ton_bao_tri">ton_bao_tri</option>
             </select>
           </div>
 
           <!-- IMPORT TỰ ĐỘNG TỒN BẢO TRÌ TỪ INSIDE -->
-          <div id="autoImportPanel" style="display:none; background: linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%); border: 2px solid #fdba74; border-radius: 12px; padding: 16px; margin-bottom: 18px;">
+          <div id="autoImportPanel" style="display:block; background: linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%); border: 2px solid #fdba74; border-radius: 12px; padding: 16px; margin-bottom: 18px;">
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
               <div>
                 <div style="font-size:0.95rem; font-weight:800; color:#9a3412;">
@@ -4835,7 +4835,7 @@ async function saveNewBranch() {
     });
     const d = await r.json();
     if (d.success) {
-      showToast(`✅ Đã tạo và chọn Chi Nhánh: ${name}`, "success");
+      showToast(d.message || `✅ Đã tạo và chọn Chi Nhánh: ${name}`, "success");
       currentSelectedBranch = name;
       localStorage.setItem("mybae_selected_branch", name);
       closeNewBranchModal();
@@ -4862,15 +4862,18 @@ async function loadSupabaseSummary() {
     if (d.success && d.summary) {
       const countBt = d.summary.bao_tri ?? d.summary.contracts ?? 0;
       const countTon = d.summary.ton_bao_tri ?? 0;
+      const btTbl = d.summary.bt_table || "bt";
+      const elBtTitle = document.getElementById("summary-bao_tri-title");
+      if (elBtTitle) elBtTitle.textContent = `BẢNG BẢO TRÌ (${btTbl})`;
       const elBt = document.getElementById("summary-bao_tri");
       if (elBt) elBt.textContent = Number(countBt).toLocaleString('vi-VN');
 
       const elTon = document.getElementById("summary-ton_bao_tri");
       if (elTon) elTon.textContent = Number(countTon).toLocaleString('vi-VN');
 
-      const bText = branchToQuery ? `🏢 Chi nhánh: ${branchToQuery}` : "🏢 Toàn bộ chi nhánh";
+      const bText = branchToQuery ? `🏢 Chi nhánh: ${branchToQuery}` : "🏢 Đơn vị mặc định: SG01";
       const elBtB = document.getElementById("summary-bao_tri-branch");
-      if (elBtB) elBtB.textContent = bText;
+      if (elBtB) elBtB.textContent = `${bText} • Bảng: ${btTbl}`;
       const elTonB = document.getElementById("summary-ton_bao_tri-branch");
       if (elTonB) elTonB.textContent = bText;
 

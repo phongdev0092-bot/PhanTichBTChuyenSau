@@ -349,16 +349,18 @@ def api_login_reset():
 
 @app.route("/api/branches", methods=["GET", "POST", "DELETE"])
 def api_branches():
-    """Quản lý danh sách Chi Nhánh."""
+    """Quản lý danh sách Chi Nhánh / Đơn Vị (kèm ánh xạ bảng PostgreSQL bt / bt_[donvi])."""
     try:
         if request.method == "GET":
             branches = branch_manager.load_branches()
-            return jsonify({"success": True, "branches": branches})
+            table_map = {b: branch_manager.get_branch_bt_info(b) for b in branches}
+            return jsonify({"success": True, "branches": branches, "branch_tables": table_map})
         elif request.method == "POST":
             data = request.get_json() or {}
             name = str(data.get("name") or "").strip()
             ok, msg, branches = branch_manager.add_branch(name)
-            return jsonify({"success": ok, "message": msg, "branches": branches}), (200 if ok else 400)
+            bt_info = branch_manager.get_branch_bt_info(name) if name else {}
+            return jsonify({"success": ok, "message": msg, "branches": branches, "bt_info": bt_info}), (200 if ok else 400)
         elif request.method == "DELETE":
             data = request.get_json() or {}
             name = str(data.get("name") or "").strip()
@@ -553,6 +555,13 @@ def api_supabase_import():
 
         if not table_name:
             return jsonify({"success": False, "error": "Thiếu tên bảng cần import"}), 400
+
+        if table_name in ("bao_tri", "bt"):
+            bt_tbl = branch_manager.get_bt_table_name(chi_nhanh)
+            return jsonify({
+                "success": False,
+                "error": f"Data Bảo Trì hiện được lấy trực tiếp từ bảng PostgreSQL '{bt_tbl}' (không cần import thủ công)."
+            }), 400
 
         if not chi_nhanh:
             return jsonify({"success": False, "error": "Vui lòng chọn hoặc đặt tên Chi Nhánh trước khi import dữ liệu!"}), 400
